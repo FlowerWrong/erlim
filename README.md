@@ -60,4 +60,6 @@
 #### Todo
 
 - [ ] one-to-one chat
+- [ ] use mnesia for session store
+- [ ] use redis for token store
 - [x] Toml library of erlang
