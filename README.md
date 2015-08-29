@@ -4,6 +4,8 @@
 
 * [erlang 17.5](http://www.erlang.org/)
 * [toml](https://github.com/toml-lang/toml)
+* [jsx for json](https://github.com/talentdeficit/jsx)
+* [etoml for toml](https://github.com/kalta/etoml)
 
 #### Install
 
@@ -63,3 +65,5 @@
 - [ ] use mnesia for session store
 - [ ] use redis for token store
 - [x] Toml library of erlang
+- [ ] yrl and xrl(语法分析/词法分析) write json parse in erlang(yecc and
+  leex)
