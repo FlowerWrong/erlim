@@ -1,0 +1,6 @@
+/ebin/
+/deps/
+/.rebar/
+/.idea/
+*.beam
+*.iml

@@ -1,0 +1,12 @@
+{application, erlim,
+ [
+  {description, "A im server written in erlang."},
+  {vsn, "1"},
+  {registered, [erlim]},
+  {applications, [
+                  kernel,
+                  stdlib
+                 ]},
+  {mod, { erlim_app, []}},
+  {env, []}
+ ]}.
