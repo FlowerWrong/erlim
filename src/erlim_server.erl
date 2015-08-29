@@ -26,6 +26,12 @@
   maxconn                 % max connect
 }).
 
+-record(client, {
+  username,               % user name
+  password,               % password
+  pid                     % client pid
+}).
+
 %%%===================================================================
 %%% API functions
 %%%===================================================================
@@ -88,7 +94,10 @@ loop(Sock, Server) ->
   case gen_tcp:recv(Sock, 0) of
     {ok, Data} ->
       io:format("server recv data close ~p~n", [Data]),
-      gen_tcp:send(Sock, Data),  %% 怎样关闭该连接
+      %% 解析数据,绑定pid,获取pid
+      %% 判断操作(register/login/logout/single_chat/group_chat)
+      %% if chat: 发送数据给目标pid
+      gen_tcp:send(Sock, Data),
       %% gen_tcp:close(Sock);
       loop(Sock, Server);
     {error, closed} ->

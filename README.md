@@ -15,6 +15,38 @@
 * Use json for data exchange
 * Use http for file upload
 
+###### register/login
+
+```json
+{
+    "cmd": "register/login",
+    "username": "yang",
+    "password": "123456"
+}
+```
+
+###### one-to-one/group chat
+
+```json
+{
+    "cmd": "single_chat/group_chat",
+    "from": "from user/room name",
+    "to": "to user name",
+    "msg": "msg body",
+    "token": "token hash"
+}
+```
+
+###### logout
+
+```json
+{
+    "cmd": "logout",
+    "username": "yang",
+    "token": "token hash"
+}
+```
+
 #### Features
 
 * single chat: chat must be friends
