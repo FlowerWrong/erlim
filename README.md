@@ -3,9 +3,8 @@
 #### Dependency
 
 * [erlang 17.5](http://www.erlang.org/)
-* [toml](https://github.com/toml-lang/toml)
-* [jsx for json](https://github.com/talentdeficit/jsx)
-* [etoml for toml](https://github.com/kalta/etoml)
+* [jsx](https://github.com/talentdeficit/jsx) and [jiffy](https://github.com/davisp/jiffy) for json parse
+* [etoml](https://github.com/kalta/etoml) for toml parse
 
 #### Install
 
@@ -62,8 +61,7 @@
 #### Todo
 
 - [ ] one-to-one chat
-- [ ] use mnesia for session store
-- [ ] use redis for token store
+- [x] use mnesia for session store
 - [x] Toml library of erlang
 - [ ] yrl and xrl(语法分析/词法分析) write json parse in erlang(yecc and leex)
-- [ ] How to implement pubsub with erlang(gen_enent)
+- [ ] How to implement pubsub with erlang(gen_event)
