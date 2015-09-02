@@ -65,5 +65,5 @@
 - [ ] use mnesia for session store
 - [ ] use redis for token store
 - [x] Toml library of erlang
-- [ ] yrl and xrl(语法分析/词法分析) write json parse in erlang(yecc and
-  leex)
+- [ ] yrl and xrl(语法分析/词法分析) write json parse in erlang(yecc and leex)
+- [ ] How to implement pubsub with erlang(gen_enent)

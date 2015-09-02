@@ -19,18 +19,15 @@
 -define(TCP_OPTIONS, [binary, {packet, raw}, {active, false}, {reuseaddr, true}]).
 
 -record(state, {
-  port,                   % listen port
-  ip=any,                 % ip
-  lsocket=null,           % listen socket
-  conn=0,                 % curent connect
-  maxconn                 % max connect
+    port,                   % listen port
+    ip=any,                 % ip
+    lsocket=null,           % listen socket
+    conn=0,                 % curent connect
+    maxconn                 % max connect
 }).
 
--record(client, {
-  username,               % user name
-  password,               % password
-  pid                     % client pid
-}).
+-include("table.hrl").
+-include_lib("stdlib/include/qlc.hrl").
 
 %%%===================================================================
 %%% API functions
@@ -44,9 +41,9 @@
 %% @end
 %%--------------------------------------------------------------------
 start_link(Port, Max) ->
-  State = #state{port=Port, maxconn=Max},
-  io:format("max connection is ~p~n", [Max]),
-  gen_server:start_link({local, ?MODULE}, ?MODULE, State, []).
+    State = #state{port=Port, maxconn=Max},
+    io:format("max connection is ~p~n", [Max]),
+    gen_server:start_link({local, ?MODULE}, ?MODULE, State, []).
 
 
 %%%===================================================================
@@ -65,44 +62,84 @@ start_link(Port, Max) ->
 %% @end
 %%--------------------------------------------------------------------
 init(State = #state{port=Port}) ->
-  case gen_tcp:listen(Port, ?TCP_OPTIONS) of
-    {ok, LSocket} ->
-      {ok, accept(State#state{lsocket=LSocket})};
-    {error, Reason} ->
-      {stop, {create_listen_socket, Reason}}
-  end.
+    io:format("init pid is ~p.~n", [self()]),
+
+    erlim_mnesia:init_mnesia(),
+
+    case gen_tcp:listen(Port, ?TCP_OPTIONS) of
+        {ok, LSocket} ->
+            {ok, accept(State#state{lsocket=LSocket})};
+        {error, Reason} ->
+            {stop, {create_listen_socket, Reason}}
+    end.
 
 
 %% accept spawn a new process
 accept(State =#state{lsocket=LSocket, conn=Conn, maxconn=Max}) ->
-  proc_lib:spawn(erlim_server, accept_loop, [self(), LSocket, Conn, Max]),
-  State.
+    io:format("accept pid is ~p.~n", [self()]),
+    proc_lib:spawn(erlim_server, accept_loop, [self(), LSocket, Conn, Max]),
+    State.
 
 %% accept the new connection
 accept_loop(Server, LSocket, Conn, Max) ->
-  {ok, Sock} = gen_tcp:accept(LSocket),
-  if
-    Conn + 1 > Max ->
-      io:format("reach the max connection~n"),
-      gen_tcp:close(Sock);
-    true ->
-      gen_server:cast(Server, {accept_new, self()}),
-      loop(Sock, Server)
+    io:format("accept loop pid is ~p.~n", [self()]),
+    io:format("accept loop Server is ~p.~n", [Server]),
+    {ok, Sock} = gen_tcp:accept(LSocket),
+    if
+        Conn + 1 > Max ->
+            io:format("reach the max connection~n"),
+            gen_tcp:close(Sock);
+        true ->
+            gen_server:cast(Server, {accept_new, self()}),
+            loop(Sock, Server)
 end.
 
+%% 接收数据
 loop(Sock, Server) ->
-  case gen_tcp:recv(Sock, 0) of
-    {ok, Data} ->
-      io:format("server recv data close ~p~n", [Data]),
-      %% 解析数据,绑定pid,获取pid
-      %% 判断操作(register/login/logout/single_chat/group_chat)
-      %% if chat: 发送数据给目标pid
-      gen_tcp:send(Sock, Data),
-      %% gen_tcp:close(Sock);
-      loop(Sock, Server);
-    {error, closed} ->
-      io:format("client sock close~n"),
-      gen_server:cast(Server, {connect_close, self()})
+    io:format("loop pid is ~p.~n", [self()]),
+    io:format("loop Server is ~p.~n", [Server]),
+    case gen_tcp:recv(Sock, 0) of
+        {ok, Data} ->
+            IsJSON = jsx:is_json(Data),
+            Json = jiffy:decode(Data),
+            io:format("IsJSON is ~p.~n", [IsJSON]),
+            io:format("Json is ~p.~n", [Json]),
+            %% {[{<<"cmd">>,<<"login">>}, {<<"username">>,<<"yang">>}, {<<"password">>,<<"123456">>}]}
+            {[{<<"cmd">>, _Cmd}, {<<"username">>, Username}, {<<"password">>, Password}]} = Json,
+            Fun = fun() ->
+                Query = qlc:q([X || X <- mnesia:table(user), X#user.username =:= binary_to_list(Username), X#user.password =:= binary_to_list(Password)]),
+                qlc:e(Query)
+                end,
+            CurrentUser = case mnesia:transaction(Fun) of
+                {atomic, []} -> false;
+                {atomic, [User]} -> User
+            end,
+            {user, Cname, Cpass, _Pid} = CurrentUser,
+            io:format("CurrentUser is ~p.~n", [CurrentUser]),
+            Pid = self(),
+
+            Yang = #user{username = Cname, password = Cpass, pid = Pid},
+            F1 = fun() ->
+                mnesia:write(Yang)
+                 end,
+            mnesia:transaction(F1),
+
+            Fun2 = fun() ->
+                Query = qlc:q([X || X <- mnesia:table(user)]),
+                qlc:e(Query)
+                  end,
+            io:format("UpdatedUser is ~p.~n", [mnesia:transaction(Fun2)]),
+
+
+            %% 解析数据,绑定pid,获取pid
+            %% 判断操作(register/login/logout/single_chat/group_chat)
+            %% if chat: 发送数据给目标pid
+            %% gen_tcp:send(Sock, Data),
+            %% ok = gen_tcp:close(Sock);
+            loop(Sock, Server);
+        {error, closed} ->
+            io:format("client sock close~n"),
+            gen_server:cast(Server, {connect_close, self()})
   end.
 
 %%--------------------------------------------------------------------
@@ -138,13 +175,13 @@ handle_call(_Request, _From, State) ->
 
 %% the server receive the notify that a connect has construct
 handle_cast({accept_new, _Pid}, State=#state{conn=Cur}) ->
-  io:format("current connect:~p~n", [Cur+1]),
-  {noreply, accept(State#state{conn=Cur+1})};
+    io:format("current connect:~p~n", [Cur + 1]),
+    {noreply, accept(State#state{conn=Cur + 1})};
 
 %% someone connect has been close, so change the max connect
 handle_cast({connect_close, _Pid}, State=#state{conn=Cur}) ->
-  io:format("current connect:~p~n", [Cur-1]),
-  {noreply, State#state{conn=Cur-1}}.
+    io:format("current connect:~p~n", [Cur - 1]),
+    {noreply, State#state{conn=Cur - 1}}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -187,3 +224,5 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+
+%% hlper

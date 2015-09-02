@@ -4,3 +4,8 @@
 /.idea/
 *.beam
 *.iml
+
+*.dump
+*.log
+
+Mnesia.nonode@nohost/

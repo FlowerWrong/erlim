@@ -10,8 +10,8 @@
 %% ===================================================================
 
 start(StartType, StartArgs) ->
-  io:format("StartType is ~p, StartArgs is ~p", [StartType, StartArgs]),
-  erlim_sup:start_link().
+    io:format("StartType is ~p, StartArgs is ~p", [StartType, StartArgs]),
+    erlim_sup:start_link().
 
 stop(_State) ->
     ok.

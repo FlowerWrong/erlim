@@ -1,9 +1,10 @@
 -module(erlim_client).
 
--export([chat/2]).
+-export([chat/0]).
 
-chat(Host, Port) ->
-  {ok, Sock} = gen_tcp:connect(Host, Port, [binary, {packet, 0}]),
-  ok = gen_tcp:send(Sock, "Hello how are u?").
+chat() ->
+    {ok, Sock} = gen_tcp:connect("localhost", 3000, [binary, {packet, 0}]),
+    Msg = <<"{\"cmd\": \"login\", \"username\": \"yang\", \"password\": \"123456\"}">>,
+    ok = gen_tcp:send(Sock, Msg).
 
-  %% ok = gen_tcp:close(Sock).
+    %% ok = gen_tcp:close(Sock).
