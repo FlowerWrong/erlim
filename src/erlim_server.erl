@@ -105,31 +105,41 @@ loop(Sock, Server) ->
             io:format("IsJSON is ~p.~n", [IsJSON]),
             io:format("Json is ~p.~n", [Json]),
             %% {[{<<"cmd">>,<<"login">>}, {<<"username">>,<<"yang">>}, {<<"password">>,<<"123456">>}]}
-            {[{<<"cmd">>, _Cmd}, {<<"username">>, Username}, {<<"password">>, Password}]} = Json,
-            Fun = fun() ->
-                Query = qlc:q([X || X <- mnesia:table(user), X#user.username =:= binary_to_list(Username), X#user.password =:= binary_to_list(Password)]),
-                qlc:e(Query)
-                end,
-            CurrentUser = case mnesia:transaction(Fun) of
-                {atomic, []} -> false;
-                {atomic, [User]} -> User
+            {[{<<"cmd">>, Cmd} | _T]} = Json,
+            io:format("Cmd is ~p.~n", [Cmd]),
+            case Cmd of
+                <<"login">> ->
+                    {[{<<"cmd">>, _Cmd}, {<<"username">>, Username}, {<<"password">>, Password}]} = Json,
+                    Fun = fun() ->
+                        Query = qlc:q([X || X <- mnesia:table(user), X#user.username =:= binary_to_list(Username), X#user.password =:= binary_to_list(Password)]),
+                        qlc:e(Query)
+                        end,
+                    CurrentUser = case mnesia:transaction(Fun) of
+                        {atomic, []} -> false;
+                        {atomic, [User]} -> User
+                    end,
+                    {user, Cname, Cpass, _Pid} = CurrentUser,
+                    io:format("CurrentUser is ~p.~n", [CurrentUser]),
+                    Pid = self(),
+
+                    Yang = #user{username = Cname, password = Cpass, pid = Pid},
+                    F1 = fun() ->
+                        mnesia:write(Yang)
+                         end,
+                    mnesia:transaction(F1),
+
+                    Fun2 = fun() ->
+                        Query = qlc:q([X || X <- mnesia:table(user)]),
+                        qlc:e(Query)
+                          end,
+                    io:format("UpdatedUser is ~p.~n", [mnesia:transaction(Fun2)]);
+                <<"single_chat">> ->
+                    ok;
+                <<"group_chat">> ->
+                    ok;
+                <<"logout">> ->
+                    ok
             end,
-            {user, Cname, Cpass, _Pid} = CurrentUser,
-            io:format("CurrentUser is ~p.~n", [CurrentUser]),
-            Pid = self(),
-
-            Yang = #user{username = Cname, password = Cpass, pid = Pid},
-            F1 = fun() ->
-                mnesia:write(Yang)
-                 end,
-            mnesia:transaction(F1),
-
-            Fun2 = fun() ->
-                Query = qlc:q([X || X <- mnesia:table(user)]),
-                qlc:e(Query)
-                  end,
-            io:format("UpdatedUser is ~p.~n", [mnesia:transaction(Fun2)]),
-
 
             %% 解析数据,绑定pid,获取pid
             %% 判断操作(register/login/logout/single_chat/group_chat)
