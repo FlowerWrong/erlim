@@ -17,11 +17,11 @@
 * Use json for data exchange
 * Use http for file upload
 
-###### register/login
+###### login
 
 ```json
 {
-    "cmd": "register/login",
+    "cmd": "login",
     "username": "yang",
     "password": "123456"
 }
@@ -32,10 +32,10 @@
 ```json
 {
     "cmd": "single_chat/group_chat",
-    "from": "from user/room name",
-    "to": "to user name",
-    "msg": "msg body",
-    "token": "token hash"
+    "username": "yang",
+    "password": "123456",
+    "to": "to user name/room name",
+    "msg": "msg body"
 }
 ```
 
@@ -45,7 +45,7 @@
 {
     "cmd": "logout",
     "username": "yang",
-    "token": "token hash"
+    "password": "123456"
 }
 ```
 

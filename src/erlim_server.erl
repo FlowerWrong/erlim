@@ -100,31 +100,28 @@ loop(Sock, Server) ->
     io:format("loop Server is ~p.~n", [Server]),
     case gen_tcp:recv(Sock, 0) of
         {ok, Data} ->
-            IsJSON = jsx:is_json(Data),
+            %% IsJSON = jsx:is_json(Data),
             Json = jiffy:decode(Data),
-            io:format("IsJSON is ~p.~n", [IsJSON]),
             io:format("Json is ~p.~n", [Json]),
-            %% {[{<<"cmd">>,<<"login">>}, {<<"username">>,<<"yang">>}, {<<"password">>,<<"123456">>}]}
-            {[{<<"cmd">>, Cmd} | _T]} = Json,
+            {[{<<"cmd">>, Cmd}, {<<"username">>, Username}, {<<"password">>, Password} | T]} = Json,
             io:format("Cmd is ~p.~n", [Cmd]),
+            Fun = fun() ->
+                Query = qlc:q([X || X <- mnesia:table(user), X#user.username =:= binary_to_list(Username), X#user.password =:= binary_to_list(Password)]),
+                qlc:e(Query)
+                end,
+            CurrentUser = case mnesia:transaction(Fun) of
+                {atomic, []} -> false;
+                {atomic, [User]} -> User
+            end,
+            {user, Cname, Cpass, Pid} = CurrentUser,
             case Cmd of
                 <<"login">> ->
-                    {[{<<"cmd">>, _Cmd}, {<<"username">>, Username}, {<<"password">>, Password}]} = Json,
-                    Fun = fun() ->
-                        Query = qlc:q([X || X <- mnesia:table(user), X#user.username =:= binary_to_list(Username), X#user.password =:= binary_to_list(Password)]),
-                        qlc:e(Query)
-                        end,
-                    CurrentUser = case mnesia:transaction(Fun) of
-                        {atomic, []} -> false;
-                        {atomic, [User]} -> User
-                    end,
-                    {user, Cname, Cpass, _Pid} = CurrentUser,
                     io:format("CurrentUser is ~p.~n", [CurrentUser]),
-                    Pid = self(),
+                    io:format("Pid is ~p.~n", [Pid]),
 
-                    Yang = #user{username = Cname, password = Cpass, pid = Pid},
+                    UserToUpdate = #user{username = Cname, password = Cpass, pid = self()},
                     F1 = fun() ->
-                        mnesia:write(Yang)
+                        mnesia:write(UserToUpdate)
                          end,
                     mnesia:transaction(F1),
 
@@ -134,10 +131,20 @@ loop(Sock, Server) ->
                           end,
                     io:format("UpdatedUser is ~p.~n", [mnesia:transaction(Fun2)]);
                 <<"single_chat">> ->
+                    [{<<"to">>, To}, {<<"msg">>, Msg}] = T,
+                    io:format("Pid is ~p.~n", [Pid]),
+                    io:format("To is ~p.~n", [To]),
+                    io:format("Msg is ~p.~n", [Msg]),
                     ok;
                 <<"group_chat">> ->
+                    [{<<"to">>, To}, {<<"msg">>, Msg}] = T,
+                    io:format("Pid is ~p.~n", [Pid]),
+                    io:format("To is ~p.~n", [To]),
+                    io:format("Msg is ~p.~n", [Msg]),
                     ok;
                 <<"logout">> ->
+                    io:format("Pid is ~p.~n", [Pid]),
+                    io:format("T is ~p.~n", [T]),
                     ok
             end,
 
