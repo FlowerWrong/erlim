@@ -105,14 +105,8 @@ loop(Sock, Server) ->
             io:format("Json is ~p.~n", [Json]),
             {[{<<"cmd">>, Cmd}, {<<"username">>, Username}, {<<"password">>, Password} | T]} = Json,
             io:format("Cmd is ~p.~n", [Cmd]),
-            Fun = fun() ->
-                Query = qlc:q([X || X <- mnesia:table(user), X#user.username =:= binary_to_list(Username), X#user.password =:= binary_to_list(Password)]),
-                qlc:e(Query)
-                end,
-            CurrentUser = case mnesia:transaction(Fun) of
-                {atomic, []} -> false;
-                {atomic, [User]} -> User
-            end,
+
+            CurrentUser = query_user(Username, Password),
             {user, Cname, Cpass, Pid} = CurrentUser,
             case Cmd of
                 <<"login">> ->
@@ -131,9 +125,22 @@ loop(Sock, Server) ->
                           end,
                     io:format("UpdatedUser is ~p.~n", [mnesia:transaction(Fun2)]);
                 <<"single_chat">> ->
-                    [{<<"to">>, To}, {<<"msg">>, Msg}] = T,
-                    io:format("Pid is ~p.~n", [Pid]),
-                    io:format("To is ~p.~n", [To]),
+                    %% {<<"to">>,<<"kang">>},{<<"msg">>,<<"hello world">>}
+                    [{<<"to">>, ToUsername}, {<<"msg">>, Msg}] = T,
+                    io:format("ToUsername is ~p.~n", [ToUsername]),
+                    ToUser = query_user(ToUsername),
+                    io:format("ToUser is ~p.~n", [ToUser]),
+                    {user, _ToUsername, _ToPass, ToPid} = ToUser,
+                    io:format("ToPid is ~p.~n", [ToPid]),
+                    case ToPid of
+                        0 ->
+                            %% ofline
+                            ok;
+                        _ ->
+                            %% online
+                            ToPid ! {Pid, Msg},
+                            ok
+                    end,
                     io:format("Msg is ~p.~n", [Msg]),
                     ok;
                 <<"group_chat">> ->
@@ -156,6 +163,22 @@ loop(Sock, Server) ->
             loop(Sock, Server);
         {error, closed} ->
             io:format("client sock close~n"),
+            Pid = self(),
+            io:format("Pid  close ~p.~n", [Pid]),
+            CloseSession = query_pid(Pid),
+            {user, CloseName, ClosePass, _Pid} = CloseSession,
+
+            UserToUpdate = #user{username = CloseName, password = ClosePass, pid = 0},
+            F1 = fun() ->
+                mnesia:write(UserToUpdate)
+                 end,
+            mnesia:transaction(F1),
+
+            Fun2 = fun() ->
+                Query = qlc:q([X || X <- mnesia:table(user)]),
+                qlc:e(Query)
+                  end,
+            io:format("Close session Users is ~p.~n", [mnesia:transaction(Fun2)]),
             gen_server:cast(Server, {connect_close, self()})
   end.
 
@@ -243,3 +266,33 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 
 %% hlper
+
+query_pid(Pid) ->
+    Fun = fun() ->
+        Query = qlc:q([X || X <- mnesia:table(user), X#user.pid =:= Pid]),
+        qlc:e(Query)
+        end,
+    case mnesia:transaction(Fun) of
+        {atomic, []} -> false;
+        {atomic, [User]} -> User
+    end.
+
+query_user(Username) ->
+    Fun = fun() ->
+        Query = qlc:q([X || X <- mnesia:table(user), X#user.username =:= binary_to_list(Username)]),
+        qlc:e(Query)
+        end,
+    case mnesia:transaction(Fun) of
+        {atomic, []} -> false;
+        {atomic, [User]} -> User
+    end.
+
+query_user(Username, Password) ->
+    Fun = fun() ->
+        Query = qlc:q([X || X <- mnesia:table(user), X#user.username =:= binary_to_list(Username), X#user.password =:= binary_to_list(Password)]),
+        qlc:e(Query)
+        end,
+    case mnesia:transaction(Fun) of
+        {atomic, []} -> false;
+        {atomic, [User]} -> User
+    end.
