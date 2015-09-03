@@ -122,7 +122,7 @@ loop(Sock, Server) ->
                             io:format("Msg is from: ~p~n", [Msg2])
                     after
                         0 ->
-                            io:format("byebye~n")
+                            io:format("No msg receive.~n")
                     end
             end,
             case Cmd of
