@@ -10,16 +10,13 @@
 -author("yy").
 
 %% API
--export([register/2, login/2, logout/2, get/1]).
-
-register(_Username, _Password) ->
-  ok.
+-export([login/2, logout/2, get/1]).
 
 login(_Username, _Pid) ->
-  ok.
+    ok.
 
 logout(_Username, _Pid) ->
-  ok.
+    ok.
 
 get(_Username) ->
-  ok.
+    ok.
