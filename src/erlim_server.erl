@@ -116,8 +116,10 @@ loop(Sock, Server) ->
                     %% online
                     %% FIXME can not receive msg
                     receive
-                        {From, Msg2} ->
-                            io:format("Msg is from: ~p, ~p~n", [From, Msg2])
+                        {single_chat, Msg2} ->
+                            io:format("Msg is from: ~p~n", [Msg2]);
+                        {group_chat, Msg2} ->
+                            io:format("Msg is from: ~p~n", [Msg2])
                     after
                         0 ->
                             io:format("byebye~n")
@@ -153,7 +155,7 @@ loop(Sock, Server) ->
                             ok;
                         _ ->
                             %% online
-                            ToPid ! {Pid, Msg},
+                            ToPid ! {single_chat, Msg},
                             ok
                     end,
                     io:format("Msg is ~p.~n", [Msg]),

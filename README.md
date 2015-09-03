@@ -60,6 +60,7 @@
 
 #### Todo
 
+- [ ] erlang async receive
 - [ ] one-to-one chat
 - [x] use mnesia for session store
 - [x] Toml library of erlang
