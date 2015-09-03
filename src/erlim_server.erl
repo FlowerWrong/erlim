@@ -108,6 +108,21 @@ loop(Sock, Server) ->
 
             CurrentUser = query_user(Username, Password),
             {user, Cname, Cpass, Pid} = CurrentUser,
+            case Pid of
+                0 ->
+                    %% ofline
+                    ok;
+                _ ->
+                    %% online
+                    %% FIXME can not receive msg
+                    receive
+                        {From, Msg2} ->
+                            io:format("Msg is from: ~p, ~p~n", [From, Msg2])
+                    after
+                        0 ->
+                            io:format("byebye~n")
+                    end
+            end,
             case Cmd of
                 <<"login">> ->
                     io:format("CurrentUser is ~p.~n", [CurrentUser]),
@@ -156,7 +171,7 @@ loop(Sock, Server) ->
             end,
 
             %% 解析数据,绑定pid,获取pid
-            %% 判断操作(register/login/logout/single_chat/group_chat)
+            %% 判断操作(login/logout/single_chat/group_chat)
             %% if chat: 发送数据给目标pid
             %% gen_tcp:send(Sock, Data),
             %% ok = gen_tcp:close(Sock);
