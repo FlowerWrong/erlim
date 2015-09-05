@@ -16,6 +16,10 @@
 
 -define(SERVER, ?MODULE).
 -define(DEFAULT_PORT, 10000).
+
+%% http://www.cnblogs.com/ribavnu/archive/2013/08/06/3240435.html
+%% http://www.cnblogs.com/ribavnu/p/3409823.html
+%% TODO use active once
 -define(TCP_OPTIONS, [binary, {packet, raw}, {active, false}, {reuseaddr, true}]).
 
 -record(state, {
@@ -108,23 +112,7 @@ loop(Sock, Server) ->
 
             CurrentUser = query_user(Username, Password),
             {user, Cname, Cpass, Pid} = CurrentUser,
-            case Pid of
-                0 ->
-                    %% ofline
-                    ok;
-                _ ->
-                    %% online
-                    %% FIXME can not receive msg
-                    receive
-                        {single_chat, Msg2} ->
-                            io:format("Msg is from: ~p~n", [Msg2]);
-                        {group_chat, Msg2} ->
-                            io:format("Msg is from: ~p~n", [Msg2])
-                    after
-                        0 ->
-                            io:format("No msg receive.~n")
-                    end
-            end,
+
             case Cmd of
                 <<"login">> ->
                     io:format("CurrentUser is ~p.~n", [CurrentUser]),
@@ -282,7 +270,7 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Internal functions
 %%%===================================================================
 
-%% hlper
+%% helper
 
 query_pid(Pid) ->
     Fun = fun() ->
