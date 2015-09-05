@@ -19,6 +19,7 @@
 
 %% http://www.cnblogs.com/ribavnu/archive/2013/08/06/3240435.html
 %% http://www.cnblogs.com/ribavnu/p/3409823.html
+%% http://learnyousomeerlang.com/buckets-of-sockets
 %% TODO use active once
 -define(TCP_OPTIONS, [binary, {packet, raw}, {active, false}, {reuseaddr, true}]).
 
