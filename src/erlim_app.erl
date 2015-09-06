@@ -9,8 +9,7 @@
 %% Application callbacks
 %% ===================================================================
 
-start(StartType, StartArgs) ->
-    io:format("StartType is ~p, StartArgs is ~p", [StartType, StartArgs]),
+start(_StartType, _StartArgs) ->
     erlim_sup:start_link().
 
 stop(_State) ->
