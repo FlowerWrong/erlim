@@ -71,7 +71,7 @@ start_link(Port) ->
 %% @end
 %%--------------------------------------------------------------------
 init(State = #state{port=Port}) ->
-    io:format("init pid is ~p.~n", [self()]),
+    io:format("Init pid is ~p.~n", [self()]),
 
     erlim_mnesia:init_mnesia(),
 
@@ -211,9 +211,6 @@ handle_call(_Request, _From, State) ->
 %%                                  {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-%% handle_cast(_Msg, State) ->
-%%     {noreply, State}.
-
 handle_cast(_Msg, State) ->
     {noreply, State}.
 

@@ -24,4 +24,5 @@ start_link() ->
 
 init([]) ->
     ErlimServer = ?CHILD(erlim_server, worker),
-    {ok, { {one_for_one, 5, 10}, [ErlimServer]} }.
+    ErlimSessionSup = ?CHILD(erlim_session_sup, worker),
+    {ok, { {one_for_one, 5, 10}, [ErlimServer, ErlimSessionSup]} }.

@@ -36,6 +36,12 @@
 start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
+
+start(Socket) ->
+    {ok, Pid} = supervisor:start_child(erlim_session_sup, [Socket]),
+    Pid.
+
+
 %%%===================================================================
 %%% gen_server callbacks
 %%%===================================================================

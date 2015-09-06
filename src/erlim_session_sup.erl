@@ -43,7 +43,8 @@ start_link() ->
 %% @end
 %%--------------------------------------------------------------------
 init([]) ->
-    {ok, {{one_for_one, 5, 10}, [?CHILD('SomeChild', 'SomeModule', worker, [])]}}.
+    {ok, {{one_for_one, 5, 10}, [?CHILD('erlim_session', 'erlim_session', worker, [])]}}.
+
 
 %%%===================================================================
 %%% Internal functions
