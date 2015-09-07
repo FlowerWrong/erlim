@@ -8,6 +8,21 @@
 
 #### Install
 
+```bash
+make
+
+# in erl console
+# bug: 启动应用后不能输入,只能另外起一个窗口
+application:start(erlim).
+
+# in another erl console
+cy:login().
+ck:login().
+
+# 发起聊天
+cy:sc().
+```
+
 #### Usage
 
 #### Design
