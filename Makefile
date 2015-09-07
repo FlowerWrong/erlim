@@ -10,4 +10,4 @@ compile:
 	$(REBAR) compile
 
 erl:
-	erl -pa ebin -pa ./deps/*/ebin
+	erl -pa ebin -pa ./deps/*/ebin -boot start_sasl

@@ -8,8 +8,8 @@
 %% Supervisor callbacks
 -export([init/1]).
 
--define(CHILD(Id, Mod, Type, Args), {Id, {Mod, start_link, Args},
-                                     permanent, 5000, Type, [Mod]}).
+%% Helper macro for declaring children of supervisor
+-define(CHILD(I, Type), {I, {I, start_link, []}, temporary, infinity, worker, [I]}).
 
 %%%===================================================================
 %%% API functions
@@ -43,7 +43,7 @@ start_link() ->
 %% @end
 %%--------------------------------------------------------------------
 init([]) ->
-    {ok, {{one_for_one, 5, 10}, [?CHILD('erlim_session', 'erlim_session', worker, [])]}}.
+    {ok, {{simple_one_for_one, 0, 1}, [?CHILD('erlim_session', worker)]}}.
 
 
 %%%===================================================================
