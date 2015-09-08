@@ -3,7 +3,7 @@
 -behaviour(gen_server).
 
 %% API functions
--export([start_link/0]).
+-export([start_link/1, start_child/1]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -13,7 +13,9 @@
          terminate/2,
          code_change/3]).
 
--record(state, {}).
+-record(state, {
+    socket
+}).
 
 %%%===================================================================
 %%% API functions
@@ -26,8 +28,13 @@
 %% @spec start_link() -> {ok, Pid} | ignore | {error, Error}
 %% @end
 %%--------------------------------------------------------------------
-start_link() ->
-    gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
+start_link(Socket) ->
+    gen_server:start_link(?MODULE, [Socket], []).
+
+start_child(Socket) ->
+    io:format("start_child of erlim receiver"),
+    {ok, Pid} = supervisor:start_child(erlim_receiver_sup, [Socket]),
+    Pid.
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -44,8 +51,9 @@ start_link() ->
 %%                     {stop, Reason}
 %% @end
 %%--------------------------------------------------------------------
-init([]) ->
-    {ok, #state{}}.
+init([Socket]) ->
+    State = #state{socket = Socket},
+    {ok, State}.
 
 %%--------------------------------------------------------------------
 %% @private

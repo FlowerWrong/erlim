@@ -89,7 +89,7 @@ wait_connect(State = #state{lsocket=LSocket}) ->
     {ok, Sock} = gen_tcp:accept(LSocket),
 
     %% Pid = spawn(?MODULE, get_request, [Sock]),
-    {ok, Pid} = supervisor:start_child(erlim_session_sup, [Sock]),
+    {ok, Pid} = erlim_receiver:start_child(Sock),
     gen_tcp:controlling_process(Sock, Pid),
 
     io:format("Spawn pid is ~p.~n", [Pid]),

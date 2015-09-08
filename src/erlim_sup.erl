@@ -25,6 +25,5 @@ start_link() ->
 
 init([]) ->
     ErlimServer = ?SERVERCHILD(erlim_server, worker),
-    ErlimSessionSup = ?SESSIONCHILD(erlim_session_sup, worker),
-    io:format("Start erlim_server and erlim_session_sup.~n"),
-    {ok, { {one_for_one, 5, 10}, [ErlimServer, ErlimSessionSup] } }.
+    ErlimReceiverSup = ?SESSIONCHILD(erlim_receiver_sup, worker),
+    {ok, { {one_for_one, 5, 10}, [ErlimServer, ErlimReceiverSup] } }.

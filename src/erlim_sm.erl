@@ -1,4 +1,4 @@
--module(erlim_session).
+-module(erlim_sm).
 
 -behaviour(gen_server).
 
@@ -36,7 +36,7 @@
 start_link(Socket) ->
     io:format("erlim session start_link"),
     io:format("erlim session start_link socket is ~p~n", [Socket]),
-    gen_server:start_link({local, ?MODULE}, ?MODULE, [Socket], []).
+    gen_server:start_link(?MODULE, [Socket], []).
 
 
 %% 接收数据

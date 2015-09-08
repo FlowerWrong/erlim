@@ -1,4 +1,4 @@
--module(erlim_sm_sup).
+-module(erlim_receiver_sup).
 
 -behaviour(supervisor).
 
@@ -8,8 +8,7 @@
 %% Supervisor callbacks
 -export([init/1]).
 
-%% Helper macro for declaring children of supervisor
--define(CHILD(I, Type), {I, {I, start_link, []}, temporary, infinity, worker, [I]}).
+-define(CHILD, {erlim_receiver, {erlim_receiver, start_link, []}, temporary, infinity, worker, [erlim_receiver]}).
 
 %%%===================================================================
 %%% API functions
@@ -43,8 +42,7 @@ start_link() ->
 %% @end
 %%--------------------------------------------------------------------
 init([]) ->
-    {ok, {{simple_one_for_one, 0, 1}, [?CHILD('erlim_session', worker)]}}.
-
+    {ok, {{simple_one_for_one, 0, 1}, [?CHILD]}}.
 
 %%%===================================================================
 %%% Internal functions
