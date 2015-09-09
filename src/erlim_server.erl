@@ -3,7 +3,7 @@
 -behaviour(gen_server).
 
 %% API functions
--export([start_link/1, get_request/1]).
+-export([start_link/1]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -33,11 +33,14 @@
 
 -record(state, {
     port,                   % listen port
-    lsocket=null            % listen socket
+    listen_socket=null,     % listen socket
+    acceptor_ref
 }).
 
 -include("table.hrl").
 -include_lib("stdlib/include/qlc.hrl").
+
+%% http://www.blogjava.net/yongboy/archive/2012/10/24/390185.html
 
 %%%===================================================================
 %%% API functions
@@ -70,123 +73,18 @@ start_link(Port) ->
 %% @end
 %%--------------------------------------------------------------------
 init(State = #state{port=Port}) ->
+    process_flag(trap_exit, true),
     io:format("Init pid is ~p.~n", [self()]),
 
     erlim_mnesia:init_mnesia(),
 
-    case gen_tcp:listen(Port, ?TCP_OPTIONS) of
-        {ok, LSocket} ->
-            io:format("~nI am waitting for connect.~n"),
-            {ok, wait_connect(State#state{lsocket=LSocket})};
-        {error, Reason} ->
-            {stop, {create_listen_socket, Reason}}
-    end.
+    observer:start(),
 
-
-%% accept spawn a new process
-wait_connect(State = #state{lsocket=LSocket}) ->
-    io:format("Main accept pid is ~p.~n", [self()]),
-    {ok, Sock} = gen_tcp:accept(LSocket),
-
-    %% Pid = spawn(?MODULE, get_request, [Sock]),
-    {ok, Pid} = erlim_receiver:start_child(Sock),
-    gen_tcp:controlling_process(Sock, Pid),
-
-    io:format("Spawn pid is ~p.~n", [Pid]),
-    wait_connect(State).
-
-
-%% 接收数据
-get_request(Sock) ->
-    io:format("get request pid is ~p.~n", [self()]),
-    case gen_tcp:recv(Sock, 0) of
-        {ok, Data} ->
-            io:format("Data is ~p.~n", [Data]),
-            %% IsJSON = jsx:is_json(Data),
-            Json = jiffy:decode(Data),
-            io:format("Json is ~p.~n", [Json]),
-            {[{<<"cmd">>, Cmd}, {<<"username">>, Username}, {<<"password">>, Password} | T]} = Json,
-            io:format("Cmd is ~p.~n", [Cmd]),
-
-            CurrentUser = query_user(Username, Password),
-            {user, Cname, Cpass, Pid} = CurrentUser,
-
-            case Cmd of
-                <<"login">> ->
-                    io:format("CurrentUser is ~p.~n", [CurrentUser]),
-                    io:format("Pid is ~p.~n", [Pid]),
-
-                    UserToUpdate = #user{username = Cname, password = Cpass, pid = self()},
-                    F1 = fun() ->
-                        mnesia:write(UserToUpdate)
-                         end,
-                    mnesia:transaction(F1),
-
-                    Fun2 = fun() ->
-                        Query = qlc:q([X || X <- mnesia:table(user)]),
-                        qlc:e(Query)
-                          end,
-                    io:format("UpdatedUser is ~p.~n", [mnesia:transaction(Fun2)]);
-                <<"single_chat">> ->
-                    %% {<<"to">>,<<"kang">>},{<<"msg">>,<<"hello world">>}
-                    [{<<"to">>, ToUsername}, {<<"msg">>, Msg}] = T,
-                    io:format("ToUsername is ~p.~n", [ToUsername]),
-                    ToUser = query_user(ToUsername),
-                    io:format("ToUser is ~p.~n", [ToUser]),
-                    {user, _ToUsername, _ToPass, ToPid} = ToUser,
-                    io:format("ToPid is ~p.~n", [ToPid]),
-                    case ToPid of
-                        0 ->
-                            %% ofline
-                            ok;
-                        _ ->
-                            %% online
-                            io:format("Send msg to ~p~n", [self()]),
-                            self() ! {single_chat, Msg},
-                            ok
-                    end,
-                    io:format("Msg is ~p.~n", [Msg]),
-                    ok;
-                <<"group_chat">> ->
-                    [{<<"to">>, To}, {<<"msg">>, Msg}] = T,
-                    io:format("Pid is ~p.~n", [Pid]),
-                    io:format("To is ~p.~n", [To]),
-                    io:format("Msg is ~p.~n", [Msg]),
-                    ok;
-                <<"logout">> ->
-                    io:format("Pid is ~p.~n", [Pid]),
-                    io:format("T is ~p.~n", [T]),
-                    ok
-            end,
-
-            %% 解析数据,绑定pid,获取pid
-            %% 判断操作(login/logout/single_chat/group_chat)
-            %% if chat: 发送数据给目标pid
-            %% gen_tcp:send(Sock, Data),
-            %% ok = gen_tcp:close(Sock);
-            get_request(Sock);
-        {error, closed} ->
-            io:format("client sock close~n"),
-            Pid = self(),
-            io:format("Pid  close ~p.~n", [Pid]),
-            CloseSession = query_pid(Pid),
-            {user, CloseName, ClosePass, _Pid} = CloseSession,
-
-            UserToUpdate = #user{username = CloseName, password = ClosePass, pid = 0},
-            F1 = fun() ->
-                mnesia:write(UserToUpdate)
-                 end,
-            mnesia:transaction(F1),
-
-            Fun2 = fun() ->
-                Query = qlc:q([X || X <- mnesia:table(user)]),
-                qlc:e(Query)
-                  end,
-            io:format("Close session Users is ~p.~n", [mnesia:transaction(Fun2)])
-  end.
-
-
-
+    {ok, ListenSocket} = gen_tcp:listen(Port, ?TCP_OPTIONS),
+    {ok, AcceptorRef} = prim_inet:async_accept(ListenSocket, -1),
+    NewState = #state{listen_socket = ListenSocket, acceptor_ref = AcceptorRef},
+    io:format("State is ~p~n", [NewState]),
+    {ok, NewState}.
 %%--------------------------------------------------------------------
 %% @private
 %% @doc
@@ -228,13 +126,27 @@ handle_cast(_Msg, State) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-% handle_info(Info, State) ->
-%     io:format("single chat Info is ~p, pid is ~p.~n", [Info, self()]),
-%     {noreply, State}.
 
-handle_info({single_chat, Msg}, State) ->
-    io:format("single chat msg is ~p, pid is ~p.~n", [Msg, self()]),
+
+handle_info({inet_async, ListenSocket, AcceptorRef, {ok, ClientSocket}}, #state{listen_socket = ListenSocket, acceptor_ref = AcceptorRef} = State) ->
+    case set_sockopt(State#state.listen_socket, ClientSocket) of
+        ok ->
+            Pid = erlim_receiver_sup:start_child(ClientSocket),
+            gen_tcp:controlling_process(ClientSocket, Pid),
+            case prim_inet:async_accept(ListenSocket, -1) of
+                {ok, NewAcceptorRef} -> ok;
+                {error, NewAcceptorRef} ->
+                    exit({async_accept, inet:format_error(NewAcceptorRef)})
+            end,
+            NewState = State#state{acceptor_ref = NewAcceptorRef},
+            {noreply, NewState};
+        Error ->
+            {stop, Error, State}
+    end;
+handle_info(_Info, State) ->
+    log:i("_Info:~p~n", [_Info]),
     {noreply, State}.
+
 
 %%--------------------------------------------------------------------
 %% @private
@@ -261,38 +173,20 @@ terminate(_Reason, _State) ->
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
-%%%===================================================================
-%%% Internal functions
-%%%===================================================================
+%% ===================================================================
+%% Internal functions
+%% ===================================================================
 
-%% helper
-
-query_pid(Pid) ->
-    Fun = fun() ->
-        Query = qlc:q([X || X <- mnesia:table(user), X#user.pid =:= Pid]),
-        qlc:e(Query)
-        end,
-    case mnesia:transaction(Fun) of
-        {atomic, []} -> false;
-        {atomic, [User]} -> User
-    end.
-
-query_user(Username) ->
-    Fun = fun() ->
-        Query = qlc:q([X || X <- mnesia:table(user), X#user.username =:= binary_to_list(Username)]),
-        qlc:e(Query)
-        end,
-    case mnesia:transaction(Fun) of
-        {atomic, []} -> false;
-        {atomic, [User]} -> User
-    end.
-
-query_user(Username, Password) ->
-    Fun = fun() ->
-        Query = qlc:q([X || X <- mnesia:table(user), X#user.username =:= binary_to_list(Username), X#user.password =:= binary_to_list(Password)]),
-        qlc:e(Query)
-        end,
-    case mnesia:transaction(Fun) of
-        {atomic, []} -> false;
-        {atomic, [User]} -> User
+%% Taken from prim_inet.  We are merely copying some socket options from the
+%% listening socket to the new TCP socket.
+set_sockopt(ListenSocket, ClientSocket) ->
+    true = inet_db:register_socket(ClientSocket, inet_tcp),
+    case prim_inet:getopts(ListenSocket, [active, nodelay, keepalive, delay_send, priority, tos]) of
+        {ok, Opts} ->
+            case prim_inet:setopts(ClientSocket, Opts) of
+                ok    -> ok;
+                Error -> gen_tcp:close(ClientSocket), Error
+            end;
+        Error ->
+            gen_tcp:close(ClientSocket), Error
     end.

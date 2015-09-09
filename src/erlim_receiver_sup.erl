@@ -3,7 +3,7 @@
 -behaviour(supervisor).
 
 %% API functions
--export([start_link/0]).
+-export([start_link/0, start_child/1]).
 
 %% Supervisor callbacks
 -export([init/1]).
@@ -23,6 +23,11 @@
 %%--------------------------------------------------------------------
 start_link() ->
     supervisor:start_link({local, ?MODULE}, ?MODULE, []).
+
+start_child(Socket) ->
+    io:format("start_child of erlim receiver~n"),
+    {ok, Pid} = supervisor:start_child(erlim_receiver_sup, [Socket]),
+    Pid.
 
 %%%===================================================================
 %%% Supervisor callbacks

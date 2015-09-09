@@ -3,7 +3,7 @@
 -behaviour(gen_server).
 
 %% API functions
--export([start_link/1, start_child/1]).
+-export([start_link/1]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -14,8 +14,13 @@
          code_change/3]).
 
 -record(state, {
-    socket
+    socket,
+    heartbeat_timeout = 600000,
+    client_pid
 }).
+
+-include("table.hrl").
+-include_lib("stdlib/include/qlc.hrl").
 
 %%%===================================================================
 %%% API functions
@@ -31,10 +36,6 @@
 start_link(Socket) ->
     gen_server:start_link(?MODULE, [Socket], []).
 
-start_child(Socket) ->
-    io:format("start_child of erlim receiver"),
-    {ok, Pid} = supervisor:start_child(erlim_receiver_sup, [Socket]),
-    Pid.
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -53,6 +54,7 @@ start_child(Socket) ->
 %%--------------------------------------------------------------------
 init([Socket]) ->
     State = #state{socket = Socket},
+    setopts(State#state.socket),
     {ok, State}.
 
 %%--------------------------------------------------------------------
@@ -96,6 +98,22 @@ handle_cast(_Msg, State) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
+handle_info({tcp, Socket, Data}, #state{socket = Socket} = State) ->
+    NewState = State,
+    io:format("NewState is ~p~n", [NewState]),
+    {noreply, NewState, NewState#state.heartbeat_timeout};
+% tcp connection change to passive
+handle_info({tcp_passive, Socket}, #state{socket = Socket} = State) ->
+    io:format("tcp_passive is ~p~n", [State]),
+    setopts(Socket),
+    {noreply, State};
+% connection closed
+handle_info({tcp_closed, _Socket}, State) ->
+    io:format("tcp_closed is ~p~n", [State]),
+    {stop, tcp_closed, State};
+handle_info(timeout, State) ->
+    proc_lib:hibernate(gen_server, enter_loop, [?MODULE, [], State]),
+    {noreply, State, State#state.heartbeat_timeout};
 handle_info(_Info, State) ->
     {noreply, State}.
 
@@ -127,3 +145,130 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+
+setopts(Socket) ->
+    inet:setopts(Socket, [{active, 300}, {packet, 0}, binary]).
+
+
+%% 接收数据
+get_request(Socket) ->
+    io:format("get request pid is ~p.~n", [self()]),
+    case gen_tcp:recv(Socket, 0) of
+        {ok, Data} ->
+            io:format("Data is ~p.~n", [Data]),
+            %% IsJSON = jsx:is_json(Data),
+            Json = jiffy:decode(Data),
+            io:format("Json is ~p.~n", [Json]),
+            {[{<<"cmd">>, Cmd}, {<<"username">>, Username}, {<<"password">>, Password} | T]} = Json,
+            io:format("Cmd is ~p.~n", [Cmd]),
+
+            CurrentUser = query_user(Username, Password),
+            {user, Cname, Cpass, Pid} = CurrentUser,
+
+            case Cmd of
+                <<"login">> ->
+                    io:format("CurrentUser is ~p.~n", [CurrentUser]),
+                    io:format("Pid is ~p.~n", [Pid]),
+
+                    UserToUpdate = #user{username = Cname, password = Cpass, pid = self()},
+                    F1 = fun() ->
+                        mnesia:write(UserToUpdate)
+                         end,
+                    mnesia:transaction(F1),
+
+                    Fun2 = fun() ->
+                        Query = qlc:q([X || X <- mnesia:table(user)]),
+                        qlc:e(Query)
+                          end,
+                    io:format("UpdatedUser is ~p.~n", [mnesia:transaction(Fun2)]);
+                <<"single_chat">> ->
+                    %% {<<"to">>,<<"kang">>},{<<"msg">>,<<"hello world">>}
+                    [{<<"to">>, ToUsername}, {<<"msg">>, Msg}] = T,
+                    io:format("ToUsername is ~p.~n", [ToUsername]),
+                    ToUser = query_user(ToUsername),
+                    io:format("ToUser is ~p.~n", [ToUser]),
+                    {user, _ToUsername, _ToPass, ToPid} = ToUser,
+                    io:format("ToPid is ~p.~n", [ToPid]),
+                    case ToPid of
+                        0 ->
+                            %% ofline
+                            ok;
+                        _ ->
+                            %% online
+                            io:format("Send msg to ~p~n", [self()]),
+                            self() ! {single_chat, Msg},
+                            ok
+                    end,
+                    io:format("Msg is ~p.~n", [Msg]),
+                    ok;
+                <<"group_chat">> ->
+                    [{<<"to">>, To}, {<<"msg">>, Msg}] = T,
+                    io:format("Pid is ~p.~n", [Pid]),
+                    io:format("To is ~p.~n", [To]),
+                    io:format("Msg is ~p.~n", [Msg]),
+                    ok;
+                <<"logout">> ->
+                    io:format("Pid is ~p.~n", [Pid]),
+                    io:format("T is ~p.~n", [T]),
+                    ok
+            end,
+
+            %% 解析数据,绑定pid,获取pid
+            %% 判断操作(login/logout/single_chat/group_chat)
+            %% if chat: 发送数据给目标pid
+            %% gen_tcp:send(Socket, Data),
+            %% ok = gen_tcp:close(Socket);
+            get_request(Socket);
+        {error, closed} ->
+            io:format("client sock close~n"),
+            Pid = self(),
+            io:format("Pid  close ~p.~n", [Pid]),
+            CloseSession = query_pid(Pid),
+            {user, CloseName, ClosePass, _Pid} = CloseSession,
+
+            UserToUpdate = #user{username = CloseName, password = ClosePass, pid = 0},
+            F1 = fun() ->
+                mnesia:write(UserToUpdate)
+                 end,
+            mnesia:transaction(F1),
+
+            Fun2 = fun() ->
+                Query = qlc:q([X || X <- mnesia:table(user)]),
+                qlc:e(Query)
+                  end,
+            io:format("Close session Users is ~p.~n", [mnesia:transaction(Fun2)])
+  end.
+
+
+
+%% helper
+
+query_pid(Pid) ->
+    Fun = fun() ->
+        Query = qlc:q([X || X <- mnesia:table(user), X#user.pid =:= Pid]),
+        qlc:e(Query)
+        end,
+    case mnesia:transaction(Fun) of
+        {atomic, []} -> false;
+        {atomic, [User]} -> User
+    end.
+
+query_user(Username) ->
+    Fun = fun() ->
+        Query = qlc:q([X || X <- mnesia:table(user), X#user.username =:= binary_to_list(Username)]),
+        qlc:e(Query)
+        end,
+    case mnesia:transaction(Fun) of
+        {atomic, []} -> false;
+        {atomic, [User]} -> User
+    end.
+
+query_user(Username, Password) ->
+    Fun = fun() ->
+        Query = qlc:q([X || X <- mnesia:table(user), X#user.username =:= binary_to_list(Username), X#user.password =:= binary_to_list(Password)]),
+        qlc:e(Query)
+        end,
+    case mnesia:transaction(Fun) of
+        {atomic, []} -> false;
+        {atomic, [User]} -> User
+    end.
