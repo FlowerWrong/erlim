@@ -22,12 +22,10 @@
 %% http://learnyousomeerlang.com/buckets-of-sockets
 %% TODO use active once
 -define(TCP_OPTIONS, [binary,
-    {packet, 0},
+    {packet, 2},
+    {backlog, 30},
     {active, false},
     {reuseaddr, true},
-    {nodelay, true},
-    {send_timeout, ?TCP_SEND_TIMEOUT},
-    {send_timeout_close, true},
     {keepalive, true}]
 ).
 
@@ -83,7 +81,7 @@ init(State = #state{port=Port}) ->
     {ok, ListenSocket} = gen_tcp:listen(Port, ?TCP_OPTIONS),
     {ok, AcceptorRef} = prim_inet:async_accept(ListenSocket, -1),
     NewState = #state{listen_socket = ListenSocket, acceptor_ref = AcceptorRef},
-    io:format("State is ~p~n", [NewState]),
+    io:format("NewState is ~p~n", [NewState]),
     {ok, NewState}.
 %%--------------------------------------------------------------------
 %% @private
@@ -127,23 +125,28 @@ handle_cast(_Msg, State) ->
 %% @end
 %%--------------------------------------------------------------------
 
-
+%% http://erlangcentral.org/wiki/index.php/Building_a_Non-blocking_TCP_server_using_OTP_principles
 handle_info({inet_async, ListenSocket, AcceptorRef, {ok, ClientSocket}}, #state{listen_socket = ListenSocket, acceptor_ref = AcceptorRef} = State) ->
     case set_sockopt(State#state.listen_socket, ClientSocket) of
         ok ->
+            %% New client connected - spawn a new process using the simple_one_for_one
             Pid = erlim_receiver_sup:start_child(ClientSocket),
             io:format("erlim_server start_child receiver is ~p.~n", [Pid]),
             gen_tcp:controlling_process(ClientSocket, Pid),
+
+            %% Signal the network driver that we are ready to accept another connection
             case prim_inet:async_accept(ListenSocket, -1) of
                 {ok, NewAcceptorRef} -> ok;
-                {error, NewAcceptorRef} ->
-                    exit({async_accept, inet:format_error(NewAcceptorRef)})
+                {error, NewAcceptorRef} -> exit({async_accept, inet:format_error(NewAcceptorRef)})
             end,
             NewState = State#state{acceptor_ref = NewAcceptorRef},
             {noreply, NewState};
         Error ->
             {stop, Error, State}
     end;
+handle_info({inet_async, ListenSocket, AcceptorRef, Error}, #state{listen_socket = ListenSocket, acceptor_ref = AcceptorRef} = State) ->
+    error_logger:error_msg("Error in socket acceptor: ~p.\n", [Error]),
+    {stop, Error, State};
 handle_info(_Info, State) ->
     log:i("_Info:~p~n", [_Info]),
     {noreply, State}.
@@ -160,7 +163,8 @@ handle_info(_Info, State) ->
 %% @spec terminate(Reason, State) -> void()
 %% @end
 %%--------------------------------------------------------------------
-terminate(_Reason, _State) ->
+terminate(_Reason, State) ->
+    gen_tcp:close(State#state.listen_socket),
     ok.
 
 %%--------------------------------------------------------------------
@@ -183,11 +187,11 @@ code_change(_OldVsn, State, _Extra) ->
 set_sockopt(ListenSocket, ClientSocket) ->
     true = inet_db:register_socket(ClientSocket, inet_tcp),
     case prim_inet:getopts(ListenSocket, [active, nodelay, keepalive, delay_send, priority, tos]) of
-        {ok, Opts} ->
-            case prim_inet:setopts(ClientSocket, Opts) of
-                ok    -> ok;
-                Error -> gen_tcp:close(ClientSocket), Error
-            end;
-        Error ->
-            gen_tcp:close(ClientSocket), Error
+    {ok, Opts} ->
+        case prim_inet:setopts(ClientSocket, Opts) of
+            ok -> ok;
+            Error -> gen_tcp:close(ClientSocket), Error
+        end;
+    Error ->
+        gen_tcp:close(ClientSocket), Error
     end.
