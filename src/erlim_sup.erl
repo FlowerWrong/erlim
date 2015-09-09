@@ -10,7 +10,7 @@
 
 %% Helper macro for declaring children of supervisor
 -define(SERVERCHILD(I, Type), {I, {I, start_link, [3000]}, permanent, 5000, Type, [I]}).
--define(SESSIONCHILD(I, Type), {I, {I, start_link, []}, permanent, 5000, Type, [I]}).
+-define(CHILD(I, Type), {I, {I, start_link, []}, permanent, 5000, Type, [I]}).
 
 %% ===================================================================
 %% API functions
@@ -25,5 +25,6 @@ start_link() ->
 
 init([]) ->
     ErlimServer = ?SERVERCHILD(erlim_server, worker),
-    ErlimReceiverSup = ?SESSIONCHILD(erlim_receiver_sup, worker),
-    {ok, { {one_for_one, 5, 10}, [ErlimServer, ErlimReceiverSup] } }.
+    ErlimReceiverSup = ?CHILD(erlim_receiver_sup, worker),
+    ErlimClientSup = ?CHILD(erlim_client_sup, worker),
+    {ok, { {one_for_one, 5, 10}, [ErlimServer, ErlimReceiverSup, ErlimClientSup] } }.

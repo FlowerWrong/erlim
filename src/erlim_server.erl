@@ -132,6 +132,7 @@ handle_info({inet_async, ListenSocket, AcceptorRef, {ok, ClientSocket}}, #state{
     case set_sockopt(State#state.listen_socket, ClientSocket) of
         ok ->
             Pid = erlim_receiver_sup:start_child(ClientSocket),
+            io:format("erlim_server start_child receiver is ~p.~n", [Pid]),
             gen_tcp:controlling_process(ClientSocket, Pid),
             case prim_inet:async_accept(ListenSocket, -1) of
                 {ok, NewAcceptorRef} -> ok;

@@ -3,7 +3,7 @@
 -behaviour(gen_server).
 
 %% API functions
--export([start_link/0]).
+-export([start_link/1]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -13,7 +13,9 @@
          terminate/2,
          code_change/3]).
 
--record(state, {}).
+-record(state, {
+    socket
+}).
 
 %%%===================================================================
 %%% API functions
@@ -26,8 +28,8 @@
 %% @spec start_link() -> {ok, Pid} | ignore | {error, Error}
 %% @end
 %%--------------------------------------------------------------------
-start_link() ->
-    gen_server:start_link(?MODULE, [], []).
+start_link(Socket) ->
+    gen_server:start_link(?MODULE, [Socket], []).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -44,8 +46,9 @@ start_link() ->
 %%                     {stop, Reason}
 %% @end
 %%--------------------------------------------------------------------
-init([]) ->
-    {ok, #state{}}.
+init([Socket]) ->
+    State = #state{socket = Socket},
+    {ok, State}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -88,6 +91,9 @@ handle_cast(_Msg, State) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
+handle_info({single_chat, Msg}, State) ->
+    io:format("erlim_client single_chat msg is ~p~n", [Msg]),
+    {noreply, State};
 handle_info(_Info, State) ->
     {noreply, State}.
 

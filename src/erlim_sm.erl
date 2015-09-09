@@ -3,7 +3,7 @@
 -behaviour(gen_server).
 
 %% API functions
--export([start_link/0]).
+-export([start_link/0, login/2, get_session/1]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -14,6 +14,9 @@
          code_change/3]).
 
 -record(state, {}).
+
+-include("table.hrl").
+-include_lib("stdlib/include/qlc.hrl").
 
 %%%===================================================================
 %%% API functions
@@ -119,3 +122,17 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+
+login(CurrentUser, ClientPid) ->
+    {user, CurrentUserName, CurrentPass, _Pid} = CurrentUser,
+    UserToLogin = #user{username = CurrentUserName, password = CurrentPass, pid = ClientPid},
+    F = fun() ->
+        mnesia:write(UserToLogin)
+         end,
+    mnesia:transaction(F),
+    ok.
+
+get_session(Username) ->
+    User = erlim_util:query_user(Username),
+    {user, _Username, _Pass, ClientPid} = User,
+    ClientPid.

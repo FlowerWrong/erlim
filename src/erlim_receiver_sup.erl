@@ -25,8 +25,7 @@ start_link() ->
     supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
 start_child(Socket) ->
-    io:format("start_child of erlim receiver~n"),
-    {ok, Pid} = supervisor:start_child(erlim_receiver_sup, [Socket]),
+    {ok, Pid} = supervisor:start_child(?MODULE, [Socket]),
     Pid.
 
 %%%===================================================================
