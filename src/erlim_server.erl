@@ -13,16 +13,12 @@
          terminate/2,
          code_change/3]).
 
--define(SERVER, ?MODULE).
--define(DEFAULT_PORT, 10000).
--define(TCP_SEND_TIMEOUT, 15000).
-
 %% http://www.cnblogs.com/ribavnu/archive/2013/08/06/3240435.html
 %% http://www.cnblogs.com/ribavnu/p/3409823.html
 %% http://learnyousomeerlang.com/buckets-of-sockets
 %% TODO use active once
 -define(TCP_OPTIONS, [binary,
-    {packet, 2},
+    {packet, 0},
     {backlog, 30},
     {active, false},
     {reuseaddr, true},
@@ -142,6 +138,7 @@ handle_info({inet_async, ListenSocket, AcceptorRef, {ok, ClientSocket}}, #state{
             NewState = State#state{acceptor_ref = NewAcceptorRef},
             {noreply, NewState};
         Error ->
+            io:format("set sockopt error is ~p~n", [Error]),
             {stop, Error, State}
     end;
 handle_info({inet_async, ListenSocket, AcceptorRef, Error}, #state{listen_socket = ListenSocket, acceptor_ref = AcceptorRef} = State) ->
@@ -190,8 +187,11 @@ set_sockopt(ListenSocket, ClientSocket) ->
     {ok, Opts} ->
         case prim_inet:setopts(ClientSocket, Opts) of
             ok -> ok;
-            Error -> gen_tcp:close(ClientSocket), Error
+            Error ->
+                io:format("set sockopt 195 error is ~p~n", [Error]),
+                gen_tcp:close(ClientSocket), Error
         end;
     Error ->
+        io:format("set socket error is ~p~n", [Error]),
         gen_tcp:close(ClientSocket), Error
     end.

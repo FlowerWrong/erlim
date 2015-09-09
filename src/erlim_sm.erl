@@ -3,7 +3,7 @@
 -behaviour(gen_server).
 
 %% API functions
--export([start_link/0, login/2, get_session/1]).
+-export([start_link/0, login/2, get_session/1, logout/1]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -136,3 +136,12 @@ get_session(Username) ->
     User = erlim_util:query_user(Username),
     {user, _Username, _Pass, ClientPid} = User,
     ClientPid.
+
+logout(CurrentUser) ->
+    {user, CurrentUserName, CurrentPass, _Pid} = CurrentUser,
+    UserToLogout = #user{username = CurrentUserName, password = CurrentPass, pid = 0},
+    F = fun() ->
+        mnesia:write(UserToLogout)
+         end,
+    mnesia:transaction(F),
+    ok.

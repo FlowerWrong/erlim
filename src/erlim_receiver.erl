@@ -55,6 +55,7 @@ start_link(Socket) ->
 %%--------------------------------------------------------------------
 init([Socket]) ->
     {ok, {IP, _Port}} = inet:peername(Socket),
+    io:format("Ip addr is ~p~n", [IP]),
     NewState = #state{socket = Socket, ip = IP},
     setopts(NewState#state.socket),
     {ok, NewState}.
@@ -101,8 +102,7 @@ handle_cast(_Msg, State) ->
 %% @end
 %%--------------------------------------------------------------------
 handle_info({tcp, Socket, Data}, #state{socket = Socket} = State) ->
-    inet:setopts(Socket, [{active, once}]),
-    %% setopts(Socket),
+    setopts(Socket),
     %% IsJSON = jsx:is_json(Data),
     Json = jiffy:decode(Data),
     io:format("Json is ~p.~n", [Json]),
@@ -115,7 +115,7 @@ handle_info({tcp, Socket, Data}, #state{socket = Socket} = State) ->
     NewState = case Cmd of
         <<"login">> ->
             ClientPid = erlim_client_sup:start_child(Socket),
-            gen_tcp:controlling_process(Socket, ClientPid),
+            %% gen_tcp:controlling_process(Socket, ClientPid),
             ok = erlim_sm:login(CurrentUser, ClientPid),
             State#state{client_pid = ClientPid};
         <<"single_chat">> ->
@@ -149,22 +149,11 @@ handle_info({tcp, Socket, Data}, #state{socket = Socket} = State) ->
 % tcp connection change to passive
 handle_info({tcp_passive, Socket}, #state{socket = Socket} = State) ->
     io:format("tcp_passive is ~p~n", [State]),
-    setopts(Socket),
     {noreply, State};
 % connection closed
 handle_info({tcp_closed, _Socket}, State) ->
     io:format("client sock close~n"),
-    Pid = self(),
-    io:format("Pid close ~p.~n", [Pid]),
-    CloseSession = erlim_util:query_pid(Pid),
-    {user, CloseName, ClosePass, _Pid} = CloseSession,
-
-    UserToUpdate = #user{username = CloseName, password = ClosePass, pid = 0},
-    F1 = fun() ->
-        mnesia:write(UserToUpdate)
-         end,
-    mnesia:transaction(F1),
-    {stop, tcp_closed, #state{}};
+    {stop, tcp_closed, State};
 handle_info(timeout, State) ->
     proc_lib:hibernate(gen_server, enter_loop, [?MODULE, [], State]),
     {noreply, State, State#state.heartbeat_timeout};
@@ -182,7 +171,18 @@ handle_info(_Info, State) ->
 %% @spec terminate(Reason, State) -> void()
 %% @end
 %%--------------------------------------------------------------------
-terminate(_Reason, _State) ->
+terminate(_Reason, #state{client_pid = ClientPid} = State) ->
+    CloseSession = erlim_util:query_pid(ClientPid),
+    io:format("CloseSession close ~p.~n", [CloseSession]),
+    ok = erlim_sm:logout(CloseSession),
+    State#state{client_pid = undefined},
+    io:format("State is ~p~n", [State]),
+    Fun = fun() ->
+        Query = qlc:q([X || X <- mnesia:table(user)]),
+        qlc:e(Query)
+        end,
+    {atomic, Users} =  mnesia:transaction(Fun),
+    io:format("Users is ~p~n", [Users]),
     ok.
 
 %%--------------------------------------------------------------------
@@ -201,4 +201,5 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 
 setopts(Socket) ->
-    inet:setopts(Socket, [{active, once}, {packet, 2}, binary]).
+     inet:setopts(Socket, [{active, once}]),
+     inet:peername(Socket).
