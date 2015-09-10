@@ -127,8 +127,9 @@ handle_info({tcp, Socket, Data}, #state{socket = Socket} = State) ->
             gen_tcp:send(Socket, DataToSend),
             State#state{client_pid = ClientPid, token = Token};
         <<"single_chat">> ->
-            [{<<"to">>, ToUsername}, {<<"msg">>, Msg}] = T,
-            ToPid = erlim_sm:get_session(ToUsername),
+            %% FIXME 添加用户权限判断
+            [{<<"token">>, _Token}, {<<"to">>, ToName}, {<<"msg">>, Msg}] = T,
+            ToPid = erlim_sm:get_session(ToName),
 
             case ToPid of
                 0 ->  %% ofline
@@ -140,14 +141,16 @@ handle_info({tcp, Socket, Data}, #state{socket = Socket} = State) ->
             end,
             State;
         <<"group_chat">> ->
+            %% FIXME 添加用户权限判断
             [{<<"to">>, To}, {<<"msg">>, Msg}] = T,
             io:format("Pid is ~p.~n", [Pid]),
             io:format("To is ~p.~n", [To]),
             io:format("Msg is ~p.~n", [Msg]),
             State;
         <<"logout">> ->
+            %% FIXME 添加用户权限判断
             io:format("T is ~p~n", [T]),
-            [{<<"token">>, Token}] = T,
+            [{<<"token">>, _Token}] = T,
             self() ! {tcp_closed, Socket},
             State
     end,
