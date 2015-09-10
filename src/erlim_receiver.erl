@@ -120,7 +120,7 @@ handle_info({tcp, Socket, Data}, #state{socket = Socket} = State) ->
             State#state{client_pid = ClientPid};
         <<"single_chat">> ->
             [{<<"to">>, ToUsername}, {<<"msg">>, Msg}] = T,
-            ToPid = erlim_sm:get_session(Username),
+            ToPid = erlim_sm:get_session(ToUsername),
 
             case ToPid of
                 0 ->  %% ofline
@@ -153,7 +153,7 @@ handle_info({tcp_passive, Socket}, #state{socket = Socket} = State) ->
 % connection closed
 handle_info({tcp_closed, _Socket}, State) ->
     io:format("client sock close~n"),
-    {stop, tcp_closed, State};
+    {stop, normal, State};
 handle_info(timeout, State) ->
     proc_lib:hibernate(gen_server, enter_loop, [?MODULE, [], State]),
     {noreply, State, State#state.heartbeat_timeout};
@@ -171,19 +171,11 @@ handle_info(_Info, State) ->
 %% @spec terminate(Reason, State) -> void()
 %% @end
 %%--------------------------------------------------------------------
-terminate(_Reason, #state{client_pid = ClientPid} = State) ->
+terminate(_Reason, #state{client_pid = ClientPid}) ->
+    io:format("Receiver ~p terminated.~n", [self()]),
     CloseSession = erlim_util:query_pid(ClientPid),
-    io:format("CloseSession close ~p.~n", [CloseSession]),
     ok = erlim_sm:logout(CloseSession),
-    State#state{client_pid = undefined},
-    io:format("State is ~p~n", [State]),
-    Fun = fun() ->
-        Query = qlc:q([X || X <- mnesia:table(user)]),
-        qlc:e(Query)
-        end,
-    {atomic, Users} =  mnesia:transaction(Fun),
-    io:format("Users is ~p~n", [Users]),
-    ok.
+    ok = erlim_client:stop(ClientPid).
 
 %%--------------------------------------------------------------------
 %% @private

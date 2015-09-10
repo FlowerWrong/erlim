@@ -19,7 +19,7 @@
 %% TODO use active once
 -define(TCP_OPTIONS, [binary,
     {packet, 0},
-    {backlog, 30},
+    {backlog, 512},
     {active, false},
     {reuseaddr, true},
     {keepalive, true}]
@@ -131,10 +131,7 @@ handle_info({inet_async, ListenSocket, AcceptorRef, {ok, ClientSocket}}, #state{
             gen_tcp:controlling_process(ClientSocket, Pid),
 
             %% Signal the network driver that we are ready to accept another connection
-            case prim_inet:async_accept(ListenSocket, -1) of
-                {ok, NewAcceptorRef} -> ok;
-                {error, NewAcceptorRef} -> exit({async_accept, inet:format_error(NewAcceptorRef)})
-            end,
+            {ok, NewAcceptorRef} = prim_inet:async_accept(ListenSocket, -1),
             NewState = State#state{acceptor_ref = NewAcceptorRef},
             {noreply, NewState};
         Error ->

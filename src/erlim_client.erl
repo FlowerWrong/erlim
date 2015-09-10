@@ -3,7 +3,7 @@
 -behaviour(gen_server).
 
 %% API functions
--export([start_link/1]).
+-export([start_link/1, stop/1]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -78,6 +78,8 @@ handle_call(_Request, _From, State) ->
 %%                                  {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
+handle_cast(stop, State) ->
+    {stop, normal, State};
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
@@ -109,6 +111,7 @@ handle_info(_Info, State) ->
 %% @end
 %%--------------------------------------------------------------------
 terminate(_Reason, _State) ->
+    io:format("Client ~p terminated.~n", [self()]),
     ok.
 
 %%--------------------------------------------------------------------
@@ -125,3 +128,7 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+
+stop(ClientPid) ->
+    gen_server:cast(ClientPid, stop),
+    ok.
