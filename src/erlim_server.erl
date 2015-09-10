@@ -16,7 +16,6 @@
 %% http://www.cnblogs.com/ribavnu/archive/2013/08/06/3240435.html
 %% http://www.cnblogs.com/ribavnu/p/3409823.html
 %% http://learnyousomeerlang.com/buckets-of-sockets
-%% TODO use active once
 -define(TCP_OPTIONS, [binary,
     {packet, 0},
     {backlog, 512},
@@ -27,7 +26,7 @@
 
 -record(state, {
     port,                   % listen port
-    listen_socket=null,     % listen socket
+    listen_socket,          % listen socket
     acceptor_ref
 }).
 
@@ -66,19 +65,28 @@ start_link(Port) ->
 %%                     {stop, Reason}
 %% @end
 %%--------------------------------------------------------------------
-init(State = #state{port=Port}) ->
+init(#state{port=Port}) ->
     process_flag(trap_exit, true),
-    io:format("Init pid is ~p.~n", [self()]),
 
     erlim_mnesia:init_mnesia(),
+
+    application:start(crypto),
+    application:start(bcrypt),
+    application:start(emysql),
+    emysql:add_pool(erlim_pool, [
+                 {size,1},
+                 {user, "root"},
+                 {password, "root"},
+                 {database, "movie_together_development"},
+                 {encoding, utf8}]),
 
     observer:start(),
 
     {ok, ListenSocket} = gen_tcp:listen(Port, ?TCP_OPTIONS),
     {ok, AcceptorRef} = prim_inet:async_accept(ListenSocket, -1),
     NewState = #state{listen_socket = ListenSocket, acceptor_ref = AcceptorRef},
-    io:format("NewState is ~p~n", [NewState]),
     {ok, NewState}.
+
 %%--------------------------------------------------------------------
 %% @private
 %% @doc
@@ -127,7 +135,6 @@ handle_info({inet_async, ListenSocket, AcceptorRef, {ok, ClientSocket}}, #state{
         ok ->
             %% New client connected - spawn a new process using the simple_one_for_one
             Pid = erlim_receiver_sup:start_child(ClientSocket),
-            io:format("erlim_server start_child receiver is ~p.~n", [Pid]),
             gen_tcp:controlling_process(ClientSocket, Pid),
 
             %% Signal the network driver that we are ready to accept another connection
@@ -139,10 +146,10 @@ handle_info({inet_async, ListenSocket, AcceptorRef, {ok, ClientSocket}}, #state{
             {stop, Error, State}
     end;
 handle_info({inet_async, ListenSocket, AcceptorRef, Error}, #state{listen_socket = ListenSocket, acceptor_ref = AcceptorRef} = State) ->
-    error_logger:error_msg("Error in socket acceptor: ~p.\n", [Error]),
+    io:format("Error in socket acceptor: ~p.~n", [Error]),
     {stop, Error, State};
-handle_info(_Info, State) ->
-    log:i("_Info:~p~n", [_Info]),
+handle_info(Info, State) ->
+    io:format("Info: ~p~n", [Info]),
     {noreply, State}.
 
 
@@ -158,8 +165,7 @@ handle_info(_Info, State) ->
 %% @end
 %%--------------------------------------------------------------------
 terminate(_Reason, State) ->
-    gen_tcp:close(State#state.listen_socket),
-    ok.
+    gen_tcp:close(State#state.listen_socket).
 
 %%--------------------------------------------------------------------
 %% @private
@@ -185,10 +191,10 @@ set_sockopt(ListenSocket, ClientSocket) ->
         case prim_inet:setopts(ClientSocket, Opts) of
             ok -> ok;
             Error ->
-                io:format("set sockopt 195 error is ~p~n", [Error]),
+                io:format("set_sockopt/2: prim_inet:setopts/2 error is ~p~n", [Error]),
                 gen_tcp:close(ClientSocket), Error
         end;
     Error ->
-        io:format("set socket error is ~p~n", [Error]),
+        io:format("set_sockopt/2: prim_inet:getopts/2 error is ~p~n", [Error]),
         gen_tcp:close(ClientSocket), Error
     end.

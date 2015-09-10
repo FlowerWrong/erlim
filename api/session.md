@@ -5,8 +5,8 @@
 ```json
 {
     "cmd": "login",
-    "username": "yang",
-    "password": "123456"
+    "name": "yang",
+    "pass": "123456"
 }
 ```
 
@@ -15,6 +15,6 @@
 ```json
 {
     "cmd": "logout",
-    "token": "yang",
+    "token": "efd0c3b8-35bb-4cd1-85db-9248d45d8afa",
 }
 ```

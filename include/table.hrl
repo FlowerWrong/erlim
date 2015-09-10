@@ -9,7 +9,18 @@
 -author("yy").
 
 -record(user, {
-    username,               % user name
-    password,               % password
-    pid                     % client pid
+    name,               % user name
+    token,              % token
+    pid                 % client pid
+}).
+
+%% For mysql record
+-record(user_record, {
+    id,
+    mobile,
+    password_digest,
+    nick_name,
+    uid,
+    avatar,
+    email
 }).

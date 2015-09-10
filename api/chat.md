@@ -5,7 +5,7 @@
 ```json
 {
     "cmd": "single_chat",
-    "token": "yang",
+    "token": "efd0c3b8-35bb-4cd1-85db-9248d45d8afa",
     "to": "to user name",
     "msg": "msg body"
 }
@@ -16,7 +16,7 @@
 ```json
 {
     "cmd": "group_chat",
-    "token": "yang",
+    "token": "efd0c3b8-35bb-4cd1-85db-9248d45d8afa",
     "to": "to room name",
     "msg": "msg body"
 }

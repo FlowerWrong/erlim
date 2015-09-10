@@ -124,24 +124,28 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 
 login(CurrentUser, ClientPid) ->
-    {user, CurrentUserName, CurrentPass, _Pid} = CurrentUser,
-    UserToLogin = #user{username = CurrentUserName, password = CurrentPass, pid = ClientPid},
+    CurrentName = CurrentUser#user_record.mobile,
+    Token = uuid:generate(),
+    UserToLogin = #user{name = CurrentName, token = Token, pid = ClientPid},
     F = fun() ->
         mnesia:write(UserToLogin)
          end,
     mnesia:transaction(F),
-    ok.
+    {ok, Token}.
 
-get_session(Username) ->
-    User = erlim_util:query_user(Username),
-    {user, _Username, _Pass, ClientPid} = User,
+get_session(Name) ->
+    User = mnesia_util:query_name(Name),
+    {user, _Name, _Token, ClientPid} = User,
     ClientPid.
 
-logout(CurrentUser) ->
-    {user, CurrentUserName, CurrentPass, _Pid} = CurrentUser,
-    UserToLogout = #user{username = CurrentUserName, password = CurrentPass, pid = 0},
+logout(Token) ->
+    io:format("Logout token is ~p~n", [Token]),
+    io:format("Users is ~p~n", [mnesia_util:all()]),
+    CurrentUser = mnesia_util:query_token(Token),
+    io:format("CurrentUser is ~p~n", [CurrentUser]),
     F = fun() ->
-        mnesia:write(UserToLogout)
+        mnesia:delete_object(CurrentUser)
          end,
     mnesia:transaction(F),
+    io:format("Users is ~p~n", [mnesia_util:all()]),
     ok.

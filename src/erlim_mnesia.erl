@@ -15,41 +15,15 @@
 -export([init_mnesia/0]).
 
 init_mnesia() ->
-    %% mnesia
     case mnesia:create_schema([node()]) of
         {error, Reason} ->
             io:format("Error reason is ~p~n", [Reason]),
             mnesia:start(),
             mnesia:clear_table(user),
             io:format("node is ~p", [node()]),
-            mnesia:create_table(user, [{attributes, record_info(fields, user)}, {disc_only_copies, [node()]}]),
-            Yang = #user{username = "yang", password = "123456", pid = 0},
-            F1 = fun() ->
-                mnesia:write(Yang)
-                 end,
-            mnesia:transaction(F1),
-
-            Kang = #user{username = "kang", password = "123456", pid = 0},
-            F2 = fun() ->
-                mnesia:write(Kang)
-                 end,
-            mnesia:transaction(F2);
+            mnesia:create_table(user, [{attributes, record_info(fields, user)}, {disc_only_copies, [node()]}]);
         ok ->
             mnesia:start(),
-            %% mnesia:clear_table(user),
             io:format("node is ~p", [node()]),
-            mnesia:create_table(user, [{attributes, record_info(fields, user)}, {disc_only_copies, [node()]}]),
-            Yang = #user{username = "yang", password = "123456", pid = 0},
-            F1 = fun() ->
-            mnesia:write(Yang)
-            end,
-            mnesia:transaction(F1),
-
-            Kang = #user{username = "kang", password = "123456", pid = 0},
-            F2 = fun() ->
-            mnesia:write(Kang)
-            end,
-            mnesia:transaction(F2)
+            mnesia:create_table(user, [{attributes, record_info(fields, user)}, {disc_only_copies, [node()]}])
     end.
-
-

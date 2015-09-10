@@ -17,7 +17,8 @@
     socket,
     heartbeat_timeout = 600000,
     client_pid,
-    ip
+    ip,
+    token
 }).
 
 -include("table.hrl").
@@ -106,18 +107,25 @@ handle_info({tcp, Socket, Data}, #state{socket = Socket} = State) ->
     %% IsJSON = jsx:is_json(Data),
     Json = jiffy:decode(Data),
     io:format("Json is ~p.~n", [Json]),
-    {[{<<"cmd">>, Cmd}, {<<"username">>, Username}, {<<"password">>, Password} | T]} = Json,
+    {[{<<"cmd">>, Cmd} | T]} = Json,
     io:format("Cmd is ~p.~n", [Cmd]),
 
-    CurrentUser = erlim_util:query_user(Username, Password),
-    {user, _CurrentUsername, _CurrentPass, Pid} = CurrentUser,
+    Pid = self(),
 
     NewState = case Cmd of
         <<"login">> ->
+            [{<<"name">>, Name}, {<<"pass">>, Pass}] = T,
+            CurrentUser = mysql_util:query_user_by_mobile(Name),
+            io:format("user is ~p~n", [CurrentUser]),
+            PassDigest = binary_to_list(CurrentUser#user_record.password_digest),
+            {ok, PassDigest} =:= bcrypt:hashpw(Pass, PassDigest),
+
             ClientPid = erlim_client_sup:start_child(Socket),
-            %% gen_tcp:controlling_process(Socket, ClientPid),
-            ok = erlim_sm:login(CurrentUser, ClientPid),
-            State#state{client_pid = ClientPid};
+            {ok, Token} = erlim_sm:login(CurrentUser, ClientPid),
+            DataToSend = jiffy:encode({[{<<"token">>, Token}]}),
+            io:format("DataToSend is ~p~n", [DataToSend]),
+            gen_tcp:send(Socket, DataToSend),
+            State#state{client_pid = ClientPid, token = Token};
         <<"single_chat">> ->
             [{<<"to">>, ToUsername}, {<<"msg">>, Msg}] = T,
             ToPid = erlim_sm:get_session(ToUsername),
@@ -138,8 +146,9 @@ handle_info({tcp, Socket, Data}, #state{socket = Socket} = State) ->
             io:format("Msg is ~p.~n", [Msg]),
             State;
         <<"logout">> ->
-            io:format("Pid is ~p.~n", [Pid]),
-            io:format("T is ~p.~n", [T]),
+            io:format("T is ~p~n", [T]),
+            [{<<"token">>, Token}] = T,
+            self() ! {tcp_closed, Socket},
             State
     end,
 
@@ -151,7 +160,6 @@ handle_info({tcp_passive, Socket}, #state{socket = Socket} = State) ->
     {noreply, State};
 % connection closed
 handle_info({tcp_closed, _Socket}, State) ->
-    io:format("client sock close~n"),
     {stop, normal, State};
 handle_info(timeout, State) ->
     proc_lib:hibernate(gen_server, enter_loop, [?MODULE, [], State]),
@@ -172,8 +180,10 @@ handle_info(_Info, State) ->
 %%--------------------------------------------------------------------
 terminate(_Reason, #state{client_pid = ClientPid}) ->
     io:format("Receiver ~p terminated.~n", [self()]),
-    CloseSession = erlim_util:query_pid(ClientPid),
-    ok = erlim_sm:logout(CloseSession),
+    Session = mnesia_util:query_pid(ClientPid),
+    io:format("Session is ~p.~n", [Session]),
+    ok = erlim_sm:logout(Session#user.token),
+
     ok = erlim_client:stop(ClientPid).
 
 %%--------------------------------------------------------------------
@@ -192,5 +202,5 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 
 setopts(Socket) ->
-     inet:setopts(Socket, [{active, once}]),
-     inet:peername(Socket).
+    inet:setopts(Socket, [{active, once}]),
+    inet:peername(Socket).
