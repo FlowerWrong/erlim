@@ -110,8 +110,6 @@ handle_info({tcp, Socket, Data}, #state{socket = Socket} = State) ->
     {[{<<"cmd">>, Cmd} | T]} = Json,
     io:format("Cmd is ~p.~n", [Cmd]),
 
-    Pid = self(),
-
     NewState = case Cmd of
         <<"login">> ->
             [{<<"name">>, Name}, {<<"pass">>, Pass}] = T,
@@ -128,14 +126,22 @@ handle_info({tcp, Socket, Data}, #state{socket = Socket} = State) ->
             State#state{client_pid = ClientPid, token = Token};
         <<"single_chat">> ->
             %% FIXME 添加用户权限判断
-            [{<<"token">>, _Token}, {<<"to">>, ToName}, {<<"msg">>, Msg}] = T,
+            [{<<"token">>, Token}, {<<"to">>, ToName}, {<<"msg">>, Msg}] = T,
             ToPid = erlim_sm:get_session(ToName),
+            ToUser = mysql_util:query_user_by_mobile(ToName),
+
+            SessionUser = mnesia_util:query_token(Token),
+            FromUser = mysql_util:query_user_by_mobile(SessionUser#user.name),
 
             case ToPid of
-                0 ->  %% ofline
+                false ->  %% ofline
+                    OffMsg = #msg_record{from = FromUser#user_record.id, to = ToUser#user_record.id, msg = Msg, unread = 0},
+                    mysql_util:save_msg(OffMsg),
                     ok;
                 _ ->  %% online
                     io:format("Send msg to ~p, msg is ~p.~n", [ToPid, Msg]),
+                    OnlineMsg = #msg_record{from = FromUser#user_record.id, to = ToUser#user_record.id, msg = Msg, unread = 1},
+                    mysql_util:save_msg(OnlineMsg),
                     ToPid ! {single_chat, Msg},
                     ok
             end,
@@ -143,7 +149,6 @@ handle_info({tcp, Socket, Data}, #state{socket = Socket} = State) ->
         <<"group_chat">> ->
             %% FIXME 添加用户权限判断
             [{<<"to">>, To}, {<<"msg">>, Msg}] = T,
-            io:format("Pid is ~p.~n", [Pid]),
             io:format("To is ~p.~n", [To]),
             io:format("Msg is ~p.~n", [Msg]),
             State;

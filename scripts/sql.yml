@@ -1,0 +1,37 @@
+msgs:
+  id: ID
+  from: from user id
+  to: to user id
+  msg: msg body
+  unread: true/false
+
+rooms:
+  id: ID
+  creator: creator id
+  name: room name
+  max_member_count: 最大成员数
+  invitable: 是否允许邀请
+  password: 密码(默认未空)
+  description: 描述
+  subject: 主题
+  qrcode: 群二维码
+
+room_users:
+  id: ID
+  room_id: room id
+  user_id: user id
+  nick_name: 群昵称
+  none_bother: 消息免打扰
+  bg: 聊天背景
+
+roommsgs:
+  id: ID
+  from: from user id
+  to: to room id
+  msg: msg body
+
+user_roommsgs:
+  id: ID
+  user_id: user id
+  roommsg_id: roommsg id
+  unread: true/false

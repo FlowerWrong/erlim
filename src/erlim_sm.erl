@@ -134,9 +134,10 @@ login(CurrentUser, ClientPid) ->
     {ok, Token}.
 
 get_session(Name) ->
-    User = mnesia_util:query_name(Name),
-    {user, _Name, _Token, ClientPid} = User,
-    ClientPid.
+    case mnesia_util:query_name(Name) of
+        false -> false;
+        {user, _Name, _Token, ClientPid} -> ClientPid
+    end.
 
 logout(Token) ->
     io:format("Logout token is ~p~n", [Token]),

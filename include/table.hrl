@@ -24,3 +24,18 @@
     avatar,
     email
 }).
+
+-record(msg_record, {
+    id,
+    from,
+    to,
+    msg,
+    unread
+}).
+
+-record(roommsg_record, {
+    id,
+    from,
+    to,
+    msg
+}).
