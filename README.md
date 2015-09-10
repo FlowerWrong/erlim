@@ -12,18 +12,20 @@
 make
 
 # in erl console
-# bug: 启动应用后不能输入,只能另外起一个窗口
 application:start(erlim).
-
-# in another erl console
-cy:login().
-ck:login().
-
-# 发起聊天
-cy:sc().
 ```
 
 #### Usage
+
+```bash
+# 登陆
+S1 = cy:login().
+S2 = ck:login().
+
+# 发起聊天
+cy:sc().
+ck:loop_recv(S2).
+```
 
 #### Design
 
@@ -31,37 +33,8 @@ cy:sc().
 * Use json for data exchange
 * Use http for file upload
 
-###### login
+#### [API doc](https://github.com/FlowerWrong/erlim)
 
-```json
-{
-    "cmd": "login",
-    "username": "yang",
-    "password": "123456"
-}
-```
-
-###### one-to-one/group chat
-
-```json
-{
-    "cmd": "single_chat/group_chat",
-    "username": "yang",
-    "password": "123456",
-    "to": "to user name/room name",
-    "msg": "msg body"
-}
-```
-
-###### logout
-
-```json
-{
-    "cmd": "logout",
-    "username": "yang",
-    "password": "123456"
-}
-```
 
 #### Features
 
@@ -75,8 +48,9 @@ cy:sc().
 
 #### Todo
 
-- [ ] erlang async receive
+- [x] erlang async receive
 - [ ] one-to-one chat
+- [ ] use toml to write config file
 - [x] use mnesia for session store
 - [x] Toml library of erlang
 - [ ] yrl and xrl(语法分析/词法分析) write json parse in erlang(yecc and leex)
