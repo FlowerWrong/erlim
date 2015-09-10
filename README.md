@@ -2,9 +2,11 @@
 
 #### Dependency
 
-* [erlang 17.5](http://www.erlang.org/)
+* [erlang 17.5](http://www.erlang.org/) +
 * [jsx](https://github.com/talentdeficit/jsx) and [jiffy](https://github.com/davisp/jiffy) for json parse
 * [etoml](https://github.com/kalta/etoml) for toml parse
+* [erlang-uuid-v4](https://github.com/afiskon/erlang-uuid-v4) for token generate
+* [emysql](https://github.com/Eonblast/Emysql) for mysql driver
 
 #### Install
 
@@ -17,13 +19,13 @@ application:start(erlim).
 
 #### Usage
 
-```bash
-# 登陆
+```erlang
+%% 登陆
 S1 = cy:login().
 S2 = ck:login().
 
-# 发起聊天
-cy:sc().
+%% 发起聊天
+cy:sc(S1).
 ck:loop_recv(S2).
 ```
 
@@ -33,7 +35,7 @@ ck:loop_recv(S2).
 * Use json for data exchange
 * Use http for file upload
 
-#### [API doc](https://github.com/FlowerWrong/erlim)
+#### [API doc](https://github.com/FlowerWrong/erlim/tree/master/api)
 
 
 #### Features
@@ -41,10 +43,6 @@ ck:loop_recv(S2).
 * single chat: chat must be friends
 * group chat: whatsapp-like
 * chat history both single chat and group chat
-
-#### 参考链接
-
-* [Erlang 聊天室程序](http://www.cnblogs.com/yjl49/archive/2012/02/24/2371920.html)
 
 #### Todo
 
