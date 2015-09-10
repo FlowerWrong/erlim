@@ -1,6 +1,6 @@
 -module(cy).
 
--export([login/0, sc/1, gc/1, logout/1]).
+-export([login/0, sc/1, gc/1, logout/1, loop_recv/1]).
 
 login() ->
     {ok, Sock} = gen_tcp:connect("localhost", 3000, [binary, {packet, 0}]),
@@ -20,3 +20,9 @@ logout(Sock) ->
     Msg = <<"{\"cmd\": \"logout\", \"username\": \"yang\", \"password\": \"123456\"}">>,
     ok = gen_tcp:send(Sock, Msg),
     ok = gen_tcp:close(Sock).
+
+loop_recv(Socket) ->
+    receive
+        {tcp, Socket, String} ->
+            io:format("Client received = ~p~n", [String])
+    end.

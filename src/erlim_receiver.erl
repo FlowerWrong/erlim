@@ -126,11 +126,10 @@ handle_info({tcp, Socket, Data}, #state{socket = Socket} = State) ->
                 0 ->  %% ofline
                     ok;
                 _ ->  %% online
-                    io:format("Send msg to ~p~n", [ToPid]),
+                    io:format("Send msg to ~p, msg is ~p.~n", [ToPid, Msg]),
                     ToPid ! {single_chat, Msg},
                     ok
             end,
-            io:format("Msg is ~p.~n", [Msg]),
             State;
         <<"group_chat">> ->
             [{<<"to">>, To}, {<<"msg">>, Msg}] = T,

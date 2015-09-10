@@ -93,8 +93,9 @@ handle_cast(_Msg, State) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_info({single_chat, Msg}, State) ->
+handle_info({single_chat, Msg}, #state{socket = Socket} = State) ->
     io:format("erlim_client single_chat msg is ~p~n", [Msg]),
+    gen_tcp:send(Socket, Msg),
     {noreply, State};
 handle_info(_Info, State) ->
     {noreply, State}.
