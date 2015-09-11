@@ -27,15 +27,15 @@
 
 -record(msg_record, {
     id,
-    from,
-    to,
+    f,
+    t,
     msg,
     unread
 }).
 
 -record(roommsg_record, {
     id,
-    from,
-    to,
+    f,
+    t,
     msg
 }).

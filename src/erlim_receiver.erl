@@ -135,13 +135,16 @@ handle_info({tcp, Socket, Data}, #state{socket = Socket} = State) ->
 
             case ToPid of
                 false ->  %% ofline
-                    OffMsg = #msg_record{from = FromUser#user_record.id, to = ToUser#user_record.id, msg = Msg, unread = 0},
-                    mysql_util:save_msg(OffMsg),
+                    io:format("Send msg to ~p, ~p, msg is ~p.~n", [ToPid, ToUser, Msg]),
+                    OffMsg = #msg_record{f = FromUser#user_record.id, t = ToUser#user_record.id, msg = Msg, unread = 1},
+                    io:format("OffMsg is ~p.~n", [OffMsg]),
+                    {ok_packet, _, _, _, _, _, _} = mysql_util:save_msg(OffMsg),
                     ok;
                 _ ->  %% online
-                    io:format("Send msg to ~p, msg is ~p.~n", [ToPid, Msg]),
-                    OnlineMsg = #msg_record{from = FromUser#user_record.id, to = ToUser#user_record.id, msg = Msg, unread = 1},
-                    mysql_util:save_msg(OnlineMsg),
+                    io:format("Send msg to ~p, ~p, msg is ~p.~n", [ToPid, ToUser, Msg]),
+                    OnlineMsg = #msg_record{f = FromUser#user_record.id, t = ToUser#user_record.id, msg = Msg, unread = 0},
+                    io:format("OnlineMsg is ~p.~n", [OnlineMsg]),
+                    {ok_packet, _, _, _, _, _, _} = mysql_util:save_msg(OnlineMsg),
                     ToPid ! {single_chat, Msg},
                     ok
             end,
