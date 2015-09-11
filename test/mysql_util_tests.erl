@@ -7,3 +7,8 @@ save_msg_test() ->
     ok = application:start(erlim),
     OffMsg = #msg_record{f = 1, t = 2, msg = "Test msg send from 1 to 2.", unread = 1},
     {ok_packet, _, _, _, _, _, _} = mysql_util:save_msg(OffMsg).
+
+msgs_test() ->
+    Msgs = mysql_util:msgs(1, 1),
+    io:format("Msgs is ~p~n", [Msgs]),
+    Msgs.
