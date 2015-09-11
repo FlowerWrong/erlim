@@ -9,3 +9,5 @@
 *.log
 
 Mnesia.nonode@nohost/
+
+/erlim.toml
