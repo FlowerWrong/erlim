@@ -151,13 +151,44 @@ handle_info({tcp, Socket, Data}, #state{socket = Socket} = State) ->
             State;
         <<"group_chat">> ->
             %% FIXME 添加用户权限判断
-            [{<<"to">>, To}, {<<"msg">>, Msg}] = T,
-            io:format("To is ~p.~n", [To]),
+            [{<<"token">>, Token}, {<<"to">>, ToRoomId}, {<<"msg">>, Msg}] = T,
+            io:format("ToRoomId is ~p.~n", [ToRoomId]),
             io:format("Msg is ~p.~n", [Msg]),
+
+            SessionUser = mnesia_util:query_token(Token),
+            FromUser = mysql_util:query_user_by_mobile(SessionUser#user.name),
+            RoomMsg = #roommsg_record{f = FromUser#user_record.id, t = ToRoomId, msg = Msg},
+            mysql_util:save_room_msg(RoomMsg),
+
+            Members = mysql_util:room_members(ToRoomId),
+            io:format("Members is ~p.~n", [Members]),
+            % OnlineMembers = lists:filter(fun(M) ->
+            %     io:format("m is ~p~n", [M]),
+            %     case mysql_util:query_user_by_id(M#room_users_record.user_id) of
+            %         [] -> false;
+            %         #user_record{mobile = Mobile} ->
+            %             case mnesia_util:query_name(Mobile) of
+            %                 false -> false;
+            %                 _ -> true
+            %             end
+            %     end
+            % end, Members),
+            % io:format("OnlineMembers is ~p.~n", [OnlineMembers]),
+
+            lists:foreach(fun(M) ->
+                case mysql_util:query_user_by_id(M#room_users_record.user_id) of
+                    [] -> false;
+                    #user_record{mobile = Mobile} ->
+                        case mnesia_util:query_name(Mobile) of
+                            false -> false;
+                            #user{pid = ToPid} ->
+                                ToPid ! {group_chat, Msg}
+                        end
+                end
+            end, Members),
             State;
         <<"logout">> ->
             %% FIXME 添加用户权限判断
-            io:format("T is ~p~n", [T]),
             [{<<"token">>, _Token}] = T,
             self() ! {tcp_closed, Socket},
             State

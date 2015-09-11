@@ -19,7 +19,7 @@ sc(Sock, Token) ->
     ok = gen_tcp:send(Sock, Msg).
 
 gc(Sock, Token) ->
-    Msg = iolist_to_binary([<<"{\"cmd\": \"group_chat\", \"token\": \"">>, Token, <<"\", \"to\": \"xiaomiroom\", \"msg\": \"hello world, xiaomi\"}">>]),
+    Msg = iolist_to_binary([<<"{\"cmd\": \"group_chat\", \"token\": \"">>, Token, <<"\", \"to\": 1, \"msg\": \"hello world, xiaomi\"}">>]),
     ok = gen_tcp:send(Sock, Msg).
 
 logout(Sock, Token) ->

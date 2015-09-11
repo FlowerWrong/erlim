@@ -2,11 +2,13 @@
 
 -export([
     query_user_by_mobile/1,
+    query_user_by_id/1,
     save_logout/1,
     save_msg/1,
     save_room_msg/1,
     user_msgs/2,
     room_msgs/1,
+    room_members/1,
     create_room/1,
     add_member/2,
     add_member/3,
@@ -26,8 +28,16 @@
 
 %% 通过手机号查询用户
 query_user_by_mobile(Username) ->
-    emysql:prepare(query_user_stmt, <<"SELECT * FROM users WHERE mobile = ?">>),
-    Result = emysql:execute(erlim_pool, query_user_stmt, [Username]),
+    emysql:prepare(query_user_by_mobile_stmt, <<"SELECT * FROM users WHERE mobile = ?">>),
+    Result = emysql:execute(erlim_pool, query_user_by_mobile_stmt, [Username]),
+    Recs = emysql_util:as_record(Result, user_record, record_info(fields, user_record)),
+    [User | _T] = Recs,
+    User.
+
+%% 通过id查询用户
+query_user_by_id(Uid) when is_integer(Uid) ->
+    emysql:prepare(query_user_by_id_stmt, <<"SELECT * FROM users WHERE id = ?">>),
+    Result = emysql:execute(erlim_pool, query_user_by_id_stmt, [Uid]),
     Recs = emysql_util:as_record(Result, user_record, record_info(fields, user_record)),
     [User | _T] = Recs,
     User.
@@ -71,6 +81,12 @@ room_msgs(Id) when is_integer(Id) ->
     emysql:prepare(roommsg_stmt, <<"SELECT * FROM roommsgs WHERE t = ?">>),
     Result = emysql:execute(erlim_pool, roommsg_stmt, [Id]),
     emysql_util:as_record(Result, roommsg_record, record_info(fields, roommsg_record)).
+
+%% 群成员
+room_members(RoomId) when is_integer(RoomId) ->
+    emysql:prepare(room_members_stmt, <<"SELECT * FROM room_users WHERE room_id = ?">>),
+    Result = emysql:execute(erlim_pool, room_members_stmt, [RoomId]),
+    emysql_util:as_record(Result, room_users_record, record_info(fields, room_users_record)).
 
 %%　建群
 create_room(Room) when is_record(Room, room_record) ->

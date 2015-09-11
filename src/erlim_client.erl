@@ -97,6 +97,10 @@ handle_info({single_chat, Msg}, #state{socket = Socket} = State) ->
     io:format("erlim_client single_chat msg is ~p~n", [Msg]),
     gen_tcp:send(Socket, Msg),
     {noreply, State};
+handle_info({group_chat, Msg}, #state{socket = Socket} = State) ->
+    io:format("erlim_client group_chat msg is ~p~n", [Msg]),
+    gen_tcp:send(Socket, Msg),
+    {noreply, State};
 handle_info(_Info, State) ->
     {noreply, State}.
 
