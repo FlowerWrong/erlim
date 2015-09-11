@@ -30,3 +30,13 @@ room_msgs(Id) ->
     emysql:prepare(roommsg_stmt, <<"SELECT * FROM roommsgs WHERE t = ?">>),
     Result = emysql:execute(erlim_pool, roommsg_stmt, [Id]),
     emysql_util:as_record(Result, roommsg_record, record_info(fields, roommsg_record)).
+
+create_room(Room) ->
+    emysql:prepare(create_room_stmt, <<"INSERT INTO rooms SET name = ?, creator = ?, max_member_count = ?, invitable = ?, description = ?, subject = ?, qrcode = ?">>),
+    emysql:execute(erlim_pool, create_room_stmt, [Room#room_record.name, Room#room_record.creator, Room#room_record.max_member_count, Room#room_record.invitable, Room#room_record.description, Room#room_record.subject, Room#room_record.qrcode]).
+
+add_member(Uid, Rid) ->
+    ok.
+
+add_members(Uids, Rid) ->
+    ok.

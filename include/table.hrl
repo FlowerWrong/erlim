@@ -39,3 +39,31 @@
     t,
     msg
 }).
+
+-record(room_record, {
+    id,
+    creator,
+    name,
+    max_member_count,
+    invitable,
+    description,
+    subject,
+    qrcode
+}).
+
+-record(room_users_record, {
+    id,
+    room_id,
+    user_id,
+    nick_name,
+    none_bother,
+    bg
+}).
+
+
+-record(user_roommsgs_record, {
+    id,
+    user_id,
+    roommsg_id,
+    unread
+}).
