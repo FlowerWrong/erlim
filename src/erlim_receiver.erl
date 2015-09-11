@@ -104,8 +104,9 @@ handle_cast(_Msg, State) ->
 %%--------------------------------------------------------------------
 handle_info({tcp, Socket, Data}, #state{socket = Socket} = State) ->
     setopts(Socket),
-    %% IsJSON = jsx:is_json(Data),
+    IsJSON = jsx:is_json(Data),
     Json = jiffy:decode(Data),
+    io:format("IsJSON is ~p.~n", [IsJSON]),
     io:format("Json is ~p.~n", [Json]),
     {[{<<"cmd">>, Cmd} | T]} = Json,
     io:format("Cmd is ~p.~n", [Cmd]),
@@ -145,7 +146,9 @@ handle_info({tcp, Socket, Data}, #state{socket = Socket} = State) ->
                     OnlineMsg = #msg_record{f = FromUser#user_record.id, t = ToUser#user_record.id, msg = Msg, unread = 0},
                     io:format("OnlineMsg is ~p.~n", [OnlineMsg]),
                     {ok_packet, _, _, _, _, _, _} = mysql_util:save_msg(OnlineMsg),
-                    ToPid ! {single_chat, Msg},
+
+                    DataToSend = jiffy:encode({[{<<"cmd">>, <<"single_chat">>}, {<<"from">>, SessionUser#user.name}, {<<"to">>, ToName}, {<<"msg">>, Msg}]}),
+                    ToPid ! {single_chat, DataToSend},
                     ok
             end,
             State;
@@ -162,18 +165,8 @@ handle_info({tcp, Socket, Data}, #state{socket = Socket} = State) ->
 
             Members = mysql_util:room_members(ToRoomId),
             io:format("Members is ~p.~n", [Members]),
-            % OnlineMembers = lists:filter(fun(M) ->
-            %     io:format("m is ~p~n", [M]),
-            %     case mysql_util:query_user_by_id(M#room_users_record.user_id) of
-            %         [] -> false;
-            %         #user_record{mobile = Mobile} ->
-            %             case mnesia_util:query_name(Mobile) of
-            %                 false -> false;
-            %                 _ -> true
-            %             end
-            %     end
-            % end, Members),
-            % io:format("OnlineMembers is ~p.~n", [OnlineMembers]),
+
+            DataToSend = jiffy:encode({[{<<"cmd">>, <<"group_chat">>}, {<<"from">>, SessionUser#user.name}, {<<"to">>, ToRoomId}, {<<"msg">>, Msg}]}),
 
             lists:foreach(fun(M) ->
                 case mysql_util:query_user_by_id(M#room_users_record.user_id) of
@@ -182,7 +175,7 @@ handle_info({tcp, Socket, Data}, #state{socket = Socket} = State) ->
                         case mnesia_util:query_name(Mobile) of
                             false -> false;
                             #user{pid = ToPid} ->
-                                ToPid ! {group_chat, Msg}
+                                ToPid ! {group_chat, DataToSend}
                         end
                 end
             end, Members),
