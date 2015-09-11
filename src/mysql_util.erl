@@ -2,6 +2,7 @@
 
 -export([
     query_user_by_mobile/1,
+    save_logout/1,
     save_msg/1,
     save_room_msg/1,
     user_msgs/2,
@@ -31,9 +32,24 @@ query_user_by_mobile(Username) ->
     [User | _T] = Recs,
     User.
 
+%% 退出时保存时间
+save_logout(Name) ->
+    emysql:prepare(sm_stmt, <<"SELECT * FROM sms WHERE name = ?">>),
+    Result = emysql:execute(erlim_pool, sm_stmt, [Name]),
+    Now = calendar:local_time(),
+    %% Recs = emysql_util:as_record(Result, sm_record, record_info(fields, sm_record)),
+    case emysql_util:as_record(Result, sm_record, record_info(fields, sm_record)) of
+        [] ->
+            emysql:prepare(insert_sm_stmt, <<"INSERT INTO sms SET name = ?, last_logout_at = ?, created_at = ?, updated_at = ?">>),
+            emysql:execute(erlim_pool, insert_sm_stmt, [Name, Now, Now, Now]);
+        [Sm] ->
+            emysql:prepare(up_sm_stmt, <<"UPDATE sms SET last_logout_at = ?, updated_at = ? WHERE name = ?">>),
+            emysql:execute(erlim_pool, up_sm_stmt, [Now, Now, Name])
+    end.
+
+
 %% 保存私聊消息
 save_msg(Msg) when is_record(Msg, msg_record) ->
-    io:format("Msg is ~p~n", [Msg]),
     emysql:prepare(save_msg_stmt, <<"INSERT INTO msgs SET f = ?, t = ?, msg = ?, unread = ?, created_at = ?, updated_at = ?">>),
     Now = calendar:local_time(),
     emysql:execute(erlim_pool, save_msg_stmt, [Msg#msg_record.f, Msg#msg_record.t, Msg#msg_record.msg, Msg#msg_record.unread, Now, Now]).

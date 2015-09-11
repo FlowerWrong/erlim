@@ -194,7 +194,7 @@ terminate(_Reason, #state{client_pid = ClientPid}) ->
     Session = mnesia_util:query_pid(ClientPid),
     io:format("Session is ~p.~n", [Session]),
     ok = erlim_sm:logout(Session#user.token),
-
+    mysql_util:save_logout(Session#user.name),
     ok = erlim_client:stop(ClientPid).
 
 %%--------------------------------------------------------------------

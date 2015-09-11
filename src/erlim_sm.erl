@@ -140,7 +140,6 @@ get_session(Name) ->
     end.
 
 logout(Token) ->
-    io:format("Logout token is ~p~n", [Token]),
     io:format("Users is ~p~n", [mnesia_util:all()]),
     CurrentUser = mnesia_util:query_token(Token),
     io:format("CurrentUser is ~p~n", [CurrentUser]),

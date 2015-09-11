@@ -59,3 +59,12 @@
     none_bother,
     bg
 }).
+
+-record(sm_record, {
+    id,
+    name,
+    token,
+    pid,
+    last_logout_at,
+    user_id
+}).
