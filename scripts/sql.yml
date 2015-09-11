@@ -1,7 +1,7 @@
 msgs:
   id: ID
-  from: from user id
-  to: to user id
+  f: from user id
+  t: to user id
   msg: msg body
   unread: true/false
 
@@ -26,12 +26,6 @@ room_users:
 
 roommsgs:
   id: ID
-  from: from user id
-  to: to room id
+  f: from user id
+  t: to room id
   msg: msg body
-
-user_roommsgs:
-  id: ID
-  user_id: user id
-  roommsg_id: roommsg id
-  unread: true/false

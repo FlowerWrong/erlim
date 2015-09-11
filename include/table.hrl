@@ -59,11 +59,3 @@
     none_bother,
     bg
 }).
-
-
--record(user_roommsgs_record, {
-    id,
-    user_id,
-    roommsg_id,
-    unread
-}).
