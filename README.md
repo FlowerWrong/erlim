@@ -21,11 +21,11 @@ application:start(erlim).
 
 ```erlang
 %% 登陆
-S1 = cy:login().
-S2 = ck:login().
+{S1, T1} = cy:login().
+{S2, T2} = ck:login().
 
 %% 发起聊天
-cy:sc(S1).
+cy:sc(S1, T1).
 ck:loop_recv(S2).
 ```
 
@@ -47,7 +47,8 @@ ck:loop_recv(S2).
 #### Todo
 
 - [x] erlang async receive
-- [ ] one-to-one chat
+- [x] one-to-one chat
+- [x] group chat
 - [ ] use toml to write config file
 - [x] use mnesia for session store
 - [x] Toml library of erlang
