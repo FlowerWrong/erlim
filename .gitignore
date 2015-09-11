@@ -5,6 +5,8 @@
 *.beam
 *.iml
 
+/.eunit/
+
 *.dump
 *.log
 

@@ -6,6 +6,9 @@ start: get-deps compile erl
 get-deps:
 	$(REBAR) get-deps
 
+test:
+	$(REBAR) compile eunit
+
 compile:
 	$(REBAR) compile
 
