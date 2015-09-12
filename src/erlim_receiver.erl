@@ -130,6 +130,7 @@ handle_info({tcp, Socket, Data}, #state{socket = Socket} = State) ->
             State#state{client_pid = ClientPid, token = Token, uid = Uid};
         <<"single_chat">> ->
             %% FIXME 添加用户权限判断
+            %% FIXME 朋友才能聊天
             [{<<"token">>, Token}, {<<"to">>, ToUid}, {<<"msg">>, Msg}] = T,
             ToPid = erlim_sm:get_session(ToUid),
             ToUserMysql = mysql_util:query_user_by_id(ToUid),
@@ -183,6 +184,11 @@ handle_info({tcp, Socket, Data}, #state{socket = Socket} = State) ->
             %% FIXME 添加用户权限判断
             [{<<"token">>, _Token}] = T,
             self() ! {tcp_closed, Socket},
+            State;
+        _ ->
+            %% 1. 用户登陆后发送了未知命令
+            %% 2. 用户未登陆发送了未知命令
+            self() ! {unknown_cmd, Socket},
             State
     end,
 
@@ -191,6 +197,10 @@ handle_info({tcp, Socket, Data}, #state{socket = Socket} = State) ->
 % tcp connection change to passive
 handle_info({tcp_passive, Socket}, #state{socket = Socket} = State) ->
     io:format("tcp_passive is ~p~n", [State]),
+    {noreply, State};
+handle_info({unknown_cmd, Socket}, State) ->
+    DataToSend = jiffy:encode({[{<<"cmd">>, <<"unknown_cmd">>}]}),
+    gen_tcp:send(Socket, DataToSend),
     {noreply, State};
 % connection closed
 handle_info({tcp_closed, _Socket}, State) ->
@@ -213,12 +223,23 @@ handle_info(_Info, State) ->
 %% @end
 %%--------------------------------------------------------------------
 terminate(_Reason, #state{client_pid = ClientPid}) ->
+    %% 这里有三种情况
+    %% 1. 用户正常退出, 或网络掉线退出
     io:format("Receiver ~p terminated.~n", [self()]),
-    SessionMnesia = mnesia_util:query_session_by_pid(ClientPid),
-    io:format("SessionMnesia is ~p.~n", [SessionMnesia]),
-    ok = erlim_sm:logout(SessionMnesia#user.token),
-    mysql_util:save_logout(SessionMnesia#user.uid),
-    ok = erlim_client:stop(ClientPid).
+    io:format("ClientPid ~p will be terminated.~n", [ClientPid]),
+    case ClientPid of
+        undefined -> undefined;
+        _ ->
+            SessionMnesia = mnesia_util:query_session_by_pid(ClientPid),
+            io:format("SessionMnesia is ~p.~n", [SessionMnesia]),
+            case SessionMnesia of
+                false -> undefined;
+                #user{token = Token, uid = Uid} ->
+                    ok = erlim_sm:logout(Token),
+                    mysql_util:save_logout(Uid),
+                    ok = erlim_client:stop(ClientPid)
+            end
+    end.
 
 %%--------------------------------------------------------------------
 %% @private
