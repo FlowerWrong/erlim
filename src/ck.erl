@@ -3,7 +3,7 @@
 -export([login/0, sc/2, gc/2, logout/2, recv/1, loop_recv/1]).
 
 login() ->
-    {ok, Sock} = gen_tcp:connect("localhost", 3000, [binary, {packet, 0}]),
+    {ok, Sock} = gen_tcp:connect("localhost", 8080, [binary, {packet, 0}]),
     Msg = <<"{\"cmd\": \"login\", \"name\": \"13560474457\", \"pass\": \"12345678\"}">>,
     ok = gen_tcp:send(Sock, Msg),
     Token = receive

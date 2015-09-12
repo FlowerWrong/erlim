@@ -9,7 +9,7 @@
 -export([init/1]).
 
 %% Helper macro for declaring children of supervisor
--define(SERVERCHILD(I, Type), {I, {I, start_link, [3000]}, permanent, 5000, Type, [I]}).
+-define(SERVERCHILD(I, Type), {I, {I, start_link, [8080]}, permanent, 5000, Type, [I]}).
 -define(CHILD(I, Type), {I, {I, start_link, []}, permanent, 5000, Type, [I]}).
 
 %% ===================================================================
