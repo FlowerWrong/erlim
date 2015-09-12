@@ -7,7 +7,7 @@ login() ->
     Msg = <<"{\"cmd\": \"login\", \"name\": \"13560474457\", \"pass\": \"12345678\"}">>,
     ok = gen_tcp:send(Sock, Msg),
     Token = receive
-        {tcp, Socket, Data} ->
+        {tcp, _Socket, Data} ->
             jiffy:decode(Data)
     end,
     io:format("token is ~p~n", [Token]),
@@ -15,7 +15,7 @@ login() ->
     {Sock, TokenStr}.
 
 sc(Sock, Token) ->
-    Msg = iolist_to_binary([<<"{\"cmd\": \"single_chat\", \"token\": \"">>, Token, <<"\", \"to\": \"13560474456\", \"msg\": \"hello world\"}">>]),
+    Msg = iolist_to_binary([<<"{\"cmd\": \"single_chat\", \"token\": \"">>, Token, <<"\", \"to\": 2, \"msg\": \"hello world\"}">>]),
     ok = gen_tcp:send(Sock, Msg).
 
 gc(Sock, Token) ->

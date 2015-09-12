@@ -9,7 +9,7 @@
 -author("yy").
 
 -record(user, {
-    name,               % user name
+    uid,                % user mysql id
     token,              % token
     pid                 % client pid
 }).

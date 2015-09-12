@@ -123,29 +123,26 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Internal functions
 %%%===================================================================
 
-login(CurrentUser, ClientPid) ->
-    CurrentName = CurrentUser#user_record.mobile,
+login(Uid, ClientPid) ->
     Token = uuid:generate(),
-    UserToLogin = #user{name = CurrentName, token = Token, pid = ClientPid},
+    UserToBeLoginMnesia = #user{uid = Uid, token = Token, pid = ClientPid},
     F = fun() ->
-        mnesia:write(UserToLogin)
+        mnesia:write(UserToBeLoginMnesia)
          end,
     mnesia:transaction(F),
     {ok, Token}.
 
-get_session(Name) ->
-    case mnesia_util:query_name(Name) of
+get_session(Uid) ->
+    case mnesia_util:query_session_by_uid(Uid) of
         false -> false;
         {user, _Name, _Token, ClientPid} -> ClientPid
     end.
 
 logout(Token) ->
     io:format("Users is ~p~n", [mnesia_util:all()]),
-    CurrentUser = mnesia_util:query_token(Token),
-    io:format("CurrentUser is ~p~n", [CurrentUser]),
-    F = fun() ->
-        mnesia:delete_object(CurrentUser)
-         end,
+    CurrentUserMnesia = mnesia_util:query_session_by_token(Token),
+    io:format("CurrentUser is ~p~n", [CurrentUserMnesia]),
+    F = fun() -> mnesia:delete_object(CurrentUserMnesia) end,
     mnesia:transaction(F),
     io:format("Users is ~p~n", [mnesia_util:all()]),
     ok.

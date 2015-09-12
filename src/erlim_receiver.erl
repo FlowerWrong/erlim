@@ -18,7 +18,8 @@
     heartbeat_timeout = 600000,
     client_pid,
     ip,
-    token
+    token,
+    uid
 }).
 
 -include("table.hrl").
@@ -56,7 +57,6 @@ start_link(Socket) ->
 %%--------------------------------------------------------------------
 init([Socket]) ->
     {ok, {IP, _Port}} = inet:peername(Socket),
-    io:format("Ip addr is ~p~n", [IP]),
     NewState = #state{socket = Socket, ip = IP},
     setopts(NewState#state.socket),
     {ok, NewState}.
@@ -114,42 +114,41 @@ handle_info({tcp, Socket, Data}, #state{socket = Socket} = State) ->
     NewState = case Cmd of
         <<"login">> ->
             [{<<"name">>, Name}, {<<"pass">>, Pass}] = T,
-            CurrentUser = mysql_util:query_user_by_mobile(Name),
-            io:format("user is ~p~n", [CurrentUser]),
-            PassDigest = binary_to_list(CurrentUser#user_record.password_digest),
+            LoginUserMysql = mysql_util:query_user_by_mobile(Name),
+            io:format("user is ~p~n", [LoginUserMysql]),
+            PassDigest = binary_to_list(LoginUserMysql#user_record.password_digest),
             {ok, PassDigest} =:= bcrypt:hashpw(Pass, PassDigest),
 
             ClientPid = erlim_client_sup:start_child(Socket),
-            {ok, Token} = erlim_sm:login(CurrentUser, ClientPid),
+
+            Uid = LoginUserMysql#user_record.id,
+            {ok, Token} = erlim_sm:login(Uid, ClientPid),
+
             DataToSend = jiffy:encode({[{<<"token">>, Token}]}),
             io:format("DataToSend is ~p~n", [DataToSend]),
             gen_tcp:send(Socket, DataToSend),
-            State#state{client_pid = ClientPid, token = Token};
+            State#state{client_pid = ClientPid, token = Token, uid = Uid};
         <<"single_chat">> ->
             %% FIXME 添加用户权限判断
-            [{<<"token">>, Token}, {<<"to">>, ToName}, {<<"msg">>, Msg}] = T,
-            ToPid = erlim_sm:get_session(ToName),
-            ToUser = mysql_util:query_user_by_mobile(ToName),
+            [{<<"token">>, Token}, {<<"to">>, ToUid}, {<<"msg">>, Msg}] = T,
+            ToPid = erlim_sm:get_session(ToUid),
+            ToUserMysql = mysql_util:query_user_by_id(ToUid),
 
-            SessionUser = mnesia_util:query_token(Token),
-            FromUser = mysql_util:query_user_by_mobile(SessionUser#user.name),
+            SessionUserMnesia = mnesia_util:query_session_by_token(Token),
+            FromUserMysql = mysql_util:query_user_by_id(SessionUserMnesia#user.uid),
 
             case ToPid of
                 false ->  %% ofline
-                    io:format("Send msg to ~p, ~p, msg is ~p.~n", [ToPid, ToUser, Msg]),
-                    OffMsg = #msg_record{f = FromUser#user_record.id, t = ToUser#user_record.id, msg = Msg, unread = 1},
-                    io:format("OffMsg is ~p.~n", [OffMsg]),
-                    {ok_packet, _, _, _, _, _, _} = mysql_util:save_msg(OffMsg),
-                    ok;
+                    io:format("Send msg to ~p, ~p, msg is ~p.~n", [ToPid, ToUserMysql, Msg]),
+                    OffMsg = #msg_record{f = FromUserMysql#user_record.id, t = ToUserMysql#user_record.id, msg = Msg, unread = 1},
+                    {ok_packet, _, _, _, _, _, _} = mysql_util:save_msg(OffMsg);
                 _ ->  %% online
-                    io:format("Send msg to ~p, ~p, msg is ~p.~n", [ToPid, ToUser, Msg]),
-                    OnlineMsg = #msg_record{f = FromUser#user_record.id, t = ToUser#user_record.id, msg = Msg, unread = 0},
-                    io:format("OnlineMsg is ~p.~n", [OnlineMsg]),
+                    io:format("Send msg to ~p, ~p, msg is ~p.~n", [ToPid, ToUserMysql, Msg]),
+                    OnlineMsg = #msg_record{f = FromUserMysql#user_record.id, t = ToUserMysql#user_record.id, msg = Msg, unread = 0},
                     {ok_packet, _, _, _, _, _, _} = mysql_util:save_msg(OnlineMsg),
 
-                    DataToSend = jiffy:encode({[{<<"cmd">>, <<"single_chat">>}, {<<"from">>, SessionUser#user.name}, {<<"to">>, ToName}, {<<"msg">>, Msg}]}),
-                    ToPid ! {single_chat, DataToSend},
-                    ok
+                    DataToSend = jiffy:encode({[{<<"cmd">>, <<"single_chat">>}, {<<"from">>, SessionUserMnesia#user.uid}, {<<"to">>, ToUid}, {<<"msg">>, Msg}]}),
+                    ToPid ! {single_chat, DataToSend}
             end,
             State;
         <<"group_chat">> ->
@@ -158,21 +157,21 @@ handle_info({tcp, Socket, Data}, #state{socket = Socket} = State) ->
             io:format("ToRoomId is ~p.~n", [ToRoomId]),
             io:format("Msg is ~p.~n", [Msg]),
 
-            SessionUser = mnesia_util:query_token(Token),
-            FromUser = mysql_util:query_user_by_mobile(SessionUser#user.name),
-            RoomMsg = #roommsg_record{f = FromUser#user_record.id, t = ToRoomId, msg = Msg},
+            SessionUserMnesia = mnesia_util:query_session_by_token(Token),
+            FromUserMysql = mysql_util:query_user_by_id(SessionUserMnesia#user.uid),
+            RoomMsg = #roommsg_record{f = FromUserMysql#user_record.id, t = ToRoomId, msg = Msg},
             mysql_util:save_room_msg(RoomMsg),
 
             Members = mysql_util:room_members(ToRoomId),
             io:format("Members is ~p.~n", [Members]),
 
-            DataToSend = jiffy:encode({[{<<"cmd">>, <<"group_chat">>}, {<<"from">>, SessionUser#user.name}, {<<"to">>, ToRoomId}, {<<"msg">>, Msg}]}),
+            DataToSend = jiffy:encode({[{<<"cmd">>, <<"group_chat">>}, {<<"from">>, SessionUserMnesia#user.uid}, {<<"to">>, ToRoomId}, {<<"msg">>, Msg}]}),
 
             lists:foreach(fun(M) ->
                 case mysql_util:query_user_by_id(M#room_users_record.user_id) of
                     [] -> false;
-                    #user_record{mobile = Mobile} ->
-                        case mnesia_util:query_name(Mobile) of
+                    #user_record{id = Id} ->
+                        case mnesia_util:query_session_by_uid(Id) of
                             false -> false;
                             #user{pid = ToPid} ->
                                 ToPid ! {group_chat, DataToSend}
@@ -215,10 +214,10 @@ handle_info(_Info, State) ->
 %%--------------------------------------------------------------------
 terminate(_Reason, #state{client_pid = ClientPid}) ->
     io:format("Receiver ~p terminated.~n", [self()]),
-    Session = mnesia_util:query_pid(ClientPid),
-    io:format("Session is ~p.~n", [Session]),
-    ok = erlim_sm:logout(Session#user.token),
-    mysql_util:save_logout(Session#user.name),
+    SessionMnesia = mnesia_util:query_session_by_pid(ClientPid),
+    io:format("SessionMnesia is ~p.~n", [SessionMnesia]),
+    ok = erlim_sm:logout(SessionMnesia#user.token),
+    mysql_util:save_logout(SessionMnesia#user.uid),
     ok = erlim_client:stop(ClientPid).
 
 %%--------------------------------------------------------------------

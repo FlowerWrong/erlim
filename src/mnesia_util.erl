@@ -1,13 +1,18 @@
 -module(mnesia_util).
 
 %% API functions
--export([query_pid/1, query_name/1, query_token/1, all/0]).
+-export([
+    query_session_by_pid/1,
+    query_session_by_uid/1,
+    query_session_by_token/1,
+    all/0
+]).
 
 
 -include("table.hrl").
 -include_lib("stdlib/include/qlc.hrl").
 
-query_pid(Pid) ->
+query_session_by_pid(Pid) ->
     Fun = fun() ->
         Query = qlc:q([X || X <- mnesia:table(user), X#user.pid =:= Pid]),
         qlc:e(Query)
@@ -17,9 +22,9 @@ query_pid(Pid) ->
         {atomic, [User]} -> User
     end.
 
-query_name(Name) ->
+query_session_by_uid(Uid) when is_integer(Uid) ->
     Fun = fun() ->
-        Query = qlc:q([X || X <- mnesia:table(user), X#user.name =:= Name]),
+        Query = qlc:q([X || X <- mnesia:table(user), X#user.uid =:= Uid]),
         qlc:e(Query)
         end,
     case mnesia:transaction(Fun) of
@@ -27,7 +32,7 @@ query_name(Name) ->
         {atomic, [User]} -> User
     end.
 
-query_token(Token) ->
+query_session_by_token(Token) ->
     Fun = fun() ->
         Query = qlc:q([X || X <- mnesia:table(user), X#user.token =:= Token]),
         qlc:e(Query)
