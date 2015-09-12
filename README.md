@@ -1,4 +1,4 @@
-## A IM server written in erlang
+## An IM server written in erlang
 
 #### Dependency
 
@@ -31,9 +31,11 @@ ck:loop_recv(S2).
 
 #### Design
 
+* Just for chat(both one2one and group chat), no api for add_friend/del_friend/create_room/upload_file/del_room etc...
 * Use toml for config
 * Use json for data exchange
-* Use http for file upload
+
+![structure of erlim]()
 
 #### [API doc](https://github.com/FlowerWrong/erlim/tree/master/api)
 
@@ -51,7 +53,8 @@ ck:loop_recv(S2).
 - [x] group chat
 - [x] use toml to write config file
 - [x] use mnesia for session store
-- [x] Toml library of erlang
+- [x] toml library of erlang
 - [ ] handle bug and error
 - [ ] yrl and xrl(语法分析/词法分析) write json parse in erlang(yecc and leex)
-- [ ] How to implement pubsub with erlang(gen_event)
+- [ ] implement pubsub with erlang(gen_event)
+- [ ] implement cluster mode

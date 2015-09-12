@@ -31,4 +31,5 @@ loop_recv(Socket) ->
     receive
         {tcp, Socket, String} ->
             io:format("Client received msg is: ~p~n", [String])
-    end.
+    end,
+    loop_recv(Socket).

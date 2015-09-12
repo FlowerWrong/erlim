@@ -31,7 +31,9 @@ loop_recv(Socket) ->
     receive
         {tcp, Socket, String} ->
             io:format("Client received msg is: ~p~n", [String])
-    end.
+    end,
+    loop_recv(Socket).
+
 unknown_cmd() ->
     {ok, Sock} = gen_tcp:connect("localhost", 3000, [binary, {packet, 0}]),
     Msg = <<"{\"cmd\": \"unknown\", \"token\": \"13560474456\"}">>,
