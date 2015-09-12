@@ -54,7 +54,9 @@ ck:loop_recv(S2).
 - [x] use toml to write config file
 - [x] use mnesia for session store
 - [x] toml library of erlang
-- [ ] handle bug and error
+- [x] handle bug and error
+- [x] chat must be friends
+- [x] group chat must in this room
 - [ ] yrl and xrl(语法分析/词法分析) write json parse in erlang(yecc and leex)
 - [ ] implement pubsub with erlang(gen_event)
 - [ ] implement cluster mode

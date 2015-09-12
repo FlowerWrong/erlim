@@ -21,7 +21,9 @@
     up_bg/3,
     del_member/2,
     del_members/2,
-    del_room/1
+    del_room/1,
+    are_friends/2,
+    in_room/2
 ]).
 
 -include("table.hrl").
@@ -162,3 +164,29 @@ del_room(Rid) when is_integer(Rid) ->
     del_all_members(Rid),
     emysql:prepare(del_room_stmt, <<"DELETE FROM rooms WHERE id = ?">>),
     emysql:execute(erlim_pool, del_room_stmt, [Rid]).
+
+
+%% 是否朋友关系
+are_friends(Uid, Fid) when is_integer(Uid), is_integer(Fid) ->
+    emysql:prepare(are_friends_stmt, <<"SELECT * FROM friendships WHERE user_id = ? AND friend_id = ? AND confirmed = 1">>),
+    Result1 = emysql:execute(erlim_pool, are_friends_stmt, [Uid, Fid]),
+    case emysql_util:as_record(Result1, friendship_record, record_info(fields, friendship_record)) of
+        [] ->
+            false;
+        _ ->
+            Result2 = emysql:execute(erlim_pool, are_friends_stmt, [Fid, Uid]),
+            case emysql_util:as_record(Result2, friendship_record, record_info(fields, friendship_record)) of
+                [] ->
+                    false;
+                _ ->
+                    true
+            end
+    end.
+
+in_room(Uid, Roomid) when is_integer(Uid), is_integer(Roomid) ->
+    emysql:prepare(in_room_stmt, <<"SELECT * FROM room_users WHERE user_id = ? AND room_id = ?">>),
+    Result = emysql:execute(erlim_pool, in_room_stmt, [Uid, Roomid]),
+    case emysql_util:as_record(Result, room_users_record, record_info(fields, room_users_record)) of
+        [] -> false;
+        _ -> true
+    end.

@@ -68,3 +68,10 @@
     last_logout_at,
     user_id
 }).
+
+-record(friendship_record, {
+    id,
+    user_id,
+    friend_id,
+    confirmed
+}).

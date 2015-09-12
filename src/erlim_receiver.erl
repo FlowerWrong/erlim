@@ -108,7 +108,7 @@ handle_info({tcp, Socket, Data}, #state{socket = Socket} = State) ->
     NewState =
         case IsJSON of
             false ->
-                erlim_client:reply_error(Socket, "Invide JSON", 10400),
+                erlim_client:reply_error(Socket, <<"Invide JSON">>, 10400),
                 State;
             true ->
                 Json = jiffy:decode(Data),
@@ -120,7 +120,7 @@ handle_info({tcp, Socket, Data}, #state{socket = Socket} = State) ->
                         LoginUserMysql = mysql_util:query_user_by_mobile(Name),
                         case LoginUserMysql of
                             [] ->
-                                erlim_client:reply_error(Socket, "404 Not Found with this name", 10404),
+                                erlim_client:reply_error(Socket, <<"404 Not Found with this name">>, 10404),
                                 State;
                             #user_record{password_digest = PD, id = Uid} ->
                                 PassDigest = binary_to_list(PD),
@@ -137,69 +137,82 @@ handle_info({tcp, Socket, Data}, #state{socket = Socket} = State) ->
                         SessionUserMnesia = mnesia_util:query_session_by_token(Token),
                         case SessionUserMnesia of
                             false ->
-                                erlim_client:reply_error(Socket, "404 Not Found with this token, please login", 10404),
+                                erlim_client:reply_error(Socket, <<"404 Not Found with this token, please login">>, 10404),
                                 State;
                             _ ->
                                 FromUserMysql = mysql_util:query_user_by_id(SessionUserMnesia#user.uid),
                                 case FromUserMysql of
                                     [] ->
                                         %% 可能是因为mysql数据库删除了
-                                        erlim_client:reply_error(Socket, "404 Not Found this user in mysql, please login again", 10404),
+                                        erlim_client:reply_error(Socket, <<"404 Not Found this user in mysql, please login again">>, 10404),
                                         State;
                                     _ ->
                                         case Cmd of
                                             <<"single_chat">> ->
-                                                %% FIXME 朋友才能聊天
                                                 [{<<"token">>, _Token}, {<<"to">>, ToUid}, {<<"msg">>, Msg}] = T,
-                                                ToUserMysql = mysql_util:query_user_by_id(ToUid),
-
-                                                case ToUserMysql of
-                                                    [] ->
-                                                        erlim_client:reply_error(Socket, "404 Not Found this user in mysql", 10404),
+                                                %% 是否好友关系
+                                                case mysql_util:are_friends(SessionUserMnesia#user.uid, ToUid) of
+                                                    false ->
+                                                        erlim_client:reply_error(Socket, <<"You are not friends">>, 10403),
                                                         State;
-                                                    _ ->
-                                                        ToPid = erlim_sm:get_session(ToUid),
-                                                        case ToPid of
-                                                            false ->  %% ofline
-                                                                OffMsg = #msg_record{f = FromUserMysql#user_record.id, t = ToUserMysql#user_record.id, msg = Msg, unread = 1},
-                                                                {ok_packet, _, _, _, _, _, _} = mysql_util:save_msg(OffMsg);
-                                                            _ ->  %% online
-                                                                io:format("Send msg to ~p, ~p, msg is ~p.~n", [ToPid, ToUserMysql, Msg]),
-                                                                OnlineMsg = #msg_record{f = FromUserMysql#user_record.id, t = ToUserMysql#user_record.id, msg = Msg, unread = 0},
-                                                                {ok_packet, _, _, _, _, _, _} = mysql_util:save_msg(OnlineMsg),
+                                                    true ->
+                                                        ToUserMysql = mysql_util:query_user_by_id(ToUid),
+                                                        case ToUserMysql of
+                                                            [] ->
+                                                                erlim_client:reply_error(Socket, <<"404 Not Found this user in mysql">>, 10404),
+                                                                State;
+                                                            _ ->
+                                                                ToPid = erlim_sm:get_session(ToUid),
+                                                                case ToPid of
+                                                                    false ->  %% ofline
+                                                                        OffMsg = #msg_record{f = FromUserMysql#user_record.id, t = ToUserMysql#user_record.id, msg = Msg, unread = 1},
+                                                                        {ok_packet, _, _, _, _, _, _} = mysql_util:save_msg(OffMsg);
+                                                                    _ ->  %% online
+                                                                        io:format("Send msg to ~p, ~p, msg is ~p.~n", [ToPid, ToUserMysql, Msg]),
+                                                                        OnlineMsg = #msg_record{f = FromUserMysql#user_record.id, t = ToUserMysql#user_record.id, msg = Msg, unread = 0},
+                                                                        {ok_packet, _, _, _, _, _, _} = mysql_util:save_msg(OnlineMsg),
 
-                                                                DataToSend = jiffy:encode({[{<<"cmd">>, <<"single_chat">>}, {<<"from">>, SessionUserMnesia#user.uid}, {<<"to">>, ToUid}, {<<"msg">>, Msg}]}),
-                                                                ToPid ! {single_chat, DataToSend}
-                                                        end,
-                                                        State
+                                                                        DataToSend = jiffy:encode({[{<<"cmd">>, <<"single_chat">>}, {<<"from">>, SessionUserMnesia#user.uid}, {<<"to">>, ToUid}, {<<"msg">>, Msg}]}),
+                                                                        ToPid ! {single_chat, DataToSend}
+                                                                end,
+                                                                State
+                                                        end
                                                 end;
                                             <<"group_chat">> ->
                                                 [{<<"token">>, _Token}, {<<"to">>, ToRoomId}, {<<"msg">>, Msg}] = T,
+                                                %% 群是否存在
                                                 case mysql_util:is_an_exist_room(ToRoomId) of
                                                     false ->
-                                                        erlim_client:reply_error(Socket, "404 Not Found this room in mysql", 10404),
+                                                        erlim_client:reply_error(Socket, <<"404 Not Found this room in mysql">>, 10404),
                                                         State;
                                                     true ->
-                                                        RoomMsg = #roommsg_record{f = FromUserMysql#user_record.id, t = ToRoomId, msg = Msg},
-                                                        mysql_util:save_room_msg(RoomMsg),
+                                                        %% 用户是否在该群里面
+                                                        case mysql_util:in_room(SessionUserMnesia#user.uid, ToRoomId) of
+                                                            false ->
+                                                                erlim_client:reply_error(Socket, <<"You are not in this room">>, 10403),
+                                                                State;
+                                                            true ->
+                                                                RoomMsg = #roommsg_record{f = FromUserMysql#user_record.id, t = ToRoomId, msg = Msg},
+                                                                mysql_util:save_room_msg(RoomMsg),
 
-                                                        Members = mysql_util:room_members(ToRoomId),
-                                                        io:format("Members is ~p.~n", [Members]),
+                                                                Members = mysql_util:room_members(ToRoomId),
+                                                                io:format("Members is ~p.~n", [Members]),
 
-                                                        DataToSend = jiffy:encode({[{<<"cmd">>, <<"group_chat">>}, {<<"from">>, SessionUserMnesia#user.uid}, {<<"to">>, ToRoomId}, {<<"msg">>, Msg}]}),
+                                                                DataToSend = jiffy:encode({[{<<"cmd">>, <<"group_chat">>}, {<<"from">>, SessionUserMnesia#user.uid}, {<<"to">>, ToRoomId}, {<<"msg">>, Msg}]}),
 
-                                                        lists:foreach(fun(M) ->
-                                                            case mysql_util:query_user_by_id(M#room_users_record.user_id) of
-                                                                [] -> false;
-                                                                #user_record{id = Id} ->
-                                                                    case mnesia_util:query_session_by_uid(Id) of
-                                                                        false -> false;
-                                                                        #user{pid = ToPid} ->
-                                                                            ToPid ! {group_chat, DataToSend}
+                                                                lists:foreach(fun(M) ->
+                                                                    case mysql_util:query_user_by_id(M#room_users_record.user_id) of
+                                                                        [] -> false;
+                                                                        #user_record{id = Id} ->
+                                                                            case mnesia_util:query_session_by_uid(Id) of
+                                                                                false -> false;
+                                                                                #user{pid = ToPid} ->
+                                                                                    ToPid ! {group_chat, DataToSend}
+                                                                            end
                                                                     end
-                                                            end
-                                                        end, Members),
-                                                        State
+                                                                              end, Members),
+                                                                State
+                                                        end
                                                 end;
                                             <<"logout">> ->
                                                 self() ! {tcp_closed, Socket},

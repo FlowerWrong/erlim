@@ -1,6 +1,6 @@
 -module(ck).
 
--export([login/0, sc/2, gc/2, logout/2, loop_recv/1]).
+-export([login/0, sc/2, gc/2, logout/2, recv/1, loop_recv/1]).
 
 login() ->
     {ok, Sock} = gen_tcp:connect("localhost", 3000, [binary, {packet, 0}]),
@@ -27,9 +27,12 @@ logout(Sock, Token) ->
     ok = gen_tcp:send(Sock, Msg),
     ok = gen_tcp:close(Sock).
 
-loop_recv(Socket) ->
+recv(Socket) ->
     receive
-        {tcp, Socket, String} ->
-            io:format("Client received msg is: ~p~n", [String])
-    end,
+        {tcp, Socket, Data} ->
+            io:format("Client received msg is: ~p~n", [Data])
+    end.
+
+loop_recv(Socket) ->
+    recv(Socket),
     loop_recv(Socket).
