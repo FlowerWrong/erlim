@@ -35,7 +35,7 @@ ck:loop_recv(S2).
 * Use toml for config
 * Use json for data exchange
 
-![structure of erlim]()
+![structure of erlim](https://raw.githubusercontent.com/FlowerWrong/erlim/master/api/erlim_structure.png)
 
 #### [API doc](https://github.com/FlowerWrong/erlim/tree/master/api)
 
