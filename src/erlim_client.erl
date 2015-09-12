@@ -3,15 +3,22 @@
 -behaviour(gen_server).
 
 %% API functions
--export([start_link/1, stop/1]).
+-export([
+    start_link/1,
+    stop/1,
+    reply/2,
+    reply_error/3
+]).
 
 %% gen_server callbacks
--export([init/1,
-         handle_call/3,
-         handle_cast/2,
-         handle_info/2,
-         terminate/2,
-         code_change/3]).
+-export([
+    init/1,
+    handle_call/3,
+    handle_cast/2,
+    handle_info/2,
+    terminate/2,
+    code_change/3
+]).
 
 -record(state, {
     socket
@@ -95,11 +102,11 @@ handle_cast(_Msg, State) ->
 %%--------------------------------------------------------------------
 handle_info({single_chat, Msg}, #state{socket = Socket} = State) ->
     io:format("erlim_client single_chat msg is ~p~n", [Msg]),
-    gen_tcp:send(Socket, Msg),
+    reply(Socket, Msg),
     {noreply, State};
 handle_info({group_chat, Msg}, #state{socket = Socket} = State) ->
     io:format("erlim_client group_chat msg is ~p~n", [Msg]),
-    gen_tcp:send(Socket, Msg),
+    reply(Socket, Msg),
     {noreply, State};
 handle_info(_Info, State) ->
     {noreply, State}.
@@ -137,3 +144,10 @@ code_change(_OldVsn, State, _Extra) ->
 stop(ClientPid) ->
     gen_server:cast(ClientPid, stop),
     ok.
+
+reply(Socket, Msg) ->
+    gen_tcp:send(Socket, Msg).
+
+reply_error(Socket, Error, Code) ->
+    DataToSend = jiffy:encode({[{<<"error">>, Error}, {<<"code">>, Code}]}),
+    reply(Socket, DataToSend).

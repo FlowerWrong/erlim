@@ -123,7 +123,7 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Internal functions
 %%%===================================================================
 
-login(Uid, ClientPid) ->
+login(Uid, ClientPid) when is_integer(Uid), is_pid(ClientPid) ->
     Token = uuid:generate(),
     UserToBeLoginMnesia = #user{uid = Uid, token = Token, pid = ClientPid},
     F = fun() ->
@@ -132,7 +132,7 @@ login(Uid, ClientPid) ->
     mnesia:transaction(F),
     {ok, Token}.
 
-get_session(Uid) ->
+get_session(Uid) when is_integer(Uid) ->
     case mnesia_util:query_session_by_uid(Uid) of
         false -> false;
         {user, _Name, _Token, ClientPid} -> ClientPid

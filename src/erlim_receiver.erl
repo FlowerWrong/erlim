@@ -7,11 +7,11 @@
 
 %% gen_server callbacks
 -export([init/1,
-         handle_call/3,
-         handle_cast/2,
-         handle_info/2,
-         terminate/2,
-         code_change/3]).
+    handle_call/3,
+    handle_cast/2,
+    handle_info/2,
+    terminate/2,
+    code_change/3]).
 
 -record(state, {
     socket,
@@ -105,92 +105,114 @@ handle_cast(_Msg, State) ->
 handle_info({tcp, Socket, Data}, #state{socket = Socket} = State) ->
     setopts(Socket),
     IsJSON = jsx:is_json(Data),
-    Json = jiffy:decode(Data),
-    io:format("IsJSON is ~p.~n", [IsJSON]),
-    io:format("Json is ~p.~n", [Json]),
-    {[{<<"cmd">>, Cmd} | T]} = Json,
-    io:format("Cmd is ~p.~n", [Cmd]),
+    NewState =
+        case IsJSON of
+            false ->
+                erlim_client:reply_error(Socket, "Invide JSON", 10400),
+                State;
+            true ->
+                Json = jiffy:decode(Data),
+                lager:info("Json is ~p.~n", [Json]),
+                {[{<<"cmd">>, Cmd} | T]} = Json,
+                if
+                    Cmd =:= <<"login">> ->
+                        [{<<"name">>, Name}, {<<"pass">>, Pass}] = T,
+                        LoginUserMysql = mysql_util:query_user_by_mobile(Name),
+                        case LoginUserMysql of
+                            [] ->
+                                erlim_client:reply_error(Socket, "404 Not Found with this name", 10404),
+                                State;
+                            #user_record{password_digest = PD, id = Uid} ->
+                                PassDigest = binary_to_list(PD),
+                                {ok, PassDigest} =:= bcrypt:hashpw(Pass, PassDigest),
+                                ClientPid = erlim_client_sup:start_child(Socket),
+                                {ok, Token} = erlim_sm:login(Uid, ClientPid),
+                                DataToSend = jiffy:encode({[{<<"token">>, Token}]}),
+                                lager:info("DataToSend is ~p~n", [DataToSend]),
+                                erlim_client:reply(Socket, DataToSend),
+                                State#state{client_pid = ClientPid, token = Token, uid = Uid}
+                        end;
+                    true ->
+                        [{<<"token">>, Token} | _T1] = T,
+                        SessionUserMnesia = mnesia_util:query_session_by_token(Token),
+                        case SessionUserMnesia of
+                            false ->
+                                erlim_client:reply_error(Socket, "404 Not Found with this token, please login", 10404),
+                                State;
+                            _ ->
+                                FromUserMysql = mysql_util:query_user_by_id(SessionUserMnesia#user.uid),
+                                case FromUserMysql of
+                                    [] ->
+                                        %% 可能是因为mysql数据库删除了
+                                        erlim_client:reply_error(Socket, "404 Not Found this user in mysql, please login again", 10404),
+                                        State;
+                                    _ ->
+                                        case Cmd of
+                                            <<"single_chat">> ->
+                                                %% FIXME 朋友才能聊天
+                                                [{<<"token">>, _Token}, {<<"to">>, ToUid}, {<<"msg">>, Msg}] = T,
+                                                ToUserMysql = mysql_util:query_user_by_id(ToUid),
 
-    NewState = case Cmd of
-        <<"login">> ->
-            [{<<"name">>, Name}, {<<"pass">>, Pass}] = T,
-            LoginUserMysql = mysql_util:query_user_by_mobile(Name),
-            io:format("user is ~p~n", [LoginUserMysql]),
-            PassDigest = binary_to_list(LoginUserMysql#user_record.password_digest),
-            {ok, PassDigest} =:= bcrypt:hashpw(Pass, PassDigest),
+                                                case ToUserMysql of
+                                                    [] ->
+                                                        erlim_client:reply_error(Socket, "404 Not Found this user in mysql", 10404),
+                                                        State;
+                                                    _ ->
+                                                        ToPid = erlim_sm:get_session(ToUid),
+                                                        case ToPid of
+                                                            false ->  %% ofline
+                                                                OffMsg = #msg_record{f = FromUserMysql#user_record.id, t = ToUserMysql#user_record.id, msg = Msg, unread = 1},
+                                                                {ok_packet, _, _, _, _, _, _} = mysql_util:save_msg(OffMsg);
+                                                            _ ->  %% online
+                                                                io:format("Send msg to ~p, ~p, msg is ~p.~n", [ToPid, ToUserMysql, Msg]),
+                                                                OnlineMsg = #msg_record{f = FromUserMysql#user_record.id, t = ToUserMysql#user_record.id, msg = Msg, unread = 0},
+                                                                {ok_packet, _, _, _, _, _, _} = mysql_util:save_msg(OnlineMsg),
 
-            ClientPid = erlim_client_sup:start_child(Socket),
+                                                                DataToSend = jiffy:encode({[{<<"cmd">>, <<"single_chat">>}, {<<"from">>, SessionUserMnesia#user.uid}, {<<"to">>, ToUid}, {<<"msg">>, Msg}]}),
+                                                                ToPid ! {single_chat, DataToSend}
+                                                        end,
+                                                        State
+                                                end;
+                                            <<"group_chat">> ->
+                                                [{<<"token">>, _Token}, {<<"to">>, ToRoomId}, {<<"msg">>, Msg}] = T,
+                                                case mysql_util:is_an_exist_room(ToRoomId) of
+                                                    false ->
+                                                        erlim_client:reply_error(Socket, "404 Not Found this room in mysql", 10404),
+                                                        State;
+                                                    true ->
+                                                        RoomMsg = #roommsg_record{f = FromUserMysql#user_record.id, t = ToRoomId, msg = Msg},
+                                                        mysql_util:save_room_msg(RoomMsg),
 
-            Uid = LoginUserMysql#user_record.id,
-            {ok, Token} = erlim_sm:login(Uid, ClientPid),
+                                                        Members = mysql_util:room_members(ToRoomId),
+                                                        io:format("Members is ~p.~n", [Members]),
 
-            DataToSend = jiffy:encode({[{<<"token">>, Token}]}),
-            io:format("DataToSend is ~p~n", [DataToSend]),
-            gen_tcp:send(Socket, DataToSend),
-            State#state{client_pid = ClientPid, token = Token, uid = Uid};
-        <<"single_chat">> ->
-            %% FIXME 添加用户权限判断
-            %% FIXME 朋友才能聊天
-            [{<<"token">>, Token}, {<<"to">>, ToUid}, {<<"msg">>, Msg}] = T,
-            ToPid = erlim_sm:get_session(ToUid),
-            ToUserMysql = mysql_util:query_user_by_id(ToUid),
+                                                        DataToSend = jiffy:encode({[{<<"cmd">>, <<"group_chat">>}, {<<"from">>, SessionUserMnesia#user.uid}, {<<"to">>, ToRoomId}, {<<"msg">>, Msg}]}),
 
-            SessionUserMnesia = mnesia_util:query_session_by_token(Token),
-            FromUserMysql = mysql_util:query_user_by_id(SessionUserMnesia#user.uid),
-
-            case ToPid of
-                false ->  %% ofline
-                    io:format("Send msg to ~p, ~p, msg is ~p.~n", [ToPid, ToUserMysql, Msg]),
-                    OffMsg = #msg_record{f = FromUserMysql#user_record.id, t = ToUserMysql#user_record.id, msg = Msg, unread = 1},
-                    {ok_packet, _, _, _, _, _, _} = mysql_util:save_msg(OffMsg);
-                _ ->  %% online
-                    io:format("Send msg to ~p, ~p, msg is ~p.~n", [ToPid, ToUserMysql, Msg]),
-                    OnlineMsg = #msg_record{f = FromUserMysql#user_record.id, t = ToUserMysql#user_record.id, msg = Msg, unread = 0},
-                    {ok_packet, _, _, _, _, _, _} = mysql_util:save_msg(OnlineMsg),
-
-                    DataToSend = jiffy:encode({[{<<"cmd">>, <<"single_chat">>}, {<<"from">>, SessionUserMnesia#user.uid}, {<<"to">>, ToUid}, {<<"msg">>, Msg}]}),
-                    ToPid ! {single_chat, DataToSend}
-            end,
-            State;
-        <<"group_chat">> ->
-            %% FIXME 添加用户权限判断
-            [{<<"token">>, Token}, {<<"to">>, ToRoomId}, {<<"msg">>, Msg}] = T,
-            io:format("ToRoomId is ~p.~n", [ToRoomId]),
-            io:format("Msg is ~p.~n", [Msg]),
-
-            SessionUserMnesia = mnesia_util:query_session_by_token(Token),
-            FromUserMysql = mysql_util:query_user_by_id(SessionUserMnesia#user.uid),
-            RoomMsg = #roommsg_record{f = FromUserMysql#user_record.id, t = ToRoomId, msg = Msg},
-            mysql_util:save_room_msg(RoomMsg),
-
-            Members = mysql_util:room_members(ToRoomId),
-            io:format("Members is ~p.~n", [Members]),
-
-            DataToSend = jiffy:encode({[{<<"cmd">>, <<"group_chat">>}, {<<"from">>, SessionUserMnesia#user.uid}, {<<"to">>, ToRoomId}, {<<"msg">>, Msg}]}),
-
-            lists:foreach(fun(M) ->
-                case mysql_util:query_user_by_id(M#room_users_record.user_id) of
-                    [] -> false;
-                    #user_record{id = Id} ->
-                        case mnesia_util:query_session_by_uid(Id) of
-                            false -> false;
-                            #user{pid = ToPid} ->
-                                ToPid ! {group_chat, DataToSend}
+                                                        lists:foreach(fun(M) ->
+                                                            case mysql_util:query_user_by_id(M#room_users_record.user_id) of
+                                                                [] -> false;
+                                                                #user_record{id = Id} ->
+                                                                    case mnesia_util:query_session_by_uid(Id) of
+                                                                        false -> false;
+                                                                        #user{pid = ToPid} ->
+                                                                            ToPid ! {group_chat, DataToSend}
+                                                                    end
+                                                            end
+                                                        end, Members),
+                                                        State
+                                                end;
+                                            <<"logout">> ->
+                                                self() ! {tcp_closed, Socket},
+                                                State;
+                                            _ ->
+                                                %% 1. 用户登陆后发送了未知命令
+                                                self() ! {unknown_cmd, Socket},
+                                                State
+                                        end
+                                end
                         end
                 end
-            end, Members),
-            State;
-        <<"logout">> ->
-            %% FIXME 添加用户权限判断
-            [{<<"token">>, _Token}] = T,
-            self() ! {tcp_closed, Socket},
-            State;
-        _ ->
-            %% 1. 用户登陆后发送了未知命令
-            %% 2. 用户未登陆发送了未知命令
-            self() ! {unknown_cmd, Socket},
-            State
-    end,
+        end,
 
     io:format("NewState is ~p~n", [NewState]),
     {noreply, NewState, NewState#state.heartbeat_timeout};
@@ -200,7 +222,7 @@ handle_info({tcp_passive, Socket}, #state{socket = Socket} = State) ->
     {noreply, State};
 handle_info({unknown_cmd, Socket}, State) ->
     DataToSend = jiffy:encode({[{<<"cmd">>, <<"unknown_cmd">>}]}),
-    gen_tcp:send(Socket, DataToSend),
+    erlim_client:reply(Socket, DataToSend),
     {noreply, State};
 % connection closed
 handle_info({tcp_closed, _Socket}, State) ->

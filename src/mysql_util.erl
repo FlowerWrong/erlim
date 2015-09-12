@@ -10,6 +10,7 @@
     room_msgs/1,
     room_members/1,
     create_room/1,
+    is_an_exist_room/1,
     add_member/2,
     add_member/3,
     add_member/4,
@@ -91,6 +92,16 @@ room_members(RoomId) when is_integer(RoomId) ->
 create_room(Room) when is_record(Room, room_record) ->
     emysql:prepare(create_room_stmt, <<"INSERT INTO rooms SET name = ?, creator = ?, max_member_count = ?, invitable = ?, description = ?, subject = ?, qrcode = ?">>),
     emysql:execute(erlim_pool, create_room_stmt, [Room#room_record.name, Room#room_record.creator, Room#room_record.max_member_count, Room#room_record.invitable, Room#room_record.description, Room#room_record.subject, Room#room_record.qrcode]).
+
+is_an_exist_room(Roomid) when is_integer(Roomid) ->
+    emysql:prepare(is_an_exist_room_stmt, <<"SELECT * FROM rooms WHERE id = ?">>),
+    Result = emysql:execute(erlim_pool, is_an_exist_room_stmt, [Roomid]),
+    case emysql_util:as_record(Result, room_record, record_info(fields, room_record)) of
+        [] ->
+            false;
+        _ ->
+            true
+    end.
 
 %% 添加群成员
 add_member(Uid, Rid) when is_integer(Rid), is_integer(Uid) ->
