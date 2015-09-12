@@ -21,9 +21,25 @@ init_mnesia() ->
             mnesia:start(),
             mnesia:clear_table(user),
             io:format("node is ~p", [node()]),
-            mnesia:create_table(user, [{attributes, record_info(fields, user)}, {disc_only_copies, [node()]}]);
+            create_table();
         ok ->
             mnesia:start(),
             io:format("node is ~p", [node()]),
-            mnesia:create_table(user, [{attributes, record_info(fields, user)}, {disc_only_copies, [node()]}])
+            create_table()
     end.
+
+create_table() ->
+    mnesia:create_table(user, [{
+        attributes,
+        record_info(fields, user)},
+        {ram_copies, [node()]},
+        {disc_only_copies, nodes()},
+        {storage_properties,
+            [{
+                ets,
+                [compressed]
+            },
+                {dets, [{auto_save, 5000}]}
+            ]
+        }
+    ]).

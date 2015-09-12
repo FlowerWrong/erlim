@@ -73,6 +73,7 @@ init(#state{port=Port}) ->
     application:start(crypto),
     application:start(bcrypt),
     application:start(emysql),
+    lager:start(),
     emysql:add_pool(erlim_pool, [
                  {size,1},
                  {user, "root"},

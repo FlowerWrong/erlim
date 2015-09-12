@@ -225,7 +225,7 @@ handle_info(_Info, State) ->
 terminate(_Reason, #state{client_pid = ClientPid}) ->
     %% 这里有三种情况
     %% 1. 用户正常退出, 或网络掉线退出
-    io:format("Receiver ~p terminated.~n", [self()]),
+    lager:error("Receiver ~p terminated.~n", [self()]),
     io:format("ClientPid ~p will be terminated.~n", [ClientPid]),
     case ClientPid of
         undefined -> undefined;
