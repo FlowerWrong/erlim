@@ -49,8 +49,9 @@ ck:loop_recv(S2).
 - [x] erlang async receive
 - [x] one-to-one chat
 - [x] group chat
-- [ ] use toml to write config file
+- [x] use toml to write config file
 - [x] use mnesia for session store
 - [x] Toml library of erlang
+- [ ] handle bug and error
 - [ ] yrl and xrl(语法分析/词法分析) write json parse in erlang(yecc and leex)
 - [ ] How to implement pubsub with erlang(gen_event)

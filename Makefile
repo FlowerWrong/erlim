@@ -1,7 +1,11 @@
 REBAR := rebar
 .DEFAULT_GOAL = start
 
-start: get-deps compile erl
+start: pre-compile get-deps compile erl
+
+pre-compile:
+	rm erlim.toml
+	cp erlim.example.toml erlim.toml
 
 get-deps:
 	$(REBAR) get-deps

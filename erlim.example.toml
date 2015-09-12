@@ -1,0 +1,6 @@
+[database]
+size = 1
+name = "root"
+pwd = "root"
+db = "movie_together_development"
+encoding = "utf8"
