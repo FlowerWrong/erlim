@@ -57,6 +57,7 @@ ck:loop_recv(S2).
 - [x] handle bug and error
 - [x] chat must be friends
 - [x] group chat must in this room
+- [ ] add ACK(消息回执)
 - [ ] yrl and xrl(语法分析/词法分析) write json parse in erlang(yecc and leex)
 - [ ] implement pubsub with erlang(gen_event)
 - [ ] implement cluster mode
