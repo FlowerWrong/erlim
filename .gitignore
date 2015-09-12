@@ -13,3 +13,14 @@
 Mnesia.nonode@nohost/
 
 /erlim.toml
+
+
+*.o
+*.plt
+
+/rel/erlim/
+
+.exrc
+
+*.swp
+*.so
