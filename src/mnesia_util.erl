@@ -4,7 +4,6 @@
 -export([
     query_session_by_pid/1,
     query_session_by_uid/1,
-    query_session_by_token/1,
     all/0
 ]).
 
@@ -25,16 +24,6 @@ query_session_by_pid(Pid) ->
 query_session_by_uid(Uid) when is_integer(Uid) ->
     Fun = fun() ->
         Query = qlc:q([X || X <- mnesia:table(user), X#user.uid =:= Uid]),
-        qlc:e(Query)
-        end,
-    case mnesia:transaction(Fun) of
-        {atomic, []} -> false;
-        {atomic, [User]} -> User
-    end.
-
-query_session_by_token(Token) ->
-    Fun = fun() ->
-        Query = qlc:q([X || X <- mnesia:table(user), X#user.token =:= Token]),
         qlc:e(Query)
         end,
     case mnesia:transaction(Fun) of

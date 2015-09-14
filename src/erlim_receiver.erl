@@ -18,7 +18,6 @@
     heartbeat_timeout = 600000,
     client_pid,
     ip,
-    token,
     uid
 }).
 
@@ -126,15 +125,13 @@ handle_info({tcp, Socket, Data}, #state{socket = Socket} = State) ->
                                 PassDigest = binary_to_list(PD),
                                 {ok, PassDigest} =:= bcrypt:hashpw(Pass, PassDigest),
                                 ClientPid = erlim_client_sup:start_child(Socket),
-                                {ok, Token} = erlim_sm:login(Uid, ClientPid),
-                                DataToSend = jiffy:encode({[{<<"token">>, Token}]}),
-                                lager:info("DataToSend is ~p~n", [DataToSend]),
-                                erlim_client:reply(Socket, DataToSend),
-                                State#state{client_pid = ClientPid, token = Token, uid = Uid}
+                                erlim_sm:login(Uid, ClientPid),
+                                State#state{client_pid = ClientPid, uid = Uid}
                         end;
                     true ->
-                        [{<<"token">>, Token} | _T1] = T,
-                        SessionUserMnesia = mnesia_util:query_session_by_token(Token),
+                        #state{uid = Uid} = State,
+                        io:format("Uid is ~p~n", [Uid]),
+                        SessionUserMnesia = mnesia_util:query_session_by_uid(Uid),
                         case SessionUserMnesia of
                             false ->
                                 erlim_client:reply_error(Socket, <<"404 Not Found with this token, please login">>, 10404),
@@ -269,8 +266,8 @@ terminate(_Reason, #state{client_pid = ClientPid}) ->
             io:format("SessionMnesia is ~p.~n", [SessionMnesia]),
             case SessionMnesia of
                 false -> undefined;
-                #user{token = Token, uid = Uid} ->
-                    ok = erlim_sm:logout(Token),
+                #user{uid = Uid} ->
+                    ok = erlim_sm:logout(Uid),
                     mysql_util:save_logout(Uid),
                     ok = erlim_client:stop(ClientPid)
             end

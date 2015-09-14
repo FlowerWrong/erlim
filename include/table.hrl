@@ -10,7 +10,6 @@
 
 -record(user, {
     uid,                % user mysql id
-    token,              % token
     pid                 % client pid
 }).
 

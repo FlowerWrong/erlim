@@ -124,23 +124,21 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 
 login(Uid, ClientPid) when is_integer(Uid), is_pid(ClientPid) ->
-    Token = uuid:generate(),
-    UserToBeLoginMnesia = #user{uid = Uid, token = Token, pid = ClientPid},
+    UserToBeLoginMnesia = #user{uid = Uid, pid = ClientPid},
     F = fun() ->
         mnesia:write(UserToBeLoginMnesia)
          end,
-    mnesia:transaction(F),
-    {ok, Token}.
+    mnesia:transaction(F).
 
 get_session(Uid) when is_integer(Uid) ->
     case mnesia_util:query_session_by_uid(Uid) of
         false -> false;
-        {user, _Name, _Token, ClientPid} -> ClientPid
+        {user, _Name, ClientPid} -> ClientPid
     end.
 
-logout(Token) ->
+logout(Uid) when is_integer(Uid) ->
     io:format("Users is ~p~n", [mnesia_util:all()]),
-    CurrentUserMnesia = mnesia_util:query_session_by_token(Token),
+    CurrentUserMnesia = mnesia_util:query_session_by_uid(Uid),
     io:format("CurrentUser is ~p~n", [CurrentUserMnesia]),
     F = fun() -> mnesia:delete_object(CurrentUserMnesia) end,
     mnesia:transaction(F),

@@ -101,7 +101,7 @@ init(#state{port=Port}) ->
         {encoding, utf8}
     ]),
 
-    %% observer:start(),
+    observer:start(),
 
     {ok, ListenSocket} = gen_tcp:listen(Port, ?TCP_OPTIONS),
     {ok, AcceptorRef} = prim_inet:async_accept(ListenSocket, -1),
