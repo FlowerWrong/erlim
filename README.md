@@ -20,13 +20,6 @@ application:start(erlim).
 #### Usage
 
 ```erlang
-%% 登陆
-{S1, T1} = cy:login().
-{S2, T2} = ck:login().
-
-%% 发起聊天
-cy:sc(S1, T1).
-ck:loop_recv(S2).
 ```
 
 #### Design
