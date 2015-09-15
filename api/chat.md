@@ -27,8 +27,8 @@
 {
     "cmd": "single_chat",
     "from": 2,
-    "msg": "Msg body"
-    "ack": 1  // mysql msg id
+    "msg": "Msg body",
+    "ack": 1  # mysql msg id
 }
 ```
 
@@ -69,9 +69,9 @@
 {
     "cmd": "group_chat",
     "from": 2,
-    "to": "to room id:integer"
-    "msg": "Msg body"
-    "ack": 1  // mysql user_roommsg id
+    "to": "to room id:integer",
+    "msg": "Msg body",
+    "ack": 1  # mysql user_roommsg id
 }
 ```
 
