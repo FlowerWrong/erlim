@@ -13,9 +13,11 @@
     terminate/2,
     code_change/3]).
 
+-define(HIBERNATE_TIMEOUT, 90000).
+
 -record(state, {
     socket,
-    heartbeat_timeout = 600000,
+    heartbeat_timeout = ?HIBERNATE_TIMEOUT,
     client_pid,
     ip,
     uid

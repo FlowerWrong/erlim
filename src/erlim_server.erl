@@ -13,6 +13,9 @@
          terminate/2,
          code_change/3]).
 
+%% We do not block on send anymore.
+-define(TCP_SEND_TIMEOUT, 15000).
+
 %% http://www.cnblogs.com/ribavnu/archive/2013/08/06/3240435.html
 %% http://www.cnblogs.com/ribavnu/p/3409823.html
 %% http://learnyousomeerlang.com/buckets-of-sockets
@@ -22,6 +25,9 @@
     {backlog, 512},
     {active, false},
     {reuseaddr, true},
+    {nodelay, true},
+    {send_timeout, ?TCP_SEND_TIMEOUT},
+    {send_timeout_close, true},
     {keepalive, true}]
 ).
 

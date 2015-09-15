@@ -7,7 +7,8 @@
     start_link/1,
     stop/1,
     reply/2,
-    reply_error/3
+    reply_error/3,
+    reply_ack/2
 ]).
 
 %% gen_server callbacks
@@ -151,3 +152,6 @@ reply(Socket, Msg) ->
 reply_error(Socket, Error, Code) ->
     DataToSend = jiffy:encode({[{<<"error">>, Error}, {<<"code">>, Code}]}),
     reply(Socket, DataToSend).
+
+reply_ack(Socket, Ack) ->
+    reply(Socket, Ack).

@@ -27,6 +27,8 @@ application:start(erlim).
 * Just for chat(both one2one and group chat), no api for add_friend/del_friend/create_room/upload_file/del_room etc...
 * Use toml for config
 * Use json for data exchange
+* ACK
+* Timeout
 
 ![structure of erlim](https://raw.githubusercontent.com/FlowerWrong/erlim/master/api/erlim_structure.png)
 
@@ -51,7 +53,8 @@ application:start(erlim).
 - [x] chat must be friends
 - [x] group chat must in this room
 - [x] remove token 不是无状态的
-- [ ] add ACK(消息回执)
+- [ ] add ACK(消息回执 模仿三次握手)
+- [ ] timeout
 - [ ] keep session(避免移动端重连风暴)
 - [ ] yrl and xrl(语法分析/词法分析) write json parse in erlang(yecc and leex)
 - [ ] implement pubsub with erlang(gen_event)
