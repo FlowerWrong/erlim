@@ -3,7 +3,13 @@
 -behaviour(gen_server).
 
 %% API functions
--export([start_link/0, login/2, get_session/1, logout/1]).
+-export([
+    start_link/0,
+    login/3,
+    get_session/1,
+    get_session/2,
+    logout/2
+]).
 
 %% gen_server callbacks
 -export([init/1,
@@ -123,8 +129,8 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Internal functions
 %%%===================================================================
 
-login(Uid, ClientPid) when is_integer(Uid), is_pid(ClientPid) ->
-    UserToBeLoginMnesia = #user{uid = Uid, pid = ClientPid},
+login(Uid, ClientPid, Device) when is_integer(Uid), is_pid(ClientPid) ->
+    UserToBeLoginMnesia = #user{uid = Uid, pid = ClientPid, device = Device},
     F = fun() ->
         mnesia:write(UserToBeLoginMnesia)
          end,
@@ -133,14 +139,19 @@ login(Uid, ClientPid) when is_integer(Uid), is_pid(ClientPid) ->
 get_session(Uid) when is_integer(Uid) ->
     case mnesia_util:query_session_by_uid(Uid) of
         false -> false;
+        Users -> Users
+    end.
+get_session(Uid, Device) when is_integer(Uid) ->
+    case mnesia_util:query_session_by_uid_and_device(Uid, Device) of
+        false -> false;
         {user, _Name, ClientPid} -> ClientPid
     end.
 
-logout(Uid) when is_integer(Uid) ->
-    io:format("Users is ~p~n", [mnesia_util:all()]),
-    CurrentUserMnesia = mnesia_util:query_session_by_uid(Uid),
-    io:format("CurrentUser is ~p~n", [CurrentUserMnesia]),
+logout(Uid, Device) when is_integer(Uid) ->
+    lager:info("Users is ~p~n", [mnesia_util:all()]),
+    CurrentUserMnesia = mnesia_util:query_session_by_uid_and_device(Uid, Device),
+    lager:info("CurrentUser is ~p~n", [CurrentUserMnesia]),
     F = fun() -> mnesia:delete_object(CurrentUserMnesia) end,
     mnesia:transaction(F),
-    io:format("Users is ~p~n", [mnesia_util:all()]),
+    lager:info("Users is ~p~n", [mnesia_util:all()]),
     ok.

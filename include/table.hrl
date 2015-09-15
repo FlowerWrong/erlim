@@ -9,8 +9,9 @@
 -author("yy").
 
 -record(user, {
-    uid,                % user mysql id
-    pid                 % client pid
+    uid,
+    pid,
+    device
 }).
 
 %% For mysql record

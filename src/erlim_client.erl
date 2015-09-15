@@ -150,7 +150,7 @@ reply(Socket, Msg) ->
     gen_tcp:send(Socket, Msg).
 
 reply_error(Socket, Error, Code) ->
-    DataToSend = jiffy:encode({[{<<"error">>, Error}, {<<"code">>, Code}]}),
+    DataToSend = jiffy:encode({[{<<"cmd">>, <<"error">>}, {<<"msg">>, Error}, {<<"code">>, Code}]}),
     reply(Socket, DataToSend).
 
 reply_ack(Socket, Action, Ack) ->
