@@ -93,7 +93,6 @@ query_msg_by_id(MsgId) when is_integer(MsgId) ->
     [Msg | _T] = Recs,
     Msg.
 
-
 %% 群成员
 room_members(RoomId) when is_integer(RoomId) ->
     emysql:prepare(room_members_stmt, <<"SELECT * FROM room_users WHERE room_id = ?">>),

@@ -119,7 +119,6 @@ handle_info({tcp, Socket, Data}, #state{socket = Socket} = State) ->
                 if
                     Cmd =:= <<"login">> ->
                         [{<<"name">>, Name}, {<<"pass">>, Pass}, {<<"ack">>, Ack}, {<<"device">>, Device}] = T,
-                        lager:info("Ack is ~p~n", [Ack]),
                         LoginUserMysql = mysql_util:query_user_by_mobile(Name),
                         case LoginUserMysql of
                             [] ->

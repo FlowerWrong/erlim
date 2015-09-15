@@ -1,6 +1,6 @@
 ## Session api
 
-#### Login
+#### client send login params to server
 
 ```json
 {
@@ -11,6 +11,8 @@
     "device": "android-xiaomi"
 }
 ```
+
+###### server reply to client with client send ack, ack is an uuid or others
 
 ```json
 {
