@@ -117,17 +117,21 @@ handle_info({tcp, Socket, Data}, #state{socket = Socket} = State) ->
                 {[{<<"cmd">>, Cmd} | T]} = Json,
                 if
                     Cmd =:= <<"login">> ->
-                        [{<<"name">>, Name}, {<<"pass">>, Pass}] = T,
+                        [{<<"name">>, Name}, {<<"pass">>, Pass}, {<<"ack">>, Ack}] = T,
+                        io:format("Ack is ~p~n", [Ack]),
                         LoginUserMysql = mysql_util:query_user_by_mobile(Name),
                         case LoginUserMysql of
                             [] ->
-                                erlim_client:reply_error(Socket, <<"404 Not Found with this name">>, 10404),
+                                erlim_client:reply_error(Socket, <<"404 Not Found user with this name">>, 10404),
                                 State;
                             #user_record{password_digest = PD, id = Uid} ->
                                 PassDigest = binary_to_list(PD),
                                 {ok, PassDigest} =:= bcrypt:hashpw(Pass, PassDigest),
                                 ClientPid = erlim_client_sup:start_child(Socket),
                                 erlim_sm:login(Uid, ClientPid),
+                                %% Send login ack to client
+                                erlim_client:reply_ack(Socket, <<"login">>, Ack),
+
                                 State#state{client_pid = ClientPid, uid = Uid}
                         end;
                     true ->
@@ -147,7 +151,7 @@ handle_info({tcp, Socket, Data}, #state{socket = Socket} = State) ->
                                     _ ->
                                         case Cmd of
                                             <<"single_chat">> ->
-                                                [{<<"to">>, ToUid}, {<<"msg">>, Msg}] = T,
+                                                [{<<"to">>, ToUid}, {<<"msg">>, Msg}, {<<"ack">>, Ack}] = T,
                                                 %% 是否好友关系
                                                 case mysql_util:are_friends(SessionUserMnesia#user.uid, ToUid) of
                                                     false ->
@@ -160,13 +164,15 @@ handle_info({tcp, Socket, Data}, #state{socket = Socket} = State) ->
                                                                 erlim_client:reply_error(Socket, <<"404 Not Found this user in mysql">>, 10404),
                                                                 State;
                                                             _ ->
+                                                                %% Send single_chat ack to client
+                                                                erlim_client:reply_ack(Socket, <<"single_chat">>, Ack),
+
                                                                 ToPid = erlim_sm:get_session(ToUid),
                                                                 case ToPid of
                                                                     false ->  %% ofline
                                                                         OffMsg = #msg_record{f = FromUserMysql#user_record.id, t = ToUserMysql#user_record.id, msg = Msg, unread = 1},
                                                                         {ok_packet, _, _, _, _, _, _} = mysql_util:save_msg(OffMsg);
                                                                     _ ->  %% online
-                                                                        io:format("Send msg to ~p, ~p, msg is ~p.~n", [ToPid, ToUserMysql, Msg]),
                                                                         OnlineMsg = #msg_record{f = FromUserMysql#user_record.id, t = ToUserMysql#user_record.id, msg = Msg, unread = 0},
                                                                         {ok_packet, _, _, _, _, _, _} = mysql_util:save_msg(OnlineMsg),
 
@@ -177,7 +183,7 @@ handle_info({tcp, Socket, Data}, #state{socket = Socket} = State) ->
                                                         end
                                                 end;
                                             <<"group_chat">> ->
-                                                [{<<"to">>, ToRoomId}, {<<"msg">>, Msg}] = T,
+                                                [{<<"to">>, ToRoomId}, {<<"msg">>, Msg}, {<<"ack">>, Ack}] = T,
                                                 %% 群是否存在
                                                 case mysql_util:is_an_exist_room(ToRoomId) of
                                                     false ->
@@ -194,9 +200,12 @@ handle_info({tcp, Socket, Data}, #state{socket = Socket} = State) ->
                                                                 mysql_util:save_room_msg(RoomMsg),
 
                                                                 Members = mysql_util:room_members(ToRoomId),
-                                                                io:format("Members is ~p.~n", [Members]),
+                                                                io:format("Members are ~p.~n", [Members]),
 
                                                                 DataToSend = jiffy:encode({[{<<"cmd">>, <<"group_chat">>}, {<<"from">>, SessionUserMnesia#user.uid}, {<<"to">>, ToRoomId}, {<<"msg">>, Msg}]}),
+
+                                                                %% Send group_chat ack to client
+                                                                erlim_client:reply_ack(Socket, <<"group_chat">>, Ack),
 
                                                                 lists:foreach(fun(M) ->
                                                                     case mysql_util:query_user_by_id(M#room_users_record.user_id) of
@@ -212,11 +221,15 @@ handle_info({tcp, Socket, Data}, #state{socket = Socket} = State) ->
                                                                 State
                                                         end
                                                 end;
+                                            <<"ack">> ->
+                                                [{<<"action">>, Action}, {<<"ack">>, TimeStamp}] = T,
+                                                io:format("Action is ~p, Timestamp is ~p~n", [Action, TimeStamp]),
+                                                State;
                                             <<"logout">> ->
                                                 self() ! {tcp_closed, Socket},
                                                 State;
                                             _ ->
-                                                %% 1. 用户登陆后发送了未知命令
+                                                %% 用户登陆后发送了未知命令
                                                 self() ! {unknown_cmd, Socket},
                                                 State
                                         end

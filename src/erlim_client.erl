@@ -8,7 +8,7 @@
     stop/1,
     reply/2,
     reply_error/3,
-    reply_ack/2
+    reply_ack/3
 ]).
 
 %% gen_server callbacks
@@ -153,5 +153,6 @@ reply_error(Socket, Error, Code) ->
     DataToSend = jiffy:encode({[{<<"error">>, Error}, {<<"code">>, Code}]}),
     reply(Socket, DataToSend).
 
-reply_ack(Socket, Ack) ->
-    reply(Socket, Ack).
+reply_ack(Socket, Action, Ack) ->
+    DataToSend = jiffy:encode({[{<<"cmd">>, <<"ack">>}, {<<"action">>, Action}, {<<"ack">>, Ack}]}),
+    reply(Socket, DataToSend).

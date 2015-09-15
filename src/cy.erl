@@ -5,16 +5,16 @@
 
 login() ->
     {ok, Sock} = gen_tcp:connect("localhost", 8080, [binary, {packet, 0}]),
-    Msg = <<"{\"cmd\": \"login\", \"name\": \"13560474456\", \"pass\": \"12345678\"}">>,
+    Msg = <<"{\"cmd\": \"login\", \"name\": \"13560474456\", \"pass\": \"12345678\", \"ack\": \"72cdf1ae-62a3-4ebf-821c-a809d1931293\"}">>,
     ok = gen_tcp:send(Sock, Msg),
     Sock.
 
 sc(Sock) ->
-    Msg = iolist_to_binary([<<"{\"cmd\": \"single_chat\", \"to\": 2, \"msg\": \"hello world\"}">>]),
+    Msg = iolist_to_binary([<<"{\"cmd\": \"single_chat\", \"to\": 2, \"msg\": \"hello world\", \"ack\": \"72cdf1ae-62a3-4ebf-821c-a809d1931293\"}">>]),
     ok = gen_tcp:send(Sock, Msg).
 
 gc(Sock) ->
-    Msg = iolist_to_binary([<<"{\"cmd\": \"group_chat\", \"to\": 1, \"msg\": \"hello world, xiaomi\"}">>]),
+    Msg = iolist_to_binary([<<"{\"cmd\": \"group_chat\", \"to\": 1, \"msg\": \"hello world, xiaomi\", \"ack\": \"72cdf1ae-62a3-4ebf-821c-a809d1931293\"}">>]),
     ok = gen_tcp:send(Sock, Msg).
 
 logout(Sock) ->

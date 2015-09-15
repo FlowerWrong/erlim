@@ -7,7 +7,7 @@
     "cmd": "single_chat",
     "to": "to user name",
     "msg": "msg body",
-    "t": 1442289073960718
+    "ack": "72cdf1ae-62a3-4ebf-821c-a809d1931293"
 }
 ```
 
@@ -15,7 +15,7 @@
 {
     "cmd": "ack",
     "action": "single_chat",
-    "t": 1442289073960718
+    "ack": "72cdf1ae-62a3-4ebf-821c-a809d1931293"
 }
 ```
 
@@ -25,7 +25,8 @@
 {
     "cmd": "group_chat",
     "to": "to room mysql id",
-    "msg": "msg body"
+    "msg": "msg body",
+    "ack": "72cdf1ae-62a3-4ebf-821c-a809d1931293"
 }
 ```
 
@@ -33,6 +34,6 @@
 {
     "cmd": "ack",
     "action": "group_chat",
-    "t": 1442289073960718
+    "ack": "72cdf1ae-62a3-4ebf-821c-a809d1931293"
 }
 ```
