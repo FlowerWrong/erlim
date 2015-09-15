@@ -10,7 +10,7 @@ login() ->
     Sock.
 
 sc(Sock) ->
-    Msg = iolist_to_binary([<<"{\"cmd\": \"single_chat\", \"to\": 1, \"msg\": \"hello world\"}">>]),
+    Msg = iolist_to_binary([<<"{\"cmd\": \"single_chat\", \"to\": 2, \"msg\": \"hello world\"}">>]),
     ok = gen_tcp:send(Sock, Msg).
 
 gc(Sock) ->

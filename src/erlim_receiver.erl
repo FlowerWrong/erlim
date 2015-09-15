@@ -130,7 +130,6 @@ handle_info({tcp, Socket, Data}, #state{socket = Socket} = State) ->
                         end;
                     true ->
                         #state{uid = Uid} = State,
-                        io:format("Uid is ~p~n", [Uid]),
                         SessionUserMnesia = mnesia_util:query_session_by_uid(Uid),
                         case SessionUserMnesia of
                             false ->
@@ -146,7 +145,7 @@ handle_info({tcp, Socket, Data}, #state{socket = Socket} = State) ->
                                     _ ->
                                         case Cmd of
                                             <<"single_chat">> ->
-                                                [{<<"token">>, _Token}, {<<"to">>, ToUid}, {<<"msg">>, Msg}] = T,
+                                                [{<<"to">>, ToUid}, {<<"msg">>, Msg}] = T,
                                                 %% 是否好友关系
                                                 case mysql_util:are_friends(SessionUserMnesia#user.uid, ToUid) of
                                                     false ->
@@ -176,7 +175,7 @@ handle_info({tcp, Socket, Data}, #state{socket = Socket} = State) ->
                                                         end
                                                 end;
                                             <<"group_chat">> ->
-                                                [{<<"token">>, _Token}, {<<"to">>, ToRoomId}, {<<"msg">>, Msg}] = T,
+                                                [{<<"to">>, ToRoomId}, {<<"msg">>, Msg}] = T,
                                                 %% 群是否存在
                                                 case mysql_util:is_an_exist_room(ToRoomId) of
                                                     false ->
