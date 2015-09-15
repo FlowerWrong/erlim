@@ -14,7 +14,6 @@
 
 ```json
 {
-    "cmd": "logout",
-    "token": "efd0c3b8-35bb-4cd1-85db-9248d45d8afa",
+    "cmd": "logout"
 }
 ```
