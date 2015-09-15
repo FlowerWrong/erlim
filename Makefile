@@ -1,11 +1,10 @@
 REBAR := rebar
 .DEFAULT_GOAL = start
 
-start: pre-compile get-deps compile erl
+start: get-deps compile erl
 
 pre-compile:
-	rm erlim.toml
-	cp erlim.example.toml erlim.toml
+	cp erlim.example.toml /etc/erlim/erlim.toml
 
 get-deps:
 	$(REBAR) get-deps
@@ -15,6 +14,9 @@ test:
 
 compile:
 	$(REBAR) compile
+
+release:
+	$(REBAR) compile generate
 
 erl:
 	erl -pa ebin -pa ./deps/*/ebin -boot start_sasl

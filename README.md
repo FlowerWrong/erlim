@@ -20,6 +20,13 @@ application:start(erlim).
 #### Usage
 
 ```erlang
+make release
+cp erlim.example.toml /etc/erlim/erlim.toml
+
+./rel/erlim/bin/erlim start
+./rel/erlim/bin/erlim console
+./rel/erlim/bin/erlim attach
+./rel/erlim/bin/erlim stop
 ```
 
 #### Design

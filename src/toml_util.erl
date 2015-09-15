@@ -3,7 +3,7 @@
 -export([parse/0]).
 
 parse() ->
-    Data = readlines(filename:absname("erlim.toml")),
+    Data = readlines("/etc/erlim/erlim.toml"),
     etoml:parse(Data).
 
 readlines(FileName) ->

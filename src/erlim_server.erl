@@ -82,32 +82,25 @@ init(#state{port=Port}) ->
     application:start(emysql),
     lager:start(),
 
-%%     {ok,[{
-%%         <<"database">>,
-%%         [
-%%             {<<"encoding">>, Encoding},
-%%             {<<"db">>, Dbname},
-%%             {<<"pwd">>, Pwd},
-%%             {<<"name">>, UserName},
-%%             {<<"size">>, Size}
-%%         ]
-%%     }]} = toml_util:parse(),
-%%     emysql:add_pool(erlim_pool, [
-%%         {size, Size},
-%%         {user, binary_to_list(UserName)},
-%%         {password, binary_to_list(Pwd)},
-%%         {database, binary_to_list(Dbname)},
-%%         {encoding, binary_to_atom(Encoding, utf8)}
-%%     ]),
+    {ok,[{
+        <<"database">>,
+        [
+            {<<"encoding">>, Encoding},
+            {<<"db">>, Dbname},
+            {<<"pwd">>, Pwd},
+            {<<"name">>, UserName},
+            {<<"size">>, Size}
+        ]
+    }]} = toml_util:parse(),
     emysql:add_pool(erlim_pool, [
-        {size, 1},
-        {user, "root"},
-        {password, "root"},
-        {database, "movie_together_development"},
-        {encoding, utf8}
+        {size, Size},
+        {user, binary_to_list(UserName)},
+        {password, binary_to_list(Pwd)},
+        {database, binary_to_list(Dbname)},
+        {encoding, binary_to_atom(Encoding, utf8)}
     ]),
 
-    observer:start(),
+    %% observer:start(),
 
     {ok, ListenSocket} = gen_tcp:listen(Port, ?TCP_OPTIONS),
     {ok, AcceptorRef} = prim_inet:async_accept(ListenSocket, -1),
