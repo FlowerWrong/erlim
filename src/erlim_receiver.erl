@@ -164,19 +164,16 @@ handle_info({tcp, Socket, Data}, #state{socket = Socket} = State) ->
                                                                 erlim_client:reply_error(Socket, <<"404 Not Found this user in mysql">>, 10404),
                                                                 State;
                                                             _ ->
+                                                                ToPid = erlim_sm:get_session(ToUid),
+                                                                OffMsg = #msg_record{f = FromUserMysql#user_record.id, t = ToUserMysql#user_record.id, msg = Msg, unread = 1},
+                                                                {ok_packet, _, _, MsgId, _, _, _} = mysql_util:save_msg(OffMsg),
                                                                 %% Send single_chat ack to client
                                                                 erlim_client:reply_ack(Socket, <<"single_chat">>, Ack),
-
-                                                                ToPid = erlim_sm:get_session(ToUid),
                                                                 case ToPid of
                                                                     false ->  %% ofline
-                                                                        OffMsg = #msg_record{f = FromUserMysql#user_record.id, t = ToUserMysql#user_record.id, msg = Msg, unread = 1},
-                                                                        {ok_packet, _, _, _, _, _, _} = mysql_util:save_msg(OffMsg);
+                                                                        ok;
                                                                     _ ->  %% online
-                                                                        OnlineMsg = #msg_record{f = FromUserMysql#user_record.id, t = ToUserMysql#user_record.id, msg = Msg, unread = 0},
-                                                                        {ok_packet, _, _, _, _, _, _} = mysql_util:save_msg(OnlineMsg),
-
-                                                                        DataToSend = jiffy:encode({[{<<"cmd">>, <<"single_chat">>}, {<<"from">>, SessionUserMnesia#user.uid}, {<<"to">>, ToUid}, {<<"msg">>, Msg}]}),
+                                                                        DataToSend = jiffy:encode({[{<<"cmd">>, <<"single_chat">>}, {<<"from">>, SessionUserMnesia#user.uid}, {<<"msg">>, Msg}, {<<"ack">>, MsgId}]}),
                                                                         ToPid ! {single_chat, DataToSend}
                                                                 end,
                                                                 State
@@ -197,7 +194,7 @@ handle_info({tcp, Socket, Data}, #state{socket = Socket} = State) ->
                                                                 State;
                                                             true ->
                                                                 RoomMsg = #roommsg_record{f = FromUserMysql#user_record.id, t = ToRoomId, msg = Msg},
-                                                                mysql_util:save_room_msg(RoomMsg),
+                                                                {ok_packet, _, _, _RoommsgId, _, _, _} = mysql_util:save_room_msg(RoomMsg),
 
                                                                 Members = mysql_util:room_members(ToRoomId),
                                                                 io:format("Members are ~p.~n", [Members]),
@@ -222,8 +219,17 @@ handle_info({tcp, Socket, Data}, #state{socket = Socket} = State) ->
                                                         end
                                                 end;
                                             <<"ack">> ->
-                                                [{<<"action">>, Action}, {<<"ack">>, TimeStamp}] = T,
-                                                io:format("Action is ~p, Timestamp is ~p~n", [Action, TimeStamp]),
+                                                [{<<"action">>, Action}, {<<"ack">>, Ack}] = T,
+                                                io:format("Action is ~p, Timestamp is ~p~n", [Action, Ack]),
+                                                case Action of
+                                                    <<"single_chat">> ->
+                                                        io:format("Single chat msg ack is ~p~n", [Ack]),
+                                                        mysql_util:mark_read(Ack, single_chat);
+                                                    <<"group_chat">> ->
+                                                        ok;
+                                                    _ ->
+                                                        erlim_client:reply_error(Socket, <<"404 Not Found this ack action">>, 10404)
+                                                end,
                                                 State;
                                             <<"logout">> ->
                                                 self() ! {tcp_closed, Socket},

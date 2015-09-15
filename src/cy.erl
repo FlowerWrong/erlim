@@ -25,7 +25,29 @@ logout(Sock) ->
 recv(Socket) ->
     receive
         {tcp, Socket, Data} ->
-            io:format("Client received msg is: ~p~n", [Data])
+            _IsJSON = jsx:is_json(Data),
+            Json = jiffy:decode(Data),
+            io:format("Json is ~p.~n", [Json]),
+            {[{<<"cmd">>, Cmd} | T]} = Json,
+            case Cmd of
+                <<"ack">> ->
+                    [{<<"action">>, Action}, {<<"ack">>, _Ack}] = T,
+                    case Action of
+                        <<"login">> ->
+                            io:format("Login success");
+                        <<"single_chat">> ->
+                            io:format("Single chat msg send success");
+                        <<"group_chat">> ->
+                            io:format("Group chat msg send success")
+                    end;
+                <<"single_chat">> ->
+                    [{<<"from">>, From}, {<<"msg">>, Msg}, {<<"ack">>, MsgId}] = T,
+                    io:format("Recv msg ~p, from ~p, ack is ~p", [Msg, From, MsgId]),
+                    DataToSend = jiffy:encode({[{<<"cmd">>, <<"ack">>}, {<<"action">>, <<"single_chat">>}, {<<"ack">>, MsgId}]}),
+                    ok = gen_tcp:send(Socket, DataToSend);
+                _ ->
+                    ok
+            end
     end.
 
 loop_recv(Socket) ->

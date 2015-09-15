@@ -9,6 +9,7 @@
     user_msgs/2,
     room_msgs/1,
     mark_read/2,
+    query_msg_by_id/1,
     room_members/1,
     is_an_exist_room/1,
     are_friends/2,
@@ -78,6 +79,14 @@ mark_read(MsgId, single_chat) when is_integer(MsgId) ->
 %% TODO
 mark_read(MsgId, group_chat) when is_integer(MsgId) ->
     ok.
+
+query_msg_by_id(MsgId) when is_integer(MsgId) ->
+    emysql:prepare(query_msg_by_id_stmt, <<"SELECT * FROM msgs WHERE id = ?">>),
+    Result = emysql:execute(erlim_pool, query_msg_by_id_stmt, [MsgId]),
+    Recs = emysql_util:as_record(Result, user_record, record_info(fields, user_record)),
+    [Msg | _T] = Recs,
+    Msg.
+
 
 %% 群成员
 room_members(RoomId) when is_integer(RoomId) ->
