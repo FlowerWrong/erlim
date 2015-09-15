@@ -29,3 +29,9 @@ roommsgs:
   f: from user id
   t: to room id
   msg: msg body
+
+user_roommsgs:
+  id: ID
+  user_id: receiver id
+  roommsg_id: roommsg id
+  unread: 0/1

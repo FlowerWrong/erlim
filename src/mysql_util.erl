@@ -6,6 +6,7 @@
     save_logout/1,
     save_msg/1,
     save_room_msg/1,
+    save_user_room_msg/2,
     user_msgs/2,
     room_msgs/1,
     mark_read/2,
@@ -61,6 +62,11 @@ save_room_msg(RoomMsg) when is_record(RoomMsg, roommsg_record) ->
     Now = calendar:local_time(),
     emysql:execute(erlim_pool, save_room_msg_stmt, [RoomMsg#roommsg_record.f, RoomMsg#roommsg_record.t, RoomMsg#roommsg_record.msg, Now, Now]).
 
+save_user_room_msg(RoommsgId, UserId) when is_integer(RoommsgId), is_integer(UserId) ->
+    emysql:prepare(save_user_room_msg_stmt, <<"INSERT INTO user_roommsgs SET user_id = ?, roommsg_id = ?, unread = ?, created_at = ?, updated_at = ?">>),
+    Now = calendar:local_time(),
+    emysql:execute(erlim_pool, save_user_room_msg_stmt, [UserId, RoommsgId, 1, Now, Now]).
+
 %% 查询用户已读/未读消息
 user_msgs(Uid, Unread) when is_integer(Uid), is_integer(Unread) ->
     emysql:prepare(msg_stmt, <<"SELECT * FROM msgs WHERE t = ? AND unread = ?">>),
@@ -76,9 +82,9 @@ room_msgs(Id) when is_integer(Id) ->
 mark_read(MsgId, single_chat) when is_integer(MsgId) ->
     emysql:prepare(mark_read_single_chat_stmt, <<"UPDATE msgs SET unread = ? WHERE id = ?">>),
     emysql:execute(erlim_pool, mark_read_single_chat_stmt, [0, MsgId]);
-%% TODO
 mark_read(MsgId, group_chat) when is_integer(MsgId) ->
-    ok.
+    emysql:prepare(mark_read_group_chat_stmt, <<"UPDATE user_roommsgs SET unread = ? WHERE id = ?">>),
+    emysql:execute(erlim_pool, mark_read_group_chat_stmt, [0, MsgId]).
 
 query_msg_by_id(MsgId) when is_integer(MsgId) ->
     emysql:prepare(query_msg_by_id_stmt, <<"SELECT * FROM msgs WHERE id = ?">>),

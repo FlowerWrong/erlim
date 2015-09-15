@@ -194,12 +194,10 @@ handle_info({tcp, Socket, Data}, #state{socket = Socket} = State) ->
                                                                 State;
                                                             true ->
                                                                 RoomMsg = #roommsg_record{f = FromUserMysql#user_record.id, t = ToRoomId, msg = Msg},
-                                                                {ok_packet, _, _, _RoommsgId, _, _, _} = mysql_util:save_room_msg(RoomMsg),
+                                                                {ok_packet, _, _, RoommsgId, _, _, _} = mysql_util:save_room_msg(RoomMsg),
 
                                                                 Members = mysql_util:room_members(ToRoomId),
                                                                 io:format("Members are ~p.~n", [Members]),
-
-                                                                DataToSend = jiffy:encode({[{<<"cmd">>, <<"group_chat">>}, {<<"from">>, SessionUserMnesia#user.uid}, {<<"to">>, ToRoomId}, {<<"msg">>, Msg}]}),
 
                                                                 %% Send group_chat ack to client
                                                                 erlim_client:reply_ack(Socket, <<"group_chat">>, Ack),
@@ -208,9 +206,12 @@ handle_info({tcp, Socket, Data}, #state{socket = Socket} = State) ->
                                                                     case mysql_util:query_user_by_id(M#room_users_record.user_id) of
                                                                         [] -> false;
                                                                         #user_record{id = Id} ->
+                                                                            %% Save members unread roommsg
+                                                                            {ok_packet, _, _, UserRoommsgId, _, _, _} = mysql_util:save_user_room_msg(RoommsgId, Id),
                                                                             case mnesia_util:query_session_by_uid(Id) of
                                                                                 false -> false;
                                                                                 #user{pid = ToPid} ->
+                                                                                    DataToSend = jiffy:encode({[{<<"cmd">>, <<"group_chat">>}, {<<"from">>, SessionUserMnesia#user.uid}, {<<"to">>, ToRoomId}, {<<"msg">>, Msg}, {<<"ack">>, UserRoommsgId}]}),
                                                                                     ToPid ! {group_chat, DataToSend}
                                                                             end
                                                                     end
@@ -226,7 +227,8 @@ handle_info({tcp, Socket, Data}, #state{socket = Socket} = State) ->
                                                         io:format("Single chat msg ack is ~p~n", [Ack]),
                                                         mysql_util:mark_read(Ack, single_chat);
                                                     <<"group_chat">> ->
-                                                        ok;
+                                                        io:format("Group chat msg ack is ~p~n", [Ack]),
+                                                        mysql_util:mark_read(Ack, group_chat);
                                                     _ ->
                                                         erlim_client:reply_error(Socket, <<"404 Not Found this ack action">>, 10404)
                                                 end,

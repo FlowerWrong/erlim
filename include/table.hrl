@@ -67,6 +67,13 @@
     user_id
 }).
 
+-record(user_roommsgs_record, {
+    id,
+    user_id,
+    roommsg_id,
+    unread
+}).
+
 -record(friendship_record, {
     id,
     user_id,

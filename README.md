@@ -53,7 +53,8 @@ application:start(erlim).
 - [x] chat must be friends
 - [x] group chat must in this room
 - [x] remove token 不是无状态的
-- [ ] add ACK(消息回执 模仿三次握手)
+- [x] add ACK(消息回执 模仿三次握手)
+- [ ] multi device
 - [ ] timeout
 - [ ] keep session(避免移动端重连风暴)
 - [ ] yrl and xrl(语法分析/词法分析) write json parse in erlang(yecc and leex)

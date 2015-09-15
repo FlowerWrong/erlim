@@ -44,6 +44,11 @@ recv(Socket) ->
                     io:format("Recv msg ~p, from ~p, ack is ~p", [Msg, From, MsgId]),
                     DataToSend = jiffy:encode({[{<<"cmd">>, <<"ack">>}, {<<"action">>, <<"single_chat">>}, {<<"ack">>, MsgId}]}),
                     ok = gen_tcp:send(Socket, DataToSend);
+                <<"group_chat">> ->
+                    [{<<"from">>, From}, {<<"to">>, To}, {<<"msg">>, Msg}, {<<"ack">>, UserRoommsgId}] = T,
+                    io:format("Recv msg ~p, from ~p, to room ~p, ack is ~p", [Msg, From, To, UserRoommsgId]),
+                    DataToSend = jiffy:encode({[{<<"cmd">>, <<"ack">>}, {<<"action">>, <<"group_chat">>}, {<<"ack">>, UserRoommsgId}]}),
+                    ok = gen_tcp:send(Socket, DataToSend);
                 _ ->
                     ok
             end
