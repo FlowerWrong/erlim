@@ -45,6 +45,11 @@ cp erlim.example.toml /etc/erlim/erlim.toml
 * group chat: whatsapp-like
 * chat history both single chat and group chat
 
+#### Cluster
+
+* [A_Framework_for_Clustering_Generic_Server_Instances](https://erlangcentral.org/wiki/index.php?title=A_Framework_for_Clustering_Generic_Server_Instances)
+* [ejabberd cluster](https://raymii.org/s/tutorials/Set_up_a_federated_XMPP_Chat_Network_with_ejabberd.html)
+
 #### Todo
 
 - [x] erlang async receive
