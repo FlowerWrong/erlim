@@ -297,7 +297,6 @@ terminate(_Reason, #state{client_pid = ClientPid, device = Device}) ->
                 false -> undefined;
                 #user{uid = Uid} ->
                     ok = erlim_sm:logout(Uid, Device),
-                    mysql_util:save_logout(Uid, Device),
                     ok = erlim_client:stop(ClientPid)
             end
     end.

@@ -60,14 +60,6 @@
     bg
 }).
 
--record(sm_record, {
-    id,
-    name,
-    pid,
-    last_logout_at,
-    user_id
-}).
-
 -record(user_roommsgs_record, {
     id,
     user_id,

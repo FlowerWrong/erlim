@@ -3,7 +3,6 @@
 -export([
     query_user_by_mobile/1,
     query_user_by_id/1,
-    save_logout/2,
     save_msg/1,
     save_room_msg/1,
     save_user_room_msg/2,
@@ -35,20 +34,6 @@ query_user_by_id(Uid) when is_integer(Uid) ->
     Recs = emysql_util:as_record(Result, user_record, record_info(fields, user_record)),
     [User | _T] = Recs,
     User.
-
-%% 退出时保存时间
-save_logout(Uid, Device) when is_integer(Uid) ->
-    emysql:prepare(sm_stmt, <<"SELECT * FROM sms WHERE user_id = ? AND device = ?">>),
-    Result = emysql:execute(erlim_pool, sm_stmt, [Uid, Device]),
-    Now = calendar:local_time(),
-    case emysql_util:as_record(Result, sm_record, record_info(fields, sm_record)) of
-        [] ->
-            emysql:prepare(insert_sm_stmt, <<"INSERT INTO sms SET user_id = ?, device = ?, last_logout_at = ?, created_at = ?, updated_at = ?">>),
-            emysql:execute(erlim_pool, insert_sm_stmt, [Uid, Device, Now, Now, Now]);
-        [_Sm] ->
-            emysql:prepare(up_sm_stmt, <<"UPDATE sms SET last_logout_at = ?, updated_at = ? WHERE user_id = ?">>),
-            emysql:execute(erlim_pool, up_sm_stmt, [Now, Now, Uid])
-    end.
 
 %% 保存私聊消息
 save_msg(Msg) when is_record(Msg, msg_record) ->
