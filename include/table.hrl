@@ -46,6 +46,7 @@
     name,
     max_member_count,
     invitable,
+    password,
     description,
     subject,
     qrcode
