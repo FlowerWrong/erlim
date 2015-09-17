@@ -21,7 +21,8 @@
     client_pid,
     ip,
     uid,
-    device
+    device,
+    node
 }).
 
 -include("table.hrl").
@@ -59,7 +60,7 @@ start_link(Socket) ->
 %%--------------------------------------------------------------------
 init([Socket]) ->
     {ok, {IP, _Port}} = inet:peername(Socket),
-    NewState = #state{socket = Socket, ip = IP},
+    NewState = #state{socket = Socket, ip = IP, node = node()},
     setopts(NewState#state.socket),
     {ok, NewState}.
 

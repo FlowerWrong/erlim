@@ -11,7 +11,8 @@
 -record(user, {
     uid,
     pid,
-    device
+    device,
+    node
 }).
 
 %% For mysql record
