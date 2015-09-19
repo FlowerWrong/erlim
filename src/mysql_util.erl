@@ -23,7 +23,6 @@
 query_user_by_mobile(Mobile) ->
     emysql:prepare(query_user_by_mobile_stmt, <<"SELECT * FROM users WHERE mobile = ?">>),
     Result = emysql:execute(erlim_pool, query_user_by_mobile_stmt, [Mobile]),
-    lager:info("Result is ~p~n", [Result]),
     Recs = emysql_util:as_record(Result, user_record, record_info(fields, user_record)),
     [User | _T] = Recs,
     User.
