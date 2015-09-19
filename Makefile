@@ -19,4 +19,4 @@ release:
 	$(REBAR) compile generate
 
 erl:
-	erl -pa ebin -pa ./deps/*/ebin -boot start_sasl -sname erlim
+	erl -pa ebin -pa ./deps/*/ebin -boot start_sasl -kernel error_logger '{file,"/tmp/log"}' -name erlim@192.168.10.140 -setcookie erlim

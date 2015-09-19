@@ -19,9 +19,12 @@ init_mnesia() ->
         [] ->
             case mnesia:create_schema([node()]) of
                 {error, Reason} ->
-                    lager:info("Error reason is ~p~n", [Reason]);
+                    lager:info("Error reason is ~p~n", [Reason]),
+                    mnesia:start(),
+                    update_tables(),
+                    create_table();
                 ok ->
-                    application:start(mnesia),
+                    mnesia:start(),
                     update_tables(),
                     create_table()
             end;

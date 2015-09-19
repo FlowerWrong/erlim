@@ -69,6 +69,7 @@ cp erlim.example.toml /etc/erlim/erlim.toml
 - [x] timeout
 - [ ] implement mnesia cluster
 - [ ] implement cluster mode
+- [ ] add max connection number test
 - [ ] implement a scheduler in erlang or nodejs
 - [ ] keep session(避免移动端重连风暴)
 - [ ] implement pubsub with erlang(gen_event)
