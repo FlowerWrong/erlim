@@ -15,31 +15,31 @@
 -export([init_mnesia/0]).
 
 init_mnesia() ->
-    case mnesia:create_schema([node()]) of
-        {error, Reason} ->
-            io:format("Error reason is ~p~n", [Reason]),
-            mnesia:start(),
-            mnesia:clear_table(user),
-            io:format("node is ~p", [node()]),
-            create_table();
-        ok ->
-            mnesia:start(),
-            io:format("node is ~p", [node()]),
-            create_table()
-    end.
+    case mnesia:system_info(extra_db_nodes) of
+        [] ->
+            case mnesia:create_schema([node()]) of
+                {error, Reason} ->
+                    lager:info("Error reason is ~p~n", [Reason]);
+                ok ->
+                    application:start(mnesia),
+                    update_tables(),
+                    create_table()
+            end;
+        _ ->
+            ok
+    end,
+    mnesia:info().
 
 create_table() ->
-    mnesia:create_table(user, [{
-        attributes,
-        record_info(fields, user)},
-        {ram_copies, [node()]},
-        {disc_only_copies, nodes()},
-        {storage_properties,
-            [{
-                ets,
-                [compressed]
-            },
-                {dets, [{auto_save, 5000}]}
-            ]
-        }
-    ]).
+    update_tables(),
+    mnesia:create_table(session, [
+        {attributes, record_info(fields, session)},
+        {ram_copies, [node()]}
+    ]),
+    mnesia:add_table_copy(session, node(), ram_copies).
+
+update_tables() ->
+    case catch mnesia:table_info(session, attributes) of
+      [uid, pid, device, node] -> mnesia:delete_table(session);
+      {'EXIT', _} -> ok
+    end.

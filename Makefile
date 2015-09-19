@@ -19,4 +19,4 @@ release:
 	$(REBAR) compile generate
 
 erl:
-	erl -pa ebin -pa ./deps/*/ebin -boot start_sasl
+	erl -pa ebin -pa ./deps/*/ebin -boot start_sasl -sname erlim

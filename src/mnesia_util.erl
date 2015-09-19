@@ -14,7 +14,7 @@
 
 %% query_session_by_pid(Pid) ->
 %%     Fun = fun() ->
-%%         Query = qlc:q([X || X <- mnesia:table(user), X#user.pid =:= Pid]),
+%%         Query = qlc:q([X || X <- mnesia:table(session), X#session.pid =:= Pid]),
 %%         qlc:e(Query)
 %%         end,
 %%     case mnesia:transaction(Fun) of
@@ -24,7 +24,7 @@
 
 query_session_by_pid_and_device(Pid, Device) ->
     Fun = fun() ->
-        Query = qlc:q([X || X <- mnesia:table(user), X#user.pid =:= Pid, X#user.device =:= Device, X#user.node =:= node()]),
+        Query = qlc:q([X || X <- mnesia:table(session), X#session.pid =:= Pid, X#session.device =:= Device, X#session.node =:= node()]),
         qlc:e(Query)
           end,
     case mnesia:transaction(Fun) of
@@ -34,7 +34,7 @@ query_session_by_pid_and_device(Pid, Device) ->
 
 query_session_by_uid(Uid) when is_integer(Uid) ->
     Fun = fun() ->
-        Query = qlc:q([X || X <- mnesia:table(user), X#user.uid =:= Uid, X#user.node =:= node()]),
+        Query = qlc:q([X || X <- mnesia:table(session), X#session.uid =:= Uid, X#session.node =:= node()]),
         qlc:e(Query)
         end,
     case mnesia:transaction(Fun) of
@@ -44,7 +44,7 @@ query_session_by_uid(Uid) when is_integer(Uid) ->
 
 query_session_by_uid_and_device(Uid, Device) when is_integer(Uid) ->
     Fun = fun() ->
-        Query = qlc:q([X || X <- mnesia:table(user), X#user.uid =:= Uid, X#user.device =:= Device, X#user.node =:= node()]),
+        Query = qlc:q([X || X <- mnesia:table(session), X#session.uid =:= Uid, X#session.device =:= Device, X#session.node =:= node()]),
         qlc:e(Query)
           end,
     case mnesia:transaction(Fun) of
@@ -54,7 +54,7 @@ query_session_by_uid_and_device(Uid, Device) when is_integer(Uid) ->
 
 all() ->
     Fun = fun() ->
-        Query = qlc:q([X || X <- mnesia:table(user)]),
+        Query = qlc:q([X || X <- mnesia:table(session)]),
         qlc:e(Query)
         end,
     case mnesia:transaction(Fun) of

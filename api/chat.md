@@ -5,7 +5,7 @@
 ```json
 {
     "cmd": "single_chat",
-    "to": "to user name",
+    "to": "to user mysql id",
     "msg": "msg body",
     "ack": "72cdf1ae-62a3-4ebf-821c-a809d1931293"
 }
@@ -26,9 +26,9 @@
 ```json
 {
     "cmd": "single_chat",
-    "from": 2,
+    "from": "from user mysql id",
     "msg": "Msg body",
-    "ack": 1  # mysql msg id
+    "ack": "mysql msg id"
 }
 ```
 
@@ -38,7 +38,7 @@
 {
     "cmd": "ack",
     "action": "single_chat",
-    "ack": 1
+    "ack": "mysql msg id"
 }
 ```
 
@@ -68,10 +68,10 @@
 ```json
 {
     "cmd": "group_chat",
-    "from": 2,
-    "to": "to room id:integer",
+    "from": "from user mysql id",
+    "to": "to room id",
     "msg": "Msg body",
-    "ack": 1  # mysql user_roommsg id
+    "ack": "mysql user_roommsg id"
 }
 ```
 
@@ -81,7 +81,7 @@
 {
     "cmd": "ack",
     "action": "group_chat",
-    "ack": 1
+    "ack": "mysql user_roommsg id"
 }
 ```
 

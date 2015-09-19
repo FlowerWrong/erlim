@@ -120,6 +120,7 @@ handle_info({tcp, Socket, Data}, #state{socket = Socket} = State) ->
                 if
                     Cmd =:= <<"login">> ->
                         [{<<"name">>, Name}, {<<"pass">>, Pass}, {<<"ack">>, Ack}, {<<"device">>, Device}] = T,
+                        lager:info("Name is ~p.~n", [Name]),
                         LoginUserMysql = mysql_util:query_user_by_mobile(Name),
                         case LoginUserMysql of
                             [] ->
@@ -143,7 +144,7 @@ handle_info({tcp, Socket, Data}, #state{socket = Socket} = State) ->
                                 erlim_client:reply_error(Socket, <<"404 Not Found with this token, please login">>, 10404),
                                 State;
                             _ ->
-                                FromUserMysql = mysql_util:query_user_by_id(SessionUserMnesia#user.uid),
+                                FromUserMysql = mysql_util:query_user_by_id(SessionUserMnesia#session.uid),
                                 case FromUserMysql of
                                     [] ->
                                         %% 可能是因为mysql数据库删除了
@@ -154,7 +155,7 @@ handle_info({tcp, Socket, Data}, #state{socket = Socket} = State) ->
                                             <<"single_chat">> ->
                                                 [{<<"to">>, ToUid}, {<<"msg">>, Msg}, {<<"ack">>, Ack}] = T,
                                                 %% 是否好友关系
-                                                case mysql_util:are_friends(SessionUserMnesia#user.uid, ToUid) of
+                                                case mysql_util:are_friends(SessionUserMnesia#session.uid, ToUid) of
                                                     false ->
                                                         erlim_client:reply_error(Socket, <<"You are not friends">>, 10403),
                                                         State;
@@ -177,8 +178,8 @@ handle_info({tcp, Socket, Data}, #state{socket = Socket} = State) ->
                                                                     _ ->
                                                                         %% online: 发消息给多个终端设备
                                                                         lists:foreach(fun(U) ->
-                                                                            DataToSend = jiffy:encode({[{<<"cmd">>, <<"single_chat">>}, {<<"from">>, SessionUserMnesia#user.uid}, {<<"msg">>, Msg}, {<<"ack">>, MsgId}]}),
-                                                                            U#user.pid ! {single_chat, DataToSend}
+                                                                            DataToSend = jiffy:encode({[{<<"cmd">>, <<"single_chat">>}, {<<"from">>, SessionUserMnesia#session.uid}, {<<"msg">>, Msg}, {<<"ack">>, MsgId}]}),
+                                                                            U#session.pid ! {single_chat, DataToSend}
                                                                         end, ToUsers)
                                                                 end,
                                                                 State
@@ -193,7 +194,7 @@ handle_info({tcp, Socket, Data}, #state{socket = Socket} = State) ->
                                                         State;
                                                     true ->
                                                         %% 用户是否在该群里面
-                                                        case mysql_util:in_room(SessionUserMnesia#user.uid, ToRoomId) of
+                                                        case mysql_util:in_room(SessionUserMnesia#session.uid, ToRoomId) of
                                                             false ->
                                                                 erlim_client:reply_error(Socket, <<"You are not in this room">>, 10403),
                                                                 State;
@@ -219,8 +220,8 @@ handle_info({tcp, Socket, Data}, #state{socket = Socket} = State) ->
                                                                                 _ ->
                                                                                     %% online: 发消息给多个终端设备
                                                                                     lists:foreach(fun(U) ->
-                                                                                        DataToSend = jiffy:encode({[{<<"cmd">>, <<"group_chat">>}, {<<"from">>, SessionUserMnesia#user.uid}, {<<"to">>, ToRoomId}, {<<"msg">>, Msg}, {<<"ack">>, UserRoommsgId}]}),
-                                                                                        U#user.pid ! {group_chat, DataToSend}
+                                                                                        DataToSend = jiffy:encode({[{<<"cmd">>, <<"group_chat">>}, {<<"from">>, SessionUserMnesia#session.uid}, {<<"to">>, ToRoomId}, {<<"msg">>, Msg}, {<<"ack">>, UserRoommsgId}]}),
+                                                                                        U#session.pid ! {group_chat, DataToSend}
                                                                                     end, ToUsers)
                                                                             end
                                                                     end
@@ -296,7 +297,7 @@ terminate(_Reason, #state{client_pid = ClientPid, device = Device}) ->
             lager:info("SessionMnesia is ~p.~n", [SessionMnesia]),
             case SessionMnesia of
                 false -> undefined;
-                #user{uid = Uid} ->
+                #session{uid = Uid} ->
                     ok = erlim_sm:logout(Uid, Device),
                     ok = erlim_client:stop(ClientPid)
             end

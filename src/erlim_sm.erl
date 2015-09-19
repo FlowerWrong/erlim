@@ -130,7 +130,7 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 
 login(Uid, ClientPid, Device) when is_integer(Uid), is_pid(ClientPid) ->
-    UserToBeLoginMnesia = #user{uid = Uid, pid = ClientPid, device = Device, node = node()},
+    UserToBeLoginMnesia = #session{uid = Uid, pid = ClientPid, device = Device, node = node()},
     F = fun() ->
         mnesia:write(UserToBeLoginMnesia)
          end,
@@ -144,7 +144,7 @@ get_session(Uid) when is_integer(Uid) ->
 get_session(Uid, Device) when is_integer(Uid) ->
     case mnesia_util:query_session_by_uid_and_device(Uid, Device) of
         false -> false;
-        {user, _Name, ClientPid} -> ClientPid
+        {session, _Name, ClientPid} -> ClientPid
     end.
 
 logout(Uid, Device) when is_integer(Uid) ->

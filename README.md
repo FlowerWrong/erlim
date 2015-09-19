@@ -50,6 +50,7 @@ cp erlim.example.toml /etc/erlim/erlim.toml
 * [A_Framework_for_Clustering_Generic_Server_Instances](https://erlangcentral.org/wiki/index.php?title=A_Framework_for_Clustering_Generic_Server_Instances)
 * [ejabberd cluster](https://raymii.org/s/tutorials/Set_up_a_federated_XMPP_Chat_Network_with_ejabberd.html)
 * [load balance long tcp connection](http://stackoverflow.com/questions/8915959/how-do-you-load-balance-tcp-traffic)
+* [mnesia cluster](http://stackoverflow.com/questions/787755/how-to-add-a-node-to-an-mnesia-cluster)
 
 #### Todo
 
@@ -66,7 +67,9 @@ cp erlim.example.toml /etc/erlim/erlim.toml
 - [x] add ACK(消息回执 模仿三次握手)
 - [x] multi device
 - [x] timeout
-- [ ] keep session(避免移动端重连风暴)
-- [ ] yrl and xrl(语法分析/词法分析) write json parse in erlang(yecc and leex)
-- [ ] implement pubsub with erlang(gen_event)
+- [ ] implement mnesia cluster
 - [ ] implement cluster mode
+- [ ] implement a scheduler in erlang or nodejs
+- [ ] keep session(避免移动端重连风暴)
+- [ ] implement pubsub with erlang(gen_event)
+- [ ] yrl and xrl(语法分析/词法分析) write json parse in erlang(yecc and leex)
