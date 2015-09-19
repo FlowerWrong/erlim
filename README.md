@@ -49,6 +49,7 @@ cp erlim.example.toml /etc/erlim/erlim.toml
 
 * [A_Framework_for_Clustering_Generic_Server_Instances](https://erlangcentral.org/wiki/index.php?title=A_Framework_for_Clustering_Generic_Server_Instances)
 * [ejabberd cluster](https://raymii.org/s/tutorials/Set_up_a_federated_XMPP_Chat_Network_with_ejabberd.html)
+* [load balance long tcp connection](http://stackoverflow.com/questions/8915959/how-do-you-load-balance-tcp-traffic)
 
 #### Todo
 
