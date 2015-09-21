@@ -1,6 +1,6 @@
 -module(join_cluster).
 
--export([start/0]).
+-export([start/1]).
 
 set_table_copy(Table, _Node, {badrpc, Reason}) ->
     io:format("Error: cannot get storage type for table ~p on node erlim@192.168.33.10:~n ~p~n",[Table, Reason]);
@@ -13,30 +13,29 @@ set_table_copy(Table, Node, Type) ->
         ok
     end.
 
-set_tables({badrpc, Reason}) ->
+set_tables({badrpc, Reason}, _Remote) ->
     io:format("ERROR: cannot get tables list on erlim@192.168.33.10 : ~p~n",[Reason]);
-set_tables([]) ->
+set_tables([], _Remote) ->
     ok;
-set_tables([schema | Tables]) ->
-    set_tables(Tables);
-set_tables([s2s | Tables]) ->
-    set_tables(Tables);
-set_tables([session | Tables]) ->
-    set_tables(Tables);
-set_tables([Table | Tables]) ->
+set_tables([schema | Tables], Remote) ->
+    set_tables(Tables, Remote);
+set_tables([Table | Tables], Remote) ->
+    %% rpc:call => ram_copies
     set_table_copy(Table, node(),
-                   rpc:call('erlim@192.168.33.10', mnesia, table_info, [Table, storage_type])),
-    set_tables(Tables).
+                   rpc:call(Remote, mnesia, table_info, [Table, storage_type])),
+    set_tables(Tables, Remote).
 
-start() ->
+start(Remote) ->
     io:format("~n",[]),
-    R = case net_adm:ping('erlim@192.168.33.10') of
+    case net_adm:ping(Remote) of
         pong ->
+            mnesia:stop(),
+            mnesia:delete_schema([node()]),
+            mnesia:start(),
+            rpc:call(Remote, mnesia, change_config, [extra_db_nodes, [node()]]),
             set_table_copy(schema, node(), disc_copies),
-            set_tables(rpc:call('erlim@192.168.33.10', mnesia, system_info, [tables])),
-            0;
+            %% rpc:call => [schema, session]
+            set_tables(rpc:call(Remote, mnesia, system_info, [tables]), Remote);
         pang ->
-            io:format("node ~p is not reachable, please check epmd port, and FIREWALL_WINDOW ports~n", ['erlim@192.168.33.10']),
-            1
-    end,
-    halt(R).
+            io:format("node ~p is not reachable, please check epmd port, and FIREWALL_WINDOW ports~n", [Remote])
+    end.

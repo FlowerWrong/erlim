@@ -67,7 +67,7 @@ cp erlim.example.toml /etc/erlim/erlim.toml
 - [x] add ACK(消息回执 模仿三次握手)
 - [x] multi device
 - [x] timeout
-- [ ] implement mnesia cluster
+- [x] implement mnesia cluster
 - [ ] implement cluster mode
 - [ ] add max connection number test
 - [ ] implement a scheduler in erlang or nodejs
