@@ -89,13 +89,16 @@ init(#state{port=Port}) ->
             {<<"db">>, Dbname},
             {<<"pwd">>, Pwd},
             {<<"name">>, UserName},
-            {<<"size">>, Size}
+            {<<"size">>, Size},
+            {<<"host">>, Host}
         ]
     }]} = toml_util:parse(),
+    io:format("Host is ~p~n", [Host]),
     emysql:add_pool(erlim_pool, [
         {size, Size},
         {user, binary_to_list(UserName)},
         {password, binary_to_list(Pwd)},
+        {host, binary_to_list(Host)},
         {database, binary_to_list(Dbname)},
         {encoding, binary_to_atom(Encoding, utf8)}
     ]),

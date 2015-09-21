@@ -12,7 +12,8 @@
     uid,
     pid,
     device,
-    node
+    node,
+    register_name
 }).
 
 %% For mysql record

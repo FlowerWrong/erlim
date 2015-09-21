@@ -22,7 +22,8 @@
     ip,
     uid,
     device,
-    node
+    node,
+    register_name
 }).
 
 -include("table.hrl").
@@ -172,13 +173,14 @@ handle_info({tcp, Socket, Data}, #state{socket = Socket} = State) ->
                                                                 erlim_client:reply_ack(Socket, <<"single_chat">>, Ack),
 
                                                                 ToUsers = erlim_sm:get_session(ToUid),
+                                                                lager:info("ToUsers is ~p~n", [ToUsers]),
                                                                 case ToUsers of
                                                                     false -> offline;
                                                                     _ ->
                                                                         %% online: 发消息给多个终端设备
                                                                         lists:foreach(fun(U) ->
                                                                             DataToSend = jiffy:encode({[{<<"cmd">>, <<"single_chat">>}, {<<"from">>, SessionUserMnesia#session.uid}, {<<"msg">>, Msg}, {<<"ack">>, MsgId}]}),
-                                                                            U#session.pid ! {single_chat, DataToSend}
+                                                                            {U#session.register_name, U#session.node} ! {single_chat, DataToSend}
                                                                         end, ToUsers)
                                                                 end,
                                                                 State
@@ -220,7 +222,7 @@ handle_info({tcp, Socket, Data}, #state{socket = Socket} = State) ->
                                                                                     %% online: 发消息给多个终端设备
                                                                                     lists:foreach(fun(U) ->
                                                                                         DataToSend = jiffy:encode({[{<<"cmd">>, <<"group_chat">>}, {<<"from">>, SessionUserMnesia#session.uid}, {<<"to">>, ToRoomId}, {<<"msg">>, Msg}, {<<"ack">>, UserRoommsgId}]}),
-                                                                                        U#session.pid ! {group_chat, DataToSend}
+                                                                                        {U#session.register_name, U#session.node} ! {group_chat, DataToSend}
                                                                                     end, ToUsers)
                                                                             end
                                                                     end
