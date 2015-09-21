@@ -21,8 +21,7 @@ set_tables([schema | Tables], Remote) ->
     set_tables(Tables, Remote);
 set_tables([Table | Tables], Remote) ->
     %% rpc:call => ram_copies
-    set_table_copy(Table, node(),
-                   rpc:call(Remote, mnesia, table_info, [Table, storage_type])),
+    set_table_copy(Table, node(), rpc:call(Remote, mnesia, table_info, [Table, storage_type])),
     set_tables(Tables, Remote).
 
 start(Remote) ->
@@ -32,7 +31,7 @@ start(Remote) ->
             mnesia:stop(),
             mnesia:delete_schema([node()]),
             mnesia:start(),
-            rpc:call(Remote, mnesia, change_config, [extra_db_nodes, [node()]]),
+            mnesia:change_config(extra_db_nodes, [Remote]),
             set_table_copy(schema, node(), disc_copies),
             %% rpc:call => [schema, session]
             set_tables(rpc:call(Remote, mnesia, system_info, [tables]), Remote);
