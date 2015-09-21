@@ -17,17 +17,13 @@
 init_mnesia() ->
     case mnesia:system_info(extra_db_nodes) of
         [] ->
-            case mnesia:create_schema([node()]) of
-                {error, Reason} ->
-                    lager:info("Error reason is ~p~n", [Reason]),
-                    mnesia:start(),
-                    update_tables(),
-                    create_table();
-                ok ->
-                    mnesia:start(),
-                    update_tables(),
-                    create_table()
-            end;
+            mnesia:stop(),
+            mnesia:delete_schema([node()]),
+            mnesia:create_schema([node()]),
+            mnesia:start(),
+            update_tables(),
+            mnesia:change_table_copy_type(schema, node(), disc_copies),
+            create_table();
         _ ->
             ok
     end,
