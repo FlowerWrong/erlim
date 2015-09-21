@@ -29,6 +29,10 @@ start(Remote) ->
     io:format("~n",[]),
     case net_adm:ping(Remote) of
         pong ->
+            mnesia:stop(),
+            mnesia:delete_schema([node()]),
+            mnesia:start(),
+            rpc:call(Remote, mnesia, change_config, [extra_db_nodes, [node()]]),
             set_table_copy(schema, node(), disc_copies),
             %% rpc:call => [schema, session]
             set_tables(rpc:call(Remote, mnesia, system_info, [tables]), Remote);
