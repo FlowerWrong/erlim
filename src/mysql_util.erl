@@ -48,6 +48,7 @@ save_room_msg(RoomMsg) when is_record(RoomMsg, roommsg_record) ->
     Now = calendar:local_time(),
     emysql:execute(erlim_pool, save_room_msg_stmt, [RoomMsg#roommsg_record.f, RoomMsg#roommsg_record.t, RoomMsg#roommsg_record.msg, Now, Now]).
 
+%% 保存用户群聊消息
 save_user_room_msg(RoommsgId, UserId) when is_integer(RoommsgId), is_integer(UserId) ->
     emysql:prepare(save_user_room_msg_stmt, <<"INSERT INTO user_roommsgs SET user_id = ?, roommsg_id = ?, unread = ?, created_at = ?, updated_at = ?">>),
     Now = calendar:local_time(),
@@ -71,8 +72,6 @@ user_roommsgs(Uid, Unread) when is_integer(Uid), is_integer(Unread) ->
         [Roommsg | _T] = RoommsgsRecords,
         Roommsg
     end, UserRoommsgsRecords),
-
-    lager:info("Recs are ~p~n", [Roommsgs]),
     Roommsgs.
 
 %% 查询所有群消息
@@ -81,6 +80,7 @@ room_msgs(Id) when is_integer(Id) ->
     Result = emysql:execute(erlim_pool, roommsg_stmt, [Id]),
     emysql_util:as_record(Result, roommsg_record, record_info(fields, roommsg_record)).
 
+%% 标记私聊/群聊消息为已读
 mark_read(MsgId, single_chat) when is_integer(MsgId) ->
     emysql:prepare(mark_read_single_chat_stmt, <<"UPDATE msgs SET unread = ? WHERE id = ?">>),
     emysql:execute(erlim_pool, mark_read_single_chat_stmt, [0, MsgId]);
@@ -88,6 +88,7 @@ mark_read(MsgId, group_chat) when is_integer(MsgId) ->
     emysql:prepare(mark_read_group_chat_stmt, <<"UPDATE user_roommsgs SET unread = ? WHERE id = ?">>),
     emysql:execute(erlim_pool, mark_read_group_chat_stmt, [0, MsgId]).
 
+%% 查询私聊消息
 query_msg_by_id(MsgId) when is_integer(MsgId) ->
     emysql:prepare(query_msg_by_id_stmt, <<"SELECT * FROM msgs WHERE id = ?">>),
     Result = emysql:execute(erlim_pool, query_msg_by_id_stmt, [MsgId]),
@@ -101,6 +102,7 @@ room_members(RoomId) when is_integer(RoomId) ->
     Result = emysql:execute(erlim_pool, room_members_stmt, [RoomId]),
     emysql_util:as_record(Result, room_users_record, record_info(fields, room_users_record)).
 
+%% 该群是否存在
 is_an_exist_room(Roomid) when is_integer(Roomid) ->
     emysql:prepare(is_an_exist_room_stmt, <<"SELECT * FROM rooms WHERE id = ?">>),
     Result = emysql:execute(erlim_pool, is_an_exist_room_stmt, [Roomid]),
@@ -128,6 +130,7 @@ are_friends(Uid, Fid) when is_integer(Uid), is_integer(Fid) ->
             end
     end.
 
+%% 是否在该群
 in_room(Uid, Roomid) when is_integer(Uid), is_integer(Roomid) ->
     emysql:prepare(in_room_stmt, <<"SELECT * FROM room_users WHERE user_id = ? AND room_id = ?">>),
     Result = emysql:execute(erlim_pool, in_room_stmt, [Uid, Roomid]),

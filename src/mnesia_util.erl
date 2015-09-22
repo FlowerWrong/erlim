@@ -8,19 +8,8 @@
     all/0
 ]).
 
-
 -include("table.hrl").
 -include_lib("stdlib/include/qlc.hrl").
-
-%% query_session_by_pid(Pid) ->
-%%     Fun = fun() ->
-%%         Query = qlc:q([X || X <- mnesia:table(session), X#session.pid =:= Pid]),
-%%         qlc:e(Query)
-%%         end,
-%%     case mnesia:transaction(Fun) of
-%%         {atomic, []} -> false;
-%%         {atomic, Users} -> Users
-%%     end.
 
 query_session_by_pid_and_device(Pid, Device) ->
     Fun = fun() ->

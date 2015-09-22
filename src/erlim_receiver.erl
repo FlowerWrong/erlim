@@ -166,11 +166,9 @@ handle_info({tcp, Socket, Data}, #state{socket = Socket} = State) ->
                                             UpdatedAtT = util:datetime2timestamp(UpdatedAtD),
                                             {[{id, R#roommsg_record.id}, {f, R#roommsg_record.f}, {t, R#roommsg_record.t}, {msg, R#roommsg_record.msg}, {created_at, CreatedAtT}, {updated_at, UpdatedAtT}]}
                                         end, Roommsgs),
-                                        lager:info("offline group chat msgs are ~p~n", [RoommsgsForJson]),
                                         RoommsgsIds = lists:map(fun(R) ->
                                             R#roommsg_record.id
                                         end, Roommsgs),
-                                        lager:info("offline group chat msgs are ~p~n", [RoommsgsIds]),
                                         RoomMsgDataToBeSend = jiffy:encode({[{<<"cmd">>, <<"offline_group_chat_msg">>}, {<<"msg">>, RoommsgsForJson}, {<<"ack">>, RoommsgsIds}]}),
                                         lager:info("offline group chat msgs are ~p~n", [RoomMsgDataToBeSend]),
                                         erlim_client:reply(Socket, RoomMsgDataToBeSend)
@@ -356,7 +354,6 @@ handle_info(_Info, State) ->
 terminate(_Reason, #state{client_pid = ClientPid, device = Device}) ->
     %% 这里有三种情况
     %% 1. 用户正常退出, 或网络掉线退出
-    lager:error("Receiver ~p terminated.~n", [self()]),
     lager:info("ClientPid ~p will be terminated.~n", [ClientPid]),
     case ClientPid of
         undefined -> undefined;
