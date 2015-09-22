@@ -22,8 +22,7 @@
     ip,
     uid,
     device,
-    node,
-    register_name
+    node
 }).
 
 -include("table.hrl").
@@ -134,6 +133,17 @@ handle_info({tcp, Socket, Data}, #state{socket = Socket} = State) ->
                                 %% Send login ack to client
                                 erlim_client:reply_ack(Socket, <<"login">>, Ack),
 
+                                %% 登陆成功后推送离线消息
+                                Msgs = mysql_util:user_msgs(Uid, 1),
+                                case Msgs of
+                                    [] -> ok;
+                                    _ ->
+                                        MsgsJson = lists:map(fun(M) ->
+                                            {msg, [M#msg_record.id, M#msg_record.f, M#msg_record.t, M#msg_record.msg, M#msg_record.unread, M#msg_record.created_at, M#msg_record.updated_at]}
+                                        end, Msgs)
+                                end,
+                                lager:info("Msgs are ~p~n", [Msgs]),
+
                                 State#state{client_pid = ClientPid, uid = Uid, device = Device}
                         end;
                     true ->
@@ -141,7 +151,7 @@ handle_info({tcp, Socket, Data}, #state{socket = Socket} = State) ->
                         SessionUserMnesia = mnesia_util:query_session_by_uid_and_device(Uid, Device),
                         case SessionUserMnesia of
                             false ->
-                                erlim_client:reply_error(Socket, <<"404 Not Found with this token, please login">>, 10404),
+                                erlim_client:reply_error(Socket, <<"404 Not Found this user, please login">>, 10404),
                                 State;
                             _ ->
                                 FromUserMysql = mysql_util:query_user_by_id(SessionUserMnesia#session.uid),
@@ -154,80 +164,95 @@ handle_info({tcp, Socket, Data}, #state{socket = Socket} = State) ->
                                         case Cmd of
                                             <<"single_chat">> ->
                                                 [{<<"to">>, ToUid}, {<<"msg">>, Msg}, {<<"ack">>, Ack}] = T,
-                                                %% 是否好友关系
-                                                case mysql_util:are_friends(SessionUserMnesia#session.uid, ToUid) of
+                                                case is_integer(ToUid) of
                                                     false ->
-                                                        erlim_client:reply_error(Socket, <<"You are not friends">>, 10403),
+                                                        erlim_client:reply_error(Socket, <<"Single chat send msg to user id must be integer">>, 10400),
                                                         State;
                                                     true ->
-                                                        ToUserMysql = mysql_util:query_user_by_id(ToUid),
-                                                        case ToUserMysql of
-                                                            [] ->
-                                                                erlim_client:reply_error(Socket, <<"404 Not Found this user in mysql">>, 10404),
+                                                        %% 是否好友关系
+                                                        case mysql_util:are_friends(SessionUserMnesia#session.uid, ToUid) of
+                                                            false ->
+                                                                erlim_client:reply_error(Socket, <<"You are not friends">>, 10403),
                                                                 State;
-                                                            _ ->
-                                                                OffMsg = #msg_record{f = FromUserMysql#user_record.id, t = ToUserMysql#user_record.id, msg = Msg, unread = 1},
-                                                                {ok_packet, _, _, MsgId, _, _, _} = mysql_util:save_msg(OffMsg),
-
-                                                                %% Send single_chat ack to client
-                                                                erlim_client:reply_ack(Socket, <<"single_chat">>, Ack),
-
-                                                                ToUsers = erlim_sm:get_session(ToUid),
-                                                                lager:info("ToUsers is ~p~n", [ToUsers]),
-                                                                case ToUsers of
-                                                                    false -> offline;
+                                                            true ->
+                                                                ToUserMysql = mysql_util:query_user_by_id(ToUid),
+                                                                case ToUserMysql of
+                                                                    [] ->
+                                                                        erlim_client:reply_error(Socket, <<"404 Not Found this user in mysql">>, 10404),
+                                                                        State;
                                                                     _ ->
-                                                                        %% online: 发消息给多个终端设备
-                                                                        lists:foreach(fun(U) ->
-                                                                            DataToSend = jiffy:encode({[{<<"cmd">>, <<"single_chat">>}, {<<"from">>, SessionUserMnesia#session.uid}, {<<"msg">>, Msg}, {<<"ack">>, MsgId}]}),
-                                                                            {U#session.register_name, U#session.node} ! {single_chat, DataToSend}
-                                                                        end, ToUsers)
-                                                                end,
-                                                                State
+                                                                        OffMsg = #msg_record{f = FromUserMysql#user_record.id, t = ToUserMysql#user_record.id, msg = Msg, unread = 1},
+                                                                        {ok_packet, _, _, MsgId, _, _, _} = mysql_util:save_msg(OffMsg),
+
+                                                                        %% Send single_chat ack to client
+                                                                        erlim_client:reply_ack(Socket, <<"single_chat">>, Ack),
+
+                                                                        ToUsers = erlim_sm:get_session(ToUid),
+                                                                        lager:info("ToUsers is ~p~n", [ToUsers]),
+                                                                        case ToUsers of
+                                                                            false -> offline;
+                                                                            _ ->
+                                                                                %% online: 发消息给多个终端设备
+                                                                                lists:foreach(fun(U) ->
+                                                                                    DataToSend = jiffy:encode({[{<<"cmd">>, <<"single_chat">>}, {<<"from">>, SessionUserMnesia#session.uid}, {<<"msg">>, Msg}, {<<"ack">>, MsgId}]}),
+                                                                                    case node(U#session.pid) =:= node() of
+                                                                                        true -> U#session.pid ! {single_chat, DataToSend};
+                                                                                        false -> {U#session.register_name, U#session.node} ! {single_chat, DataToSend}
+                                                                                    end
+                                                                                end, ToUsers)
+                                                                        end,
+                                                                        State
+                                                                end
                                                         end
                                                 end;
                                             <<"group_chat">> ->
                                                 [{<<"to">>, ToRoomId}, {<<"msg">>, Msg}, {<<"ack">>, Ack}] = T,
-                                                %% 群是否存在
-                                                case mysql_util:is_an_exist_room(ToRoomId) of
+                                                case is_integer(ToRoomId) of
                                                     false ->
-                                                        erlim_client:reply_error(Socket, <<"404 Not Found this room in mysql">>, 10404),
+                                                        erlim_client:reply_error(Socket, <<"Group chat send msg to room id must be integer">>, 10400),
                                                         State;
                                                     true ->
-                                                        %% 用户是否在该群里面
-                                                        case mysql_util:in_room(SessionUserMnesia#session.uid, ToRoomId) of
+                                                        %% 群是否存在
+                                                        case mysql_util:is_an_exist_room(ToRoomId) of
                                                             false ->
-                                                                erlim_client:reply_error(Socket, <<"You are not in this room">>, 10403),
+                                                                erlim_client:reply_error(Socket, <<"404 Not Found this room in mysql">>, 10404),
                                                                 State;
                                                             true ->
-                                                                RoomMsg = #roommsg_record{f = FromUserMysql#user_record.id, t = ToRoomId, msg = Msg},
-                                                                {ok_packet, _, _, RoommsgId, _, _, _} = mysql_util:save_room_msg(RoomMsg),
+                                                                %% 用户是否在该群里面
+                                                                case mysql_util:in_room(SessionUserMnesia#session.uid, ToRoomId) of
+                                                                    false ->
+                                                                        erlim_client:reply_error(Socket, <<"You are not in this room">>, 10403),
+                                                                        State;
+                                                                    true ->
+                                                                        RoomMsg = #roommsg_record{f = FromUserMysql#user_record.id, t = ToRoomId, msg = Msg},
+                                                                        {ok_packet, _, _, RoommsgId, _, _, _} = mysql_util:save_room_msg(RoomMsg),
 
-                                                                Members = mysql_util:room_members(ToRoomId),
-                                                                lager:info("Members are ~p.~n", [Members]),
+                                                                        Members = mysql_util:room_members(ToRoomId),
+                                                                        lager:info("Members are ~p.~n", [Members]),
 
-                                                                %% Send group_chat ack to client
-                                                                erlim_client:reply_ack(Socket, <<"group_chat">>, Ack),
+                                                                        %% Send group_chat ack to client
+                                                                        erlim_client:reply_ack(Socket, <<"group_chat">>, Ack),
 
-                                                                lists:foreach(fun(M) ->
-                                                                    case mysql_util:query_user_by_id(M#room_users_record.user_id) of
-                                                                        [] -> false;
-                                                                        #user_record{id = Id} ->
-                                                                            %% Save members unread roommsg
-                                                                            {ok_packet, _, _, UserRoommsgId, _, _, _} = mysql_util:save_user_room_msg(RoommsgId, Id),
-                                                                            ToUsers = erlim_sm:get_session(Id),
-                                                                            case ToUsers of
-                                                                                false -> offline;
-                                                                                _ ->
-                                                                                    %% online: 发消息给多个终端设备
-                                                                                    lists:foreach(fun(U) ->
-                                                                                        DataToSend = jiffy:encode({[{<<"cmd">>, <<"group_chat">>}, {<<"from">>, SessionUserMnesia#session.uid}, {<<"to">>, ToRoomId}, {<<"msg">>, Msg}, {<<"ack">>, UserRoommsgId}]}),
-                                                                                        {U#session.register_name, U#session.node} ! {group_chat, DataToSend}
-                                                                                    end, ToUsers)
+                                                                        lists:foreach(fun(M) ->
+                                                                            case mysql_util:query_user_by_id(M#room_users_record.user_id) of
+                                                                                [] -> false;
+                                                                                #user_record{id = Id} ->
+                                                                                    %% Save members unread roommsg
+                                                                                    {ok_packet, _, _, UserRoommsgId, _, _, _} = mysql_util:save_user_room_msg(RoommsgId, Id),
+                                                                                    ToUsers = erlim_sm:get_session(Id),
+                                                                                    case ToUsers of
+                                                                                        false -> offline;
+                                                                                        _ ->
+                                                                                            %% online: 发消息给多个终端设备
+                                                                                            lists:foreach(fun(U) ->
+                                                                                                DataToSend = jiffy:encode({[{<<"cmd">>, <<"group_chat">>}, {<<"from">>, SessionUserMnesia#session.uid}, {<<"to">>, ToRoomId}, {<<"msg">>, Msg}, {<<"ack">>, UserRoommsgId}]}),
+                                                                                                {U#session.register_name, U#session.node} ! {group_chat, DataToSend}
+                                                                                            end, ToUsers)
+                                                                                    end
                                                                             end
-                                                                    end
-                                                                end, Members),
-                                                                State
+                                                                        end, Members),
+                                                                        State
+                                                                end
                                                         end
                                                 end;
                                             <<"ack">> ->

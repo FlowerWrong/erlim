@@ -24,7 +24,9 @@
     nick_name,
     uid,
     avatar,
-    email
+    email,
+    created_at,
+    updated_at
 }).
 
 -record(msg_record, {
@@ -32,14 +34,18 @@
     f,
     t,
     msg,
-    unread
+    unread,
+    created_at,
+    updated_at
 }).
 
 -record(roommsg_record, {
     id,
     f,
     t,
-    msg
+    msg,
+    created_at,
+    updated_at
 }).
 
 -record(room_record, {
@@ -51,7 +57,9 @@
     password,
     description,
     subject,
-    qrcode
+    qrcode,
+    created_at,
+    updated_at
 }).
 
 -record(room_users_record, {
@@ -60,19 +68,25 @@
     user_id,
     nick_name,
     none_bother,
-    bg
+    bg,
+    created_at,
+    updated_at
 }).
 
 -record(user_roommsgs_record, {
     id,
     user_id,
     roommsg_id,
-    unread
+    unread,
+    created_at,
+    updated_at
 }).
 
 -record(friendship_record, {
     id,
     user_id,
     friend_id,
-    confirmed
+    confirmed,
+    created_at,
+    updated_at
 }).

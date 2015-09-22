@@ -7,6 +7,7 @@
     save_room_msg/1,
     save_user_room_msg/2,
     user_msgs/2,
+    user_roommsgs/2,
     room_msgs/1,
     mark_read/2,
     query_msg_by_id/1,
@@ -57,6 +58,22 @@ user_msgs(Uid, Unread) when is_integer(Uid), is_integer(Unread) ->
     emysql:prepare(msg_stmt, <<"SELECT * FROM msgs WHERE t = ? AND unread = ?">>),
     Result = emysql:execute(erlim_pool, msg_stmt, [Uid, Unread]),
     emysql_util:as_record(Result, msg_record, record_info(fields, msg_record)).
+
+%% 查询用户已读/未读群消息
+user_roommsgs(Uid, Unread) when is_integer(Uid), is_integer(Unread) ->
+    emysql:prepare(user_roommsgs_stmt, <<"SELECT roommsg_id FROM user_roommsgs WHERE user_id = ? AND unread = ?">>),
+    UserRoommsgsResult = emysql:execute(erlim_pool, user_roommsgs_stmt, [Uid, Unread]),
+    UserRoommsgsRecords = emysql_util:as_record(UserRoommsgsResult, user_roommsgs_record, record_info(fields, user_roommsgs_record)),
+    Roommsgs = lists:map(fun(UserRoommsg) ->
+        RoommsgId = UserRoommsg#user_roommsgs_record.roommsg_id,
+        RoommsgsResult = emysql:execute(erlim_pool, <<"SELECT * FROM roommsgs WHERE id = ?">>, [RoommsgId]),
+        RoommsgsRecords = emysql_util:as_record(RoommsgsResult, roommsg_record, record_info(fields, roommsg_record)),
+        [Roommsg | _T] = RoommsgsRecords,
+        Roommsg
+    end, UserRoommsgsRecords),
+
+    lager:info("Recs are ~p~n", [Roommsgs]),
+    Roommsgs.
 
 %% 查询所有群消息
 room_msgs(Id) when is_integer(Id) ->
