@@ -68,10 +68,10 @@ cp erlim.example.toml /etc/erlim/erlim.toml
 - [x] multi device
 - [x] timeout
 - [x] implement mnesia cluster
-- [ ] add max connection number test
-- [ ] implement cluster mode with a scheduler in erlang or nodejs
 - [ ] add websocket support
+- [ ] implement cluster mode with a scheduler in erlang or nodejs or ruby
 - [ ] add web admin support
+- [ ] add max connection number test
 - [ ] keep session(避免移动端重连风暴)
 - [ ] implement pubsub with erlang(gen_event)
 - [ ] yrl and xrl(语法分析/词法分析) write json parse in erlang(yecc and leex)
