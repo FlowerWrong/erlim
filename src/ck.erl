@@ -54,6 +54,11 @@ recv(Socket) ->
                     io:format("Recv offline msgs ~p, ack is ~p", [Msgs, MsgIds]),
                     DataToSend = jiffy:encode({[{<<"cmd">>, <<"ack">>}, {<<"action">>, <<"offline_single_chat_msg">>}, {<<"ack">>, MsgIds}]}),
                     ok = gen_tcp:send(Socket, DataToSend);
+                <<"offline_group_chat_msg">> ->
+                    [{<<"msg">>, Msgs}, {<<"ack">>, MsgIds}] = T,
+                    io:format("Recv offline msgs ~p, ack is ~p", [Msgs, MsgIds]),
+                    DataToSend = jiffy:encode({[{<<"cmd">>, <<"ack">>}, {<<"action">>, <<"offline_group_chat_msg">>}, {<<"ack">>, MsgIds}]}),
+                    ok = gen_tcp:send(Socket, DataToSend);
                 <<"error">> ->
                     [{<<"msg">>, ErrorMsg}, {<<"code">>, Code}] = T,
                     io:format("Error msg is ~p, Code is ~p~n", [ErrorMsg, Code]);
