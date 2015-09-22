@@ -85,6 +85,45 @@
 }
 ```
 
+#### server send single chat offline msg to client
+
+```json
+{
+    "cmd": "offline_single_chat_msg",
+    "msg": [
+        {
+            "id": 1,
+            "f": 1,
+            "t": 2,
+            "msg": "hello world",
+            "unread": 1,
+            "created_at": 1442855559,
+            "updated_at": 1442855559
+        },
+        {
+            "id": 2,
+            "f": 1,
+            "t": 2,
+            "msg": "hello world",
+            "unread": 1,
+            "created_at": 1442855559,
+            "updated_at": 1442855559
+        }
+    ],
+    "ack": [1, 2]
+}
+```
+
+###### client reply ack to server with this ack
+
+```json
+{
+    "cmd": "ack",
+    "action": "offline_single_chat_msg",
+    "ack": [1, 2]
+}
+```
+
 
 #### error
 

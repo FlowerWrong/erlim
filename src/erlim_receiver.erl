@@ -134,15 +134,47 @@ handle_info({tcp, Socket, Data}, #state{socket = Socket} = State) ->
                                 erlim_client:reply_ack(Socket, <<"login">>, Ack),
 
                                 %% 登陆成功后推送离线消息
+                                %% single chat offline msg
                                 Msgs = mysql_util:user_msgs(Uid, 1),
                                 case Msgs of
                                     [] -> ok;
                                     _ ->
-                                        MsgsJson = lists:map(fun(M) ->
-                                            {msg, [M#msg_record.id, M#msg_record.f, M#msg_record.t, M#msg_record.msg, M#msg_record.unread, M#msg_record.created_at, M#msg_record.updated_at]}
-                                        end, Msgs)
+                                        MsgsForJson = lists:map(fun(M) ->
+                                            {datetime, CreatedAtD} = M#msg_record.created_at,
+                                            {datetime, UpdatedAtD} = M#msg_record.updated_at,
+                                            CreatedAtT = util:datetime2timestamp(CreatedAtD),
+                                            UpdatedAtT = util:datetime2timestamp(UpdatedAtD),
+                                            {[{id, M#msg_record.id}, {f, M#msg_record.f}, {t, M#msg_record.t}, {msg, M#msg_record.msg}, {unread, M#msg_record.unread}, {created_at, CreatedAtT}, {updated_at, UpdatedAtT}]}
+                                        end, Msgs),
+                                        MsgsIds = lists:map(fun(M) ->
+                                            M#msg_record.id
+                                        end, Msgs),
+                                        MsgDataToBeSend = jiffy:encode({[{<<"cmd">>, <<"offline_single_chat_msg">>}, {<<"msg">>, MsgsForJson}, {<<"ack">>, MsgsIds}]}),
+                                        lager:info("offline single chat msgs are ~p~n", [MsgDataToBeSend]),
+                                        erlim_client:reply(Socket, MsgDataToBeSend)
                                 end,
-                                lager:info("Msgs are ~p~n", [Msgs]),
+
+                                %% group chat offline msg
+                                Roommsgs = mysql_util:user_roommsgs(Uid, 1),
+                                case Roommsgs of
+                                    [] -> ok;
+                                    _ ->
+                                        RoommsgsForJson = lists:map(fun(R) ->
+                                            {datetime, CreatedAtD} = R#roommsg_record.created_at,
+                                            {datetime, UpdatedAtD} = R#roommsg_record.updated_at,
+                                            CreatedAtT = util:datetime2timestamp(CreatedAtD),
+                                            UpdatedAtT = util:datetime2timestamp(UpdatedAtD),
+                                            {[{id, R#roommsg_record.id}, {f, R#roommsg_record.f}, {t, R#roommsg_record.t}, {msg, R#roommsg_record.msg}, {created_at, CreatedAtT}, {updated_at, UpdatedAtT}]}
+                                        end, Roommsgs),
+                                        lager:info("offline group chat msgs are ~p~n", [RoommsgsForJson]),
+                                        RoommsgsIds = lists:map(fun(R) ->
+                                            R#roommsg_record.id
+                                        end, Roommsgs),
+                                        lager:info("offline group chat msgs are ~p~n", [RoommsgsIds]),
+                                        RoomMsgDataToBeSend = jiffy:encode({[{<<"cmd">>, <<"offline_group_chat_msg">>}, {<<"msg">>, RoommsgsForJson}, {<<"ack">>, RoommsgsIds}]}),
+                                        lager:info("offline group chat msgs are ~p~n", [RoomMsgDataToBeSend]),
+                                        erlim_client:reply(Socket, RoomMsgDataToBeSend)
+                                end,
 
                                 State#state{client_pid = ClientPid, uid = Uid, device = Device}
                         end;
@@ -265,6 +297,16 @@ handle_info({tcp, Socket, Data}, #state{socket = Socket} = State) ->
                                                     <<"group_chat">> ->
                                                         lager:info("Group chat msg ack is ~p~n", [Ack]),
                                                         mysql_util:mark_read(Ack, group_chat);
+                                                    <<"offline_single_chat_msg">> ->
+                                                        lager:info("Single chat offline msg ack is ~p~n", [Ack]),
+                                                        lists:foreach(fun(MsgId) ->
+                                                            mysql_util:mark_read(MsgId, single_chat)
+                                                        end, Ack);
+                                                    <<"offline_group_chat_msg">> ->
+                                                        lager:info("Group chat offline msg ack is ~p~n", [Ack]),
+                                                        lists:foreach(fun(RoomMsgId) ->
+                                                            mysql_util:mark_read(RoomMsgId, group_chat)
+                                                        end, Ack);
                                                     _ ->
                                                         erlim_client:reply_error(Socket, <<"404 Not Found this ack action">>, 10404)
                                                 end,

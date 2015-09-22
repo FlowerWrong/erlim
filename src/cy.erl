@@ -4,7 +4,7 @@
 
 
 login() ->
-    {ok, Sock} = gen_tcp:connect("localhost", 8080, [binary, {packet, 0}]),
+    {ok, Sock} = gen_tcp:connect("localhost", 8080, [binary, {packet, 0}, {buffer, 8192}]),
     Msg = <<"{\"cmd\": \"login\", \"name\": \"13560474456\", \"pass\": \"12345678\", \"ack\": \"72cdf1ae-62a3-4ebf-821c-a809d1931293\", \"device\": \"android-xiaomi\"}">>,
     ok = gen_tcp:send(Sock, Msg),
     Sock.
@@ -50,12 +50,26 @@ recv(Socket) ->
                     io:format("Recv msg ~p, from ~p, to room ~p, ack is ~p", [Msg, From, To, UserRoommsgId]),
                     DataToSend = jiffy:encode({[{<<"cmd">>, <<"ack">>}, {<<"action">>, <<"group_chat">>}, {<<"ack">>, UserRoommsgId}]}),
                     ok = gen_tcp:send(Socket, DataToSend);
+                <<"offline_single_chat_msg">> ->
+                    [{<<"msg">>, Msgs}, {<<"ack">>, MsgIds}] = T,
+                    io:format("Recv offline msgs ~p, ack is ~p", [Msgs, MsgIds]),
+                    DataToSend = jiffy:encode({[{<<"cmd">>, <<"ack">>}, {<<"action">>, <<"offline_single_chat_msg">>}, {<<"ack">>, MsgIds}]}),
+                    ok = gen_tcp:send(Socket, DataToSend);
+                <<"offline_group_chat_msg">> ->
+                    [{<<"msg">>, Msgs}, {<<"ack">>, MsgIds}] = T,
+                    io:format("Recv offline msgs ~p, ack is ~p", [Msgs, MsgIds]),
+                    DataToSend = jiffy:encode({[{<<"cmd">>, <<"ack">>}, {<<"action">>, <<"offline_group_chat_msg">>}, {<<"ack">>, MsgIds}]}),
+                    ok = gen_tcp:send(Socket, DataToSend);
                 <<"error">> ->
                     [{<<"msg">>, ErrorMsg}, {<<"code">>, Code}] = T,
                     io:format("Error msg is ~p, Code is ~p~n", [ErrorMsg, Code]);
                 _ ->
                     ok
-            end
+            end,
+            recv(Socket);
+        {tcp_close, Socket} ->
+            io:format("Socket closed.~n"),
+            ok
     end.
 
 loop_recv(Socket) ->
