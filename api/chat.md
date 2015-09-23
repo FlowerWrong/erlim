@@ -3,6 +3,7 @@
 #### client send one-to-one chat(must be friends) to server
 
 ```json
+CHAT/1.0\r\n\r\n
 {
     "cmd": "single_chat",
     "to": "to user mysql id, must be integer",
@@ -14,6 +15,7 @@
 ###### server reply ack to client, and then client verify this ack
 
 ```json
+CHAT/1.0\r\n\r\n
 {
     "cmd": "single_chat",
     "action": "single_chat",
@@ -24,6 +26,7 @@
 #### server send single chat msg to client
 
 ```json
+CHAT/1.0\r\n\r\n
 {
     "cmd": "single_chat",
     "from": "from user mysql id, must be integer",
@@ -35,6 +38,7 @@
 ###### client reply ack to server with this ack
 
 ```json
+CHAT/1.0\r\n\r\n
 {
     "cmd": "ack",
     "action": "single_chat",
@@ -45,6 +49,7 @@
 #### client send group chat msg to server
 
 ```json
+CHAT/1.0\r\n\r\n
 {
     "cmd": "group_chat",
     "to": "to room mysql id, must be integer",
@@ -56,6 +61,7 @@
 ###### server reply ack to client, and then client verify this ack
 
 ```json
+CHAT/1.0\r\n\r\n
 {
     "cmd": "ack",
     "action": "group_chat",
@@ -66,6 +72,7 @@
 #### server send group chat msg to client
 
 ```json
+CHAT/1.0\r\n\r\n
 {
     "cmd": "group_chat",
     "from": "from user mysql id, must be integer",
@@ -78,6 +85,7 @@
 ###### client reply ack to server with this ack
 
 ```json
+CHAT/1.0\r\n\r\n
 {
     "cmd": "ack",
     "action": "group_chat",
@@ -88,6 +96,7 @@
 #### server send single chat offline msg to client
 
 ```json
+CHAT/1.0\r\n\r\n
 {
     "cmd": "offline_single_chat_msg",
     "msg": [
@@ -117,6 +126,7 @@
 ###### client reply ack to server with this ack
 
 ```json
+CHAT/1.0\r\n\r\n
 {
     "cmd": "ack",
     "action": "offline_single_chat_msg",
@@ -127,6 +137,7 @@
 #### server send group chat offline msg to client
 
 ```json
+CHAT/1.0\r\n\r\n
 {
     "cmd": "offline_group_chat_msg",
     "msg": [
@@ -154,6 +165,7 @@
 ###### client reply ack to server with this ack
 
 ```json
+CHAT/1.0\r\n\r\n
 {
     "cmd": "ack",
     "action": "offline_group_chat_msg",
@@ -165,6 +177,7 @@
 #### error
 
 ```json
+CHAT/1.0\r\n\r\n
 {
     "cmd": "error",
     "msg": "404 Not Found user with this name",
