@@ -125,6 +125,7 @@ handle_info({tcp, Socket, Data}, #state{socket = Socket} = State) ->
                                 {RestHeaders1, <<>>} = RestHeaders,
                                 case lists:member({<<"upgrade">>, <<"websocket">>}, RestHeaders1) of
                                     false ->
+                                        io:format("Protocol is http~n"),
                                         http,
                                         State;
                                     true ->
@@ -133,7 +134,7 @@ handle_info({tcp, Socket, Data}, #state{socket = Socket} = State) ->
                                                 E -> true;
                                                 _Error -> false
                                             end
-                                                            end, RestHeaders1),
+                                        end, RestHeaders1),
                                         [{<<"sec-websocket-key">>, Key}] = Keys,
                                         AcceptKey = ws_util:key(Key),
                                         WebSocketDataToBeSend = iolist_to_binary([<<"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ">>, AcceptKey, <<"\r\n\r\n">>]),
@@ -191,7 +192,7 @@ terminate(_Reason, #state{client_pid = ClientPid, device = Device}) ->
     %% 1. 用户正常退出, 或网络掉线退出
     lager:info("ClientPid ~p will be terminated.~n", [ClientPid]),
     ok = case ClientPid of
-             undefined -> undefined;
+             undefined -> ok;
              _ ->
                  SessionMnesia = mnesia_util:query_session_by_pid_and_device(ClientPid, Device),
                  lager:info("SessionMnesia is ~p.~n", [SessionMnesia]),

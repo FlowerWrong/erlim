@@ -68,7 +68,7 @@ cp erlim.example.toml /etc/erlim/erlim.toml
 - [x] multi device
 - [x] timeout
 - [x] implement mnesia cluster
-- [ ] add websocket support
+- [x] add websocket support
 - [ ] implement cluster mode with a scheduler in erlang or nodejs or ruby
 - [ ] add web admin support
 - [ ] add max connection number test
