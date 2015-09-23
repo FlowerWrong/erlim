@@ -17,6 +17,7 @@
 
 -record(state, {
     socket,
+    protocol,
     heartbeat_timeout = ?HIBERNATE_TIMEOUT,
     client_pid,
     ip,
@@ -107,229 +108,63 @@ handle_cast(_Msg, State) ->
 %%--------------------------------------------------------------------
 handle_info({tcp, Socket, Data}, #state{socket = Socket} = State) ->
     setopts(Socket),
+    io:format("Data is ~p~n", [Data]),
     IsJSON = jsx:is_json(Data),
     NewState =
         case IsJSON of
             false ->
-                erlim_client:reply_error(Socket, <<"Invide JSON">>, 10400),
-                State;
-            true ->
-                Json = jiffy:decode(Data),
-                lager:info("Json is ~p.~n", [Json]),
-                {[{<<"cmd">>, Cmd} | T]} = Json,
-                if
-                    Cmd =:= <<"login">> ->
-                        [{<<"name">>, Name}, {<<"pass">>, Pass}, {<<"ack">>, Ack}, {<<"device">>, Device}] = T,
-                        LoginUserMysql = mysql_util:query_user_by_mobile(Name),
-                        case LoginUserMysql of
-                            [] ->
-                                erlim_client:reply_error(Socket, <<"404 Not Found user with this name">>, 10404),
+                %% websocket and http
+                case ws_util:is_websocket(Data) of
+                    false ->
+                        case erlang:decode_packet(http_bin, Data, []) of
+                            {more, undefined} ->
+                                self() ! {tcp_closed, Socket},
                                 State;
-                            #user_record{password_digest = PD, id = Uid} ->
-                                PassDigest = binary_to_list(PD),
-                                {ok, PassDigest} =:= bcrypt:hashpw(Pass, PassDigest),
-                                ClientPid = erlim_client_sup:start_child(Socket),
-                                erlim_sm:login(Uid, ClientPid, Device),
-                                %% Send login ack to client
-                                erlim_client:reply_ack(Socket, <<"login">>, Ack),
-
-                                %% 登陆成功后推送离线消息
-                                %% single chat offline msg
-                                Msgs = mysql_util:user_msgs(Uid, 1),
-                                case Msgs of
-                                    [] -> ok;
-                                    _ ->
-                                        MsgsForJson = lists:map(fun(M) ->
-                                            {datetime, CreatedAtD} = M#msg_record.created_at,
-                                            {datetime, UpdatedAtD} = M#msg_record.updated_at,
-                                            CreatedAtT = util:datetime2timestamp(CreatedAtD),
-                                            UpdatedAtT = util:datetime2timestamp(UpdatedAtD),
-                                            {[{id, M#msg_record.id}, {f, M#msg_record.f}, {t, M#msg_record.t}, {msg, M#msg_record.msg}, {unread, M#msg_record.unread}, {created_at, CreatedAtT}, {updated_at, UpdatedAtT}]}
-                                        end, Msgs),
-                                        MsgsIds = lists:map(fun(M) ->
-                                            M#msg_record.id
-                                        end, Msgs),
-                                        MsgDataToBeSend = jiffy:encode({[{<<"cmd">>, <<"offline_single_chat_msg">>}, {<<"msg">>, MsgsForJson}, {<<"ack">>, MsgsIds}]}),
-                                        lager:info("offline single chat msgs are ~p~n", [MsgDataToBeSend]),
-                                        erlim_client:reply(Socket, MsgDataToBeSend)
-                                end,
-
-                                %% group chat offline msg
-                                Roommsgs = mysql_util:user_roommsgs(Uid, 1),
-                                case Roommsgs of
-                                    [] -> ok;
-                                    _ ->
-                                        RoommsgsForJson = lists:map(fun(R) ->
-                                            {datetime, CreatedAtD} = R#roommsg_record.created_at,
-                                            {datetime, UpdatedAtD} = R#roommsg_record.updated_at,
-                                            CreatedAtT = util:datetime2timestamp(CreatedAtD),
-                                            UpdatedAtT = util:datetime2timestamp(UpdatedAtD),
-                                            {[{id, R#roommsg_record.id}, {f, R#roommsg_record.f}, {t, R#roommsg_record.t}, {msg, R#roommsg_record.msg}, {created_at, CreatedAtT}, {updated_at, UpdatedAtT}]}
-                                        end, Roommsgs),
-                                        RoommsgsIds = lists:map(fun(R) ->
-                                            R#roommsg_record.id
-                                        end, Roommsgs),
-                                        RoomMsgDataToBeSend = jiffy:encode({[{<<"cmd">>, <<"offline_group_chat_msg">>}, {<<"msg">>, RoommsgsForJson}, {<<"ack">>, RoommsgsIds}]}),
-                                        lager:info("offline group chat msgs are ~p~n", [RoomMsgDataToBeSend]),
-                                        erlim_client:reply(Socket, RoomMsgDataToBeSend)
-                                end,
-
-                                State#state{client_pid = ClientPid, uid = Uid, device = Device}
+                            {ok, {http_request, _Method, _RawPath, _Version}, Rest} ->
+                                RestHeaders = cow_http:parse_headers(Rest),
+                                {RestHeaders1, <<>>} = RestHeaders,
+                                case lists:member({<<"upgrade">>, <<"websocket">>}, RestHeaders1) of
+                                    false ->
+                                        http,
+                                        State;
+                                    true ->
+                                        Keys = lists:filter(fun(E) ->
+                                            case catch {<<"sec-websocket-key">>, _Key} = E of
+                                                E -> true;
+                                                _Error -> false
+                                            end
+                                                            end, RestHeaders1),
+                                        [{<<"sec-websocket-key">>, Key}] = Keys,
+                                        AcceptKey = ws_util:key(Key),
+                                        WebSocketDataToBeSend = iolist_to_binary([<<"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ">>, AcceptKey, <<"\r\n\r\n">>]),
+                                        erlim_client:reply(Socket, WebSocketDataToBeSend, tcp),
+                                        State
+                                end;
+                            {ok, {http_error, _}, _} ->
+                                self() ! {tcp_closed, Socket},
+                                State;
+                            {ok, {http_response, _, _, _}, _} ->
+                                self() ! {tcp_closed, Socket},
+                                State
                         end;
                     true ->
-                        #state{uid = Uid, device = Device} = State,
-                        SessionUserMnesia = mnesia_util:query_session_by_uid_and_device(Uid, Device),
-                        case SessionUserMnesia of
+                        WsData = ws_util:websocket_data(Data),
+                        lager:info("WsData is ~p~n", [WsData]),
+                        case jsx:is_json(WsData) of
+                            true -> process_data(WsData, Socket, State, websocket);
                             false ->
-                                erlim_client:reply_error(Socket, <<"404 Not Found this user, please login">>, 10404),
-                                State;
-                            _ ->
-                                FromUserMysql = mysql_util:query_user_by_id(SessionUserMnesia#session.uid),
-                                case FromUserMysql of
-                                    [] ->
-                                        %% 可能是因为mysql数据库删除了
-                                        erlim_client:reply_error(Socket, <<"404 Not Found this user in mysql, please login again">>, 10404),
-                                        State;
-                                    _ ->
-                                        case Cmd of
-                                            <<"single_chat">> ->
-                                                [{<<"to">>, ToUid}, {<<"msg">>, Msg}, {<<"ack">>, Ack}] = T,
-                                                case is_integer(ToUid) of
-                                                    false ->
-                                                        erlim_client:reply_error(Socket, <<"Single chat send msg to user id must be integer">>, 10400),
-                                                        State;
-                                                    true ->
-                                                        %% 是否好友关系
-                                                        case mysql_util:are_friends(SessionUserMnesia#session.uid, ToUid) of
-                                                            false ->
-                                                                erlim_client:reply_error(Socket, <<"You are not friends">>, 10403),
-                                                                State;
-                                                            true ->
-                                                                ToUserMysql = mysql_util:query_user_by_id(ToUid),
-                                                                case ToUserMysql of
-                                                                    [] ->
-                                                                        erlim_client:reply_error(Socket, <<"404 Not Found this user in mysql">>, 10404),
-                                                                        State;
-                                                                    _ ->
-                                                                        OffMsg = #msg_record{f = FromUserMysql#user_record.id, t = ToUserMysql#user_record.id, msg = Msg, unread = 1},
-                                                                        {ok_packet, _, _, MsgId, _, _, _} = mysql_util:save_msg(OffMsg),
-
-                                                                        %% Send single_chat ack to client
-                                                                        erlim_client:reply_ack(Socket, <<"single_chat">>, Ack),
-
-                                                                        ToUsers = erlim_sm:get_session(ToUid),
-                                                                        lager:info("ToUsers is ~p~n", [ToUsers]),
-                                                                        case ToUsers of
-                                                                            false -> offline;
-                                                                            _ ->
-                                                                                %% online: 发消息给多个终端设备
-                                                                                lists:foreach(fun(U) ->
-                                                                                    DataToSend = jiffy:encode({[{<<"cmd">>, <<"single_chat">>}, {<<"from">>, SessionUserMnesia#session.uid}, {<<"msg">>, Msg}, {<<"ack">>, MsgId}]}),
-                                                                                    case node(U#session.pid) =:= node() of
-                                                                                        true -> U#session.pid ! {single_chat, DataToSend};
-                                                                                        false -> {U#session.register_name, U#session.node} ! {single_chat, DataToSend}
-                                                                                    end
-                                                                                end, ToUsers)
-                                                                        end,
-                                                                        State
-                                                                end
-                                                        end
-                                                end;
-                                            <<"group_chat">> ->
-                                                [{<<"to">>, ToRoomId}, {<<"msg">>, Msg}, {<<"ack">>, Ack}] = T,
-                                                case is_integer(ToRoomId) of
-                                                    false ->
-                                                        erlim_client:reply_error(Socket, <<"Group chat send msg to room id must be integer">>, 10400),
-                                                        State;
-                                                    true ->
-                                                        %% 群是否存在
-                                                        case mysql_util:is_an_exist_room(ToRoomId) of
-                                                            false ->
-                                                                erlim_client:reply_error(Socket, <<"404 Not Found this room in mysql">>, 10404),
-                                                                State;
-                                                            true ->
-                                                                %% 用户是否在该群里面
-                                                                case mysql_util:in_room(SessionUserMnesia#session.uid, ToRoomId) of
-                                                                    false ->
-                                                                        erlim_client:reply_error(Socket, <<"You are not in this room">>, 10403),
-                                                                        State;
-                                                                    true ->
-                                                                        RoomMsg = #roommsg_record{f = FromUserMysql#user_record.id, t = ToRoomId, msg = Msg},
-                                                                        {ok_packet, _, _, RoommsgId, _, _, _} = mysql_util:save_room_msg(RoomMsg),
-
-                                                                        Members = mysql_util:room_members(ToRoomId),
-                                                                        lager:info("Members are ~p.~n", [Members]),
-
-                                                                        %% Send group_chat ack to client
-                                                                        erlim_client:reply_ack(Socket, <<"group_chat">>, Ack),
-
-                                                                        lists:foreach(fun(M) ->
-                                                                            case mysql_util:query_user_by_id(M#room_users_record.user_id) of
-                                                                                [] -> false;
-                                                                                #user_record{id = Id} ->
-                                                                                    %% Save members unread roommsg
-                                                                                    {ok_packet, _, _, UserRoommsgId, _, _, _} = mysql_util:save_user_room_msg(RoommsgId, Id),
-                                                                                    ToUsers = erlim_sm:get_session(Id),
-                                                                                    case ToUsers of
-                                                                                        false -> offline;
-                                                                                        _ ->
-                                                                                            %% online: 发消息给多个终端设备
-                                                                                            lists:foreach(fun(U) ->
-                                                                                                DataToSend = jiffy:encode({[{<<"cmd">>, <<"group_chat">>}, {<<"from">>, SessionUserMnesia#session.uid}, {<<"to">>, ToRoomId}, {<<"msg">>, Msg}, {<<"ack">>, UserRoommsgId}]}),
-                                                                                                {U#session.register_name, U#session.node} ! {group_chat, DataToSend}
-                                                                                            end, ToUsers)
-                                                                                    end
-                                                                            end
-                                                                        end, Members),
-                                                                        State
-                                                                end
-                                                        end
-                                                end;
-                                            <<"ack">> ->
-                                                [{<<"action">>, Action}, {<<"ack">>, Ack}] = T,
-                                                lager:info("Action is ~p, Timestamp is ~p~n", [Action, Ack]),
-                                                case Action of
-                                                    <<"single_chat">> ->
-                                                        lager:info("Single chat msg ack is ~p~n", [Ack]),
-                                                        mysql_util:mark_read(Ack, single_chat);
-                                                    <<"group_chat">> ->
-                                                        lager:info("Group chat msg ack is ~p~n", [Ack]),
-                                                        mysql_util:mark_read(Ack, group_chat);
-                                                    <<"offline_single_chat_msg">> ->
-                                                        lager:info("Single chat offline msg ack is ~p~n", [Ack]),
-                                                        lists:foreach(fun(MsgId) ->
-                                                            mysql_util:mark_read(MsgId, single_chat)
-                                                        end, Ack);
-                                                    <<"offline_group_chat_msg">> ->
-                                                        lager:info("Group chat offline msg ack is ~p~n", [Ack]),
-                                                        lists:foreach(fun(RoomMsgId) ->
-                                                            mysql_util:mark_read(RoomMsgId, Uid, group_chat)
-                                                        end, Ack);
-                                                    _ ->
-                                                        erlim_client:reply_error(Socket, <<"404 Not Found this ack action">>, 10404)
-                                                end,
-                                                State;
-                                            <<"logout">> ->
-                                                self() ! {tcp_closed, Socket},
-                                                State;
-                                            _ ->
-                                                %% 用户登陆后发送了未知命令
-                                                self() ! {unknown_cmd, Socket},
-                                                State
-                                        end
-                                end
+                                erlim_client:reply_error(Socket, <<"invide json">>, 10400, websocket),
+                                State
                         end
-                end
+                end;
+            true ->
+                process_data(Data, Socket, State, tcp)
         end,
     lager:info("NewState is ~p~n", [NewState]),
     {noreply, NewState, NewState#state.heartbeat_timeout};
 % tcp connection change to passive
 handle_info({tcp_passive, Socket}, #state{socket = Socket} = State) ->
     lager:info("tcp_passive is ~p~n", [State]),
-    {noreply, State};
-handle_info({unknown_cmd, Socket}, State) ->
-    DataToSend = jiffy:encode({[{<<"cmd">>, <<"unknown_cmd">>}]}),
-    erlim_client:reply(Socket, DataToSend),
     {noreply, State};
 % connection closed
 handle_info({tcp_closed, _Socket}, State) ->
@@ -355,18 +190,18 @@ terminate(_Reason, #state{client_pid = ClientPid, device = Device}) ->
     %% 这里有三种情况
     %% 1. 用户正常退出, 或网络掉线退出
     lager:info("ClientPid ~p will be terminated.~n", [ClientPid]),
-    case ClientPid of
-        undefined -> undefined;
-        _ ->
-            SessionMnesia = mnesia_util:query_session_by_pid_and_device(ClientPid, Device),
-            lager:info("SessionMnesia is ~p.~n", [SessionMnesia]),
-            case SessionMnesia of
-                false -> undefined;
-                #session{uid = Uid} ->
-                    ok = erlim_sm:logout(Uid, Device),
-                    ok = erlim_client:stop(ClientPid)
-            end
-    end.
+    ok = case ClientPid of
+             undefined -> undefined;
+             _ ->
+                 SessionMnesia = mnesia_util:query_session_by_pid_and_device(ClientPid, Device),
+                 lager:info("SessionMnesia is ~p.~n", [SessionMnesia]),
+                 case SessionMnesia of
+                     false -> undefined;
+                     #session{uid = Uid} ->
+                         ok = erlim_sm:logout(Uid, Device),
+                         ok = erlim_client:stop(ClientPid)
+                 end
+         end.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -386,3 +221,213 @@ code_change(_OldVsn, State, _Extra) ->
 setopts(Socket) ->
     inet:setopts(Socket, [{active, once}]),
     inet:peername(Socket).
+
+process_data(Data, Socket, State, Protocol) ->
+    Json = jiffy:decode(Data),
+    lager:info("Json is ~p.~n", [Json]),
+    {[{<<"cmd">>, Cmd} | T]} = Json,
+    if
+        Cmd =:= <<"login">> ->
+            [{<<"name">>, Name}, {<<"pass">>, Pass}, {<<"ack">>, Ack}, {<<"device">>, Device}] = T,
+            LoginUserMysql = mysql_util:query_user_by_mobile(Name),
+            case LoginUserMysql of
+                [] ->
+                    erlim_client:reply_error(Socket, <<"404 Not Found user with this name">>, 10404, Protocol),
+                    State;
+                #user_record{password_digest = PD, id = Uid} ->
+                    PassDigest = binary_to_list(PD),
+                    {ok, PassDigest} =:= bcrypt:hashpw(Pass, PassDigest),
+                    ClientPid = erlim_client_sup:start_child(Socket, Protocol),
+                    erlim_sm:login(Uid, ClientPid, Device),
+                    %% Send login ack to client
+                    erlim_client:reply_ack(Socket, <<"login">>, Ack, Protocol),
+
+                    %% 登陆成功后推送离线消息
+                    %% single chat offline msg
+                    Msgs = mysql_util:user_msgs(Uid, 1),
+                    case Msgs of
+                        [] -> ok;
+                        _ ->
+                            MsgsForJson = lists:map(fun(M) ->
+                                {datetime, CreatedAtD} = M#msg_record.created_at,
+                                {datetime, UpdatedAtD} = M#msg_record.updated_at,
+                                CreatedAtT = util:datetime2timestamp(CreatedAtD),
+                                UpdatedAtT = util:datetime2timestamp(UpdatedAtD),
+                                {[{id, M#msg_record.id}, {f, M#msg_record.f}, {t, M#msg_record.t}, {msg, M#msg_record.msg}, {unread, M#msg_record.unread}, {created_at, CreatedAtT}, {updated_at, UpdatedAtT}]}
+                                                    end, Msgs),
+                            MsgsIds = lists:map(fun(M) ->
+                                M#msg_record.id
+                                                end, Msgs),
+                            MsgDataToBeSend = jiffy:encode({[{<<"cmd">>, <<"offline_single_chat_msg">>}, {<<"msg">>, MsgsForJson}, {<<"ack">>, MsgsIds}]}),
+                            lager:info("offline single chat msgs are ~p~n", [MsgDataToBeSend]),
+                            erlim_client:reply(Socket, MsgDataToBeSend, Protocol)
+                    end,
+
+                    %% group chat offline msg
+                    Roommsgs = mysql_util:user_roommsgs(Uid, 1),
+                    case Roommsgs of
+                        [] -> ok;
+                        _ ->
+                            RoommsgsForJson = lists:map(fun(R) ->
+                                {datetime, CreatedAtD} = R#roommsg_record.created_at,
+                                {datetime, UpdatedAtD} = R#roommsg_record.updated_at,
+                                CreatedAtT = util:datetime2timestamp(CreatedAtD),
+                                UpdatedAtT = util:datetime2timestamp(UpdatedAtD),
+                                {[{id, R#roommsg_record.id}, {f, R#roommsg_record.f}, {t, R#roommsg_record.t}, {msg, R#roommsg_record.msg}, {created_at, CreatedAtT}, {updated_at, UpdatedAtT}]}
+                                                        end, Roommsgs),
+                            RoommsgsIds = lists:map(fun(R) ->
+                                R#roommsg_record.id
+                                                    end, Roommsgs),
+                            RoomMsgDataToBeSend = jiffy:encode({[{<<"cmd">>, <<"offline_group_chat_msg">>}, {<<"msg">>, RoommsgsForJson}, {<<"ack">>, RoommsgsIds}]}),
+                            lager:info("offline group chat msgs are ~p~n", [RoomMsgDataToBeSend]),
+                            erlim_client:reply(Socket, RoomMsgDataToBeSend, Protocol)
+                    end,
+
+                    State#state{client_pid = ClientPid, uid = Uid, device = Device, protocol = Protocol}
+            end;
+        true ->
+            #state{uid = Uid, device = Device} = State,
+            SessionUserMnesia = mnesia_util:query_session_by_uid_and_device(Uid, Device),
+            case SessionUserMnesia of
+                false ->
+                    erlim_client:reply_error(Socket, <<"404 Not Found this user, please login">>, 10404, Protocol),
+                    State;
+                _ ->
+                    FromUserMysql = mysql_util:query_user_by_id(SessionUserMnesia#session.uid),
+                    case FromUserMysql of
+                        [] ->
+                            %% 可能是因为mysql数据库删除了
+                            erlim_client:reply_error(Socket, <<"404 Not Found this user in mysql, please login again">>, 10404, Protocol),
+                            State;
+                        _ ->
+                            case Cmd of
+                                <<"single_chat">> ->
+                                    [{<<"to">>, ToUid}, {<<"msg">>, Msg}, {<<"ack">>, Ack}] = T,
+                                    case is_integer(ToUid) of
+                                        false ->
+                                            erlim_client:reply_error(Socket, <<"Single chat send msg to user id must be integer">>, 10400, Protocol),
+                                            State;
+                                        true ->
+                                            %% 是否好友关系
+                                            case mysql_util:are_friends(SessionUserMnesia#session.uid, ToUid) of
+                                                false ->
+                                                    erlim_client:reply_error(Socket, <<"You are not friends">>, 10403, Protocol),
+                                                    State;
+                                                true ->
+                                                    ToUserMysql = mysql_util:query_user_by_id(ToUid),
+                                                    case ToUserMysql of
+                                                        [] ->
+                                                            erlim_client:reply_error(Socket, <<"404 Not Found this user in mysql">>, 10404, Protocol),
+                                                            State;
+                                                        _ ->
+                                                            OffMsg = #msg_record{f = FromUserMysql#user_record.id, t = ToUserMysql#user_record.id, msg = Msg, unread = 1},
+                                                            {ok_packet, _, _, MsgId, _, _, _} = mysql_util:save_msg(OffMsg),
+
+                                                            %% Send single_chat ack to client
+                                                            erlim_client:reply_ack(Socket, <<"single_chat">>, Ack, Protocol),
+
+                                                            ToUsers = erlim_sm:get_session(ToUid),
+                                                            lager:info("ToUsers is ~p~n", [ToUsers]),
+                                                            case ToUsers of
+                                                                false -> offline;
+                                                                _ ->
+                                                                    %% online: 发消息给多个终端设备
+                                                                    lists:foreach(fun(U) ->
+                                                                        DataToSend = jiffy:encode({[{<<"cmd">>, <<"single_chat">>}, {<<"from">>, SessionUserMnesia#session.uid}, {<<"msg">>, Msg}, {<<"ack">>, MsgId}]}),
+                                                                        case node(U#session.pid) =:= node() of
+                                                                            true ->
+                                                                                U#session.pid ! {single_chat, DataToSend};
+                                                                            false ->
+                                                                                {U#session.register_name, U#session.node} ! {single_chat, DataToSend}
+                                                                        end
+                                                                    end, ToUsers)
+                                                            end,
+                                                            State
+                                                    end
+                                            end
+                                    end;
+                                <<"group_chat">> ->
+                                    [{<<"to">>, ToRoomId}, {<<"msg">>, Msg}, {<<"ack">>, Ack}] = T,
+                                    case is_integer(ToRoomId) of
+                                        false ->
+                                            erlim_client:reply_error(Socket, <<"Group chat send msg to room id must be integer">>, 10400, Protocol),
+                                            State;
+                                        true ->
+                                            %% 群是否存在
+                                            case mysql_util:is_an_exist_room(ToRoomId) of
+                                                false ->
+                                                    erlim_client:reply_error(Socket, <<"404 Not Found this room in mysql">>, 10404, Protocol),
+                                                    State;
+                                                true ->
+                                                    %% 用户是否在该群里面
+                                                    case mysql_util:in_room(SessionUserMnesia#session.uid, ToRoomId) of
+                                                        false ->
+                                                            erlim_client:reply_error(Socket, <<"You are not in this room">>, 10403, Protocol),
+                                                            State;
+                                                        true ->
+                                                            RoomMsg = #roommsg_record{f = FromUserMysql#user_record.id, t = ToRoomId, msg = Msg},
+                                                            {ok_packet, _, _, RoommsgId, _, _, _} = mysql_util:save_room_msg(RoomMsg),
+
+                                                            Members = mysql_util:room_members(ToRoomId),
+                                                            lager:info("Members are ~p.~n", [Members]),
+
+                                                            %% Send group_chat ack to client
+                                                            erlim_client:reply_ack(Socket, <<"group_chat">>, Ack, Protocol),
+
+                                                            lists:foreach(fun(M) ->
+                                                                case mysql_util:query_user_by_id(M#room_users_record.user_id) of
+                                                                    [] -> false;
+                                                                    #user_record{id = Id} ->
+                                                                        %% Save members unread roommsg
+                                                                        {ok_packet, _, _, UserRoommsgId, _, _, _} = mysql_util:save_user_room_msg(RoommsgId, Id),
+                                                                        ToUsers = erlim_sm:get_session(Id),
+                                                                        case ToUsers of
+                                                                            false -> offline;
+                                                                            _ ->
+                                                                                %% online: 发消息给多个终端设备
+                                                                                lists:foreach(fun(U) ->
+                                                                                    DataToSend = jiffy:encode({[{<<"cmd">>, <<"group_chat">>}, {<<"from">>, SessionUserMnesia#session.uid}, {<<"to">>, ToRoomId}, {<<"msg">>, Msg}, {<<"ack">>, UserRoommsgId}]}),
+                                                                                    {U#session.register_name, U#session.node} ! {group_chat, DataToSend}
+                                                                                              end, ToUsers)
+                                                                        end
+                                                                end
+                                                                          end, Members),
+                                                            State
+                                                    end
+                                            end
+                                    end;
+                                <<"ack">> ->
+                                    [{<<"action">>, Action}, {<<"ack">>, Ack}] = T,
+                                    lager:info("Action is ~p, Timestamp is ~p~n", [Action, Ack]),
+                                    case Action of
+                                        <<"single_chat">> ->
+                                            lager:info("Single chat msg ack is ~p~n", [Ack]),
+                                            mysql_util:mark_read(Ack, single_chat);
+                                        <<"group_chat">> ->
+                                            lager:info("Group chat msg ack is ~p~n", [Ack]),
+                                            mysql_util:mark_read(Ack, group_chat);
+                                        <<"offline_single_chat_msg">> ->
+                                            lager:info("Single chat offline msg ack is ~p~n", [Ack]),
+                                            lists:foreach(fun(MsgId) ->
+                                                mysql_util:mark_read(MsgId, single_chat)
+                                                          end, Ack);
+                                        <<"offline_group_chat_msg">> ->
+                                            lager:info("Group chat offline msg ack is ~p~n", [Ack]),
+                                            lists:foreach(fun(RoomMsgId) ->
+                                                mysql_util:mark_read(RoomMsgId, Uid, group_chat)
+                                                          end, Ack);
+                                        _ ->
+                                            erlim_client:reply_error(Socket, <<"404 Not Found this ack action">>, 10404, Protocol)
+                                    end,
+                                    State;
+                                <<"logout">> ->
+                                    self() ! {tcp_closed, Socket},
+                                    State;
+                                _ ->
+                                    %% 用户登陆后发送了未知命令
+                                    erlim_client:reply_error(Socket, <<"Unknown cmd">>, 10400, Protocol),
+                                    State
+                            end
+                    end
+            end
+    end.

@@ -4,11 +4,11 @@
 
 %% API functions
 -export([
-    start_link/1,
+    start_link/2,
     stop/1,
-    reply/2,
-    reply_error/3,
-    reply_ack/3
+    reply/3,
+    reply_error/4,
+    reply_ack/4
 ]).
 
 %% gen_server callbacks
@@ -22,7 +22,8 @@
 ]).
 
 -record(state, {
-    socket
+    socket,
+    protocol
 }).
 
 %%%===================================================================
@@ -36,8 +37,8 @@
 %% @spec start_link() -> {ok, Pid} | ignore | {error, Error}
 %% @end
 %%--------------------------------------------------------------------
-start_link(Socket) ->
-    gen_server:start_link(?MODULE, [Socket], []).
+start_link(Socket, Protocol) ->
+    gen_server:start_link(?MODULE, [Socket, Protocol], []).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -54,8 +55,8 @@ start_link(Socket) ->
 %%                     {stop, Reason}
 %% @end
 %%--------------------------------------------------------------------
-init([Socket]) ->
-    State = #state{socket = Socket},
+init([Socket, Protocol]) ->
+    State = #state{socket = Socket, protocol = Protocol},
     {ok, State}.
 
 %%--------------------------------------------------------------------
@@ -101,13 +102,13 @@ handle_cast(_Msg, State) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_info({single_chat, Msg}, #state{socket = Socket} = State) ->
+handle_info({single_chat, Msg}, #state{socket = Socket, protocol = Protocol} = State) ->
     lager:info("erlim_client single_chat msg is ~p~n", [Msg]),
-    reply(Socket, Msg),
+    reply(Socket, Msg, Protocol),
     {noreply, State};
-handle_info({group_chat, Msg}, #state{socket = Socket} = State) ->
+handle_info({group_chat, Msg}, #state{socket = Socket, protocol = Protocol} = State) ->
     lager:info("erlim_client group_chat msg is ~p~n", [Msg]),
-    reply(Socket, Msg),
+    reply(Socket, Msg, Protocol),
     {noreply, State};
 handle_info(_Info, State) ->
     {noreply, State}.
@@ -146,13 +147,21 @@ stop(ClientPid) ->
     gen_server:cast(ClientPid, stop),
     ok.
 
-reply(Socket, Msg) ->
-    gen_tcp:send(Socket, Msg).
+reply(Socket, Msg, tcp) ->
+    gen_tcp:send(Socket, Msg);
+reply(Socket, Msg, websocket) ->
+    ws_util:send_ws_data(Socket, Msg).
 
-reply_error(Socket, Error, Code) ->
+reply_error(Socket, Error, Code, tcp) ->
     DataToSend = jiffy:encode({[{<<"cmd">>, <<"error">>}, {<<"msg">>, Error}, {<<"code">>, Code}]}),
-    reply(Socket, DataToSend).
+    reply(Socket, DataToSend, tcp);
+reply_error(Socket, Error, Code, websocket) ->
+    DataToSend = jiffy:encode({[{<<"cmd">>, <<"error">>}, {<<"msg">>, Error}, {<<"code">>, Code}]}),
+    reply(Socket, DataToSend, websocket).
 
-reply_ack(Socket, Action, Ack) ->
+reply_ack(Socket, Action, Ack, tcp) ->
     DataToSend = jiffy:encode({[{<<"cmd">>, <<"ack">>}, {<<"action">>, Action}, {<<"ack">>, Ack}]}),
-    reply(Socket, DataToSend).
+    reply(Socket, DataToSend, tcp);
+reply_ack(Socket, Action, Ack, websocket) ->
+    DataToSend = jiffy:encode({[{<<"cmd">>, <<"ack">>}, {<<"action">>, Action}, {<<"ack">>, Ack}]}),
+    reply(Socket, DataToSend, websocket).
