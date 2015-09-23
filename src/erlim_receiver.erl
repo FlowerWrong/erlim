@@ -23,7 +23,8 @@
     ip,
     uid,
     device,
-    node
+    node,
+    data_complete = false
 }).
 
 -include("table.hrl").
@@ -109,6 +110,7 @@ handle_cast(_Msg, State) ->
 handle_info({tcp, Socket, Data}, #state{socket = Socket} = State) ->
     setopts(Socket),
     io:format("Data is ~p~n", [Data]),
+    %% 首先判断是否ws，然后模式匹配自定义协议，去除http
     IsJSON = jsx:is_json(Data),
     NewState =
         case IsJSON of
