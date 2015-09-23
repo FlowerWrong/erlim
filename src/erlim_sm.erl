@@ -135,7 +135,7 @@ login(Uid, ClientPid, Device) when is_integer(Uid), is_pid(ClientPid) ->
     UserToBeLoginMnesia = #session{uid = Uid, pid = ClientPid, device = Device, node = node(), register_name = RegisterName},
     F = fun() ->
         mnesia:write(UserToBeLoginMnesia)
-         end,
+    end,
     mnesia:transaction(F).
 
 get_session(Uid) when is_integer(Uid) ->
@@ -150,10 +150,7 @@ get_session(Uid, Device) when is_integer(Uid) ->
     end.
 
 logout(Uid, Device) when is_integer(Uid) ->
-    lager:info("Users is ~p~n", [mnesia_util:all()]),
     CurrentUserMnesia = mnesia_util:query_session_by_uid_and_device(Uid, Device),
-    lager:info("CurrentUser is ~p~n", [CurrentUserMnesia]),
     F = fun() -> mnesia:delete_object(CurrentUserMnesia) end,
     mnesia:transaction(F),
-    lager:info("Users is ~p~n", [mnesia_util:all()]),
     ok.

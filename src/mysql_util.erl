@@ -10,6 +10,7 @@
     user_roommsgs/2,
     room_msgs/1,
     mark_read/2,
+    mark_read/3,
     query_msg_by_id/1,
     room_members/1,
     is_an_exist_room/1,
@@ -84,9 +85,13 @@ room_msgs(Id) when is_integer(Id) ->
 mark_read(MsgId, single_chat) when is_integer(MsgId) ->
     emysql:prepare(mark_read_single_chat_stmt, <<"UPDATE msgs SET unread = ? WHERE id = ?">>),
     emysql:execute(erlim_pool, mark_read_single_chat_stmt, [0, MsgId]);
-mark_read(MsgId, group_chat) when is_integer(MsgId) ->
+mark_read(UserRoommsgId, group_chat) when is_integer(UserRoommsgId) ->
     emysql:prepare(mark_read_group_chat_stmt, <<"UPDATE user_roommsgs SET unread = ? WHERE id = ?">>),
-    emysql:execute(erlim_pool, mark_read_group_chat_stmt, [0, MsgId]).
+    emysql:execute(erlim_pool, mark_read_group_chat_stmt, [0, UserRoommsgId]).
+
+mark_read(RoommsgId, Uid, group_chat) when is_integer(RoommsgId), is_integer(Uid) ->
+    emysql:prepare(mark_read_group_chat_stmt, <<"UPDATE user_roommsgs SET unread = ? WHERE user_id = ? AND roommsg_id = ?">>),
+    emysql:execute(erlim_pool, mark_read_group_chat_stmt, [0, Uid, RoommsgId]).
 
 %% 查询私聊消息
 query_msg_by_id(MsgId) when is_integer(MsgId) ->

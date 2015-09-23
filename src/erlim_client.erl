@@ -102,11 +102,11 @@ handle_cast(_Msg, State) ->
 %% @end
 %%--------------------------------------------------------------------
 handle_info({single_chat, Msg}, #state{socket = Socket} = State) ->
-    io:format("erlim_client single_chat msg is ~p~n", [Msg]),
+    lager:info("erlim_client single_chat msg is ~p~n", [Msg]),
     reply(Socket, Msg),
     {noreply, State};
 handle_info({group_chat, Msg}, #state{socket = Socket} = State) ->
-    io:format("erlim_client group_chat msg is ~p~n", [Msg]),
+    lager:info("erlim_client group_chat msg is ~p~n", [Msg]),
     reply(Socket, Msg),
     {noreply, State};
 handle_info(_Info, State) ->
@@ -124,7 +124,7 @@ handle_info(_Info, State) ->
 %% @end
 %%--------------------------------------------------------------------
 terminate(_Reason, _State) ->
-    io:format("Client ~p terminated.~n", [self()]),
+    lager:info("Client ~p terminated.~n", [self()]),
     ok.
 
 %%--------------------------------------------------------------------

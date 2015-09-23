@@ -303,7 +303,7 @@ handle_info({tcp, Socket, Data}, #state{socket = Socket} = State) ->
                                                     <<"offline_group_chat_msg">> ->
                                                         lager:info("Group chat offline msg ack is ~p~n", [Ack]),
                                                         lists:foreach(fun(RoomMsgId) ->
-                                                            mysql_util:mark_read(RoomMsgId, group_chat)
+                                                            mysql_util:mark_read(RoomMsgId, Uid, group_chat)
                                                         end, Ack);
                                                     _ ->
                                                         erlim_client:reply_error(Socket, <<"404 Not Found this ack action">>, 10404)
