@@ -24,7 +24,7 @@
     uid,
     device,
     node,
-    data_complete = 0,  %% 0: 开始接收 1: 接收剩余 2: 接收完成
+    data_complete = 0,  %% 0: 开始接收 1: 接收剩余
     client_data = [],
     payload_len,
     already_receive_payload_len = 0
@@ -112,85 +112,89 @@ handle_cast(_Msg, State) ->
 %%--------------------------------------------------------------------
 handle_info({tcp, Socket, Data}, #state{socket = Socket, data_complete = DCFlag, client_data = ClientData, payload_len = PayloadLen, already_receive_payload_len = AlreadyReceivePayloadLen, protocol = P} = State) ->
     setopts(Socket),
+    lager:info("Data is ~p~n", [Data]),
     NewState = case DCFlag of
                    0 ->
+                       lager:info("flag is ~p~n", [string:str(binary_to_list(Data), "ONECHAT/1.0\r\n")]),
                        case string:str(binary_to_list(Data), "ONECHAT/1.0\r\n") of
                            0 ->
-                               websocket_or_http,
                                case ws_util:is_websocket(Data) of
                                    true ->
-                                       websocket,
                                        WsData = ws_util:websocket_data(Data),
                                        lager:info("WsData is ~p~n", [WsData]),
                                        case jsx:is_json(WsData) of
                                            true -> process_data(WsData, Socket, State, websocket);
                                            false ->
                                                erlim_client:reply_error(Socket, <<"invide json">>, 10400, websocket),
-                                               State
+                                               State#state{protocol = websocket}
                                        end;
                                    false ->
+                                       lager:info("Data is ~p~n", [Data]),
                                        case erlang:decode_packet(http_bin, Data, []) of
                                            {ok, {http_request, _Method, _RawPath, _Version}, Rest} ->
-                                               RestHeaders = cow_http:parse_headers(Rest),
-                                               {RestHeaders1, <<>>} = RestHeaders,
-                                               case lists:member({<<"upgrade">>, <<"websocket">>}, RestHeaders1) of
+                                               %% 解析http头部
+                                               RestHeadersTmp = cow_http:parse_headers(Rest),
+                                               {RestHeaders, <<>>} = RestHeadersTmp,
+                                               case lists:member({<<"upgrade">>, <<"websocket">>}, RestHeaders) of
                                                    true ->
                                                        Keys = lists:filter(fun(E) ->
                                                            case catch {<<"sec-websocket-key">>, _Key} = E of
                                                                E -> true;
                                                                _Error -> false
                                                            end
-                                                                           end, RestHeaders1),
+                                                                           end, RestHeaders),
                                                        [{<<"sec-websocket-key">>, Key}] = Keys,
+                                                       %% 计算加密key
                                                        AcceptKey = ws_util:key(Key),
-                                                       io:format("key is ~p~n", [AcceptKey]),
                                                        WebSocketDataToBeSend = iolist_to_binary([<<"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ">>, AcceptKey, <<"\r\n\r\n">>]),
                                                        gen_tcp:send(Socket, WebSocketDataToBeSend),
-                                                       State;
+                                                       State#state{protocol = websocket};
                                                    false ->
-                                                       http,
+                                                       %% http 直接关闭客户端
                                                        self() ! {tcp_closed, Socket},
-                                                       State
+                                                       State#state{protocol = http}
                                                end;
                                            _ ->
+                                               %% 解析错误 直接关闭客户端
                                                self() ! {tcp_closed, Socket},
                                                State
                                        end
                                end;
                            1 ->
-                               tcp,
                                DataList = string:tokens(binary_to_list(Data), "\r\n"),
                                PayloadLength0 = string:tokens(lists:nth(2, DataList), ": "),
                                PayloadLength1 = lists:nth(2, PayloadLength0),
                                PayloadLength = list_to_integer(PayloadLength1),
                                if
-                                   PayloadLength > 8192 ->
+                                   PayloadLength > 1048576 ->
                                        erlim_client:reply_error(Socket, <<"data must less than 8192 bytes">>, 10400, tcp),
                                        State;
                                    true ->
-                                       PayloadTmp = lists:nth(3, DataList),
-                                       Payload0 = list_to_binary(PayloadTmp),
-                                       Alrpl = byte_size(Payload0),
+                                       PayloadList = lists:nth(3, DataList),
+                                       PayloadBinary = list_to_binary(PayloadList),
+                                       %% 已经接收到的数据大小
+                                       Alrpl = byte_size(PayloadBinary),
                                        case Alrpl =:= PayloadLength of
                                            false ->
-                                               NewClientData0 = [Payload0 | ClientData],
-                                               State#state{data_complete = 1, client_data = NewClientData0, payload_len = PayloadLength, protocol = tcp, already_receive_payload_len = Alrpl};
+                                               NewClientData = [PayloadBinary | ClientData],
+                                               State#state{data_complete = 1, client_data = NewClientData, payload_len = PayloadLength, protocol = tcp, already_receive_payload_len = Alrpl};
                                            true ->
                                                S = State#state{data_complete = 0, client_data = [], payload_len = undefined, protocol = tcp, already_receive_payload_len = 0},
-                                               process_data(Payload0, Socket, S, tcp)
+                                               process_data(PayloadBinary, Socket, S, tcp)
                                        end
                                end
                        end;
                    1 ->
-                       NewClientData1 = [Data | ClientData],
-                       AlreadyReceivePayloadLen1 = byte_size(Data) + AlreadyReceivePayloadLen,
-                       case AlreadyReceivePayloadLen1 =:= PayloadLen of
+                       NewClientData = [Data | ClientData],
+                       %% 已经接收到的数据大小
+                       Alrpl = byte_size(Data) + AlreadyReceivePayloadLen,
+                       case Alrpl =:= PayloadLen of
                            false ->
-                               State#state{data_complete = 1, client_data = NewClientData1, already_receive_payload_len = AlreadyReceivePayloadLen1, protocol = P};
+                               State#state{data_complete = 1, client_data = NewClientData, already_receive_payload_len = Alrpl, protocol = P};
                            true ->
                                S = State#state{data_complete = 0, client_data = [], payload_len = undefined, protocol = P, already_receive_payload_len = 0},
-                               PayloadOver = iolist_to_binary(lists:reverse(NewClientData1)),
-                               io:format("PayloadOver is ~p~n", [PayloadOver]),
+                               PayloadOver = iolist_to_binary(lists:reverse(NewClientData)),
+                               lager:info("Payload last is ~p~n", [PayloadOver]),
                                process_data(PayloadOver, Socket, S, P)
                        end
                end,
@@ -207,6 +211,7 @@ handle_info(timeout, State) ->
     proc_lib:hibernate(gen_server, enter_loop, [?MODULE, [], State]),
     {noreply, State, State#state.heartbeat_timeout};
 handle_info(_Info, State) ->
+    lager:info("_Info is ~p~n", [_Info]),
     {noreply, State}.
 
 %%--------------------------------------------------------------------

@@ -2,7 +2,7 @@
     [
         {description, "A im server written in erlang."},
         {vsn, "1"},
-        {registered, [erlim]},
+        {registered, [erlim_sup]},
         {applications, [kernel, stdlib, sasl]},
         {mod, {erlim_app, []}},
         {env, []}

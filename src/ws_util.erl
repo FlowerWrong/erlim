@@ -15,9 +15,7 @@
 -export([key/1, is_websocket/1, websocket_data/1, websocket_unmask/3, send_ws_data/2]).
 
 key(Key) ->
-    Challenge = base64:encode(crypto:hash(sha, << Key/binary, ?WEBSOCKET_GUID >>)),
-    io:format("Challenge is ~p~n", [Challenge]),
-    Challenge.
+    base64:encode(crypto:hash(sha, << Key/binary, ?WEBSOCKET_GUID >>)).
 
 is_websocket(Data) ->
     case websocket_data(Data) of
