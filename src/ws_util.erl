@@ -31,6 +31,18 @@ websocket_data(<< 1:1, 0:3, 1:4, 1:1, Len:7, MaskKey:32, Rest/bits >>) when Len 
     <<End:Len/binary, _/bits>> = Rest,
     Text = websocket_unmask(End, MaskKey, <<>>),
     Text;
+%% FIXME
+websocket_data(<< 1:1, 0:3, Opcode:4, 1:1, 126:7, Len:16, MaskKey:32, Rest/bits >>) when Len > 125, Opcode < 8 ->
+    lager:info("126rest is ~p~n", [Rest]),
+    <<End:Len/binary, _/bits>> = Rest,
+    Text = websocket_unmask(End, MaskKey, <<>>),
+    Text;
+%% FIXME
+websocket_data(<< 1:1, 0:3, Opcode:4, 1:1, 127:7, 0:1, Len:63, MaskKey:32, Rest/bits >>) when Len > 16#ffff, Opcode < 8 ->
+    lager:info("127rest is ~p~n", [Rest]),
+    <<End:Len/binary, _/bits>> = Rest,
+    Text = websocket_unmask(End, MaskKey, <<>>),
+    Text;
 websocket_data(_) ->
     <<>>.
 
