@@ -3,7 +3,7 @@
 #### client send one-to-one chat(must be friends) to server
 
 ```json
-CHAT/1.0\r\n\r\n
+ONECHAT/1.0\r\nPAYLOAD_LEN: 587\r\n\r\n
 {
     "cmd": "single_chat",
     "to": "to user mysql id, must be integer",
@@ -15,7 +15,7 @@ CHAT/1.0\r\n\r\n
 ###### server reply ack to client, and then client verify this ack
 
 ```json
-CHAT/1.0\r\n\r\n
+ONECHAT/1.0\r\nPAYLOAD_LEN: 587\r\n\r\n
 {
     "cmd": "single_chat",
     "action": "single_chat",
@@ -26,7 +26,7 @@ CHAT/1.0\r\n\r\n
 #### server send single chat msg to client
 
 ```json
-CHAT/1.0\r\n\r\n
+ONECHAT/1.0\r\nPAYLOAD_LEN: 587\r\n\r\n
 {
     "cmd": "single_chat",
     "from": "from user mysql id, must be integer",
@@ -38,7 +38,7 @@ CHAT/1.0\r\n\r\n
 ###### client reply ack to server with this ack
 
 ```json
-CHAT/1.0\r\n\r\n
+ONECHAT/1.0\r\nPAYLOAD_LEN: 587\r\n\r\n
 {
     "cmd": "ack",
     "action": "single_chat",
@@ -49,7 +49,7 @@ CHAT/1.0\r\n\r\n
 #### client send group chat msg to server
 
 ```json
-CHAT/1.0\r\n\r\n
+ONECHAT/1.0\r\nPAYLOAD_LEN: 587\r\n\r\n
 {
     "cmd": "group_chat",
     "to": "to room mysql id, must be integer",
@@ -61,7 +61,7 @@ CHAT/1.0\r\n\r\n
 ###### server reply ack to client, and then client verify this ack
 
 ```json
-CHAT/1.0\r\n\r\n
+ONECHAT/1.0\r\nPAYLOAD_LEN: 587\r\n\r\n
 {
     "cmd": "ack",
     "action": "group_chat",
@@ -72,7 +72,7 @@ CHAT/1.0\r\n\r\n
 #### server send group chat msg to client
 
 ```json
-CHAT/1.0\r\n\r\n
+ONECHAT/1.0\r\nPAYLOAD_LEN: 587\r\n\r\n
 {
     "cmd": "group_chat",
     "from": "from user mysql id, must be integer",
@@ -85,7 +85,7 @@ CHAT/1.0\r\n\r\n
 ###### client reply ack to server with this ack
 
 ```json
-CHAT/1.0\r\n\r\n
+ONECHAT/1.0\r\nPAYLOAD_LEN: 587\r\n\r\n
 {
     "cmd": "ack",
     "action": "group_chat",
@@ -96,7 +96,7 @@ CHAT/1.0\r\n\r\n
 #### server send single chat offline msg to client
 
 ```json
-CHAT/1.0\r\n\r\n
+ONECHAT/1.0\r\nPAYLOAD_LEN: 587\r\n\r\n
 {
     "cmd": "offline_single_chat_msg",
     "msg": [
@@ -126,7 +126,7 @@ CHAT/1.0\r\n\r\n
 ###### client reply ack to server with this ack
 
 ```json
-CHAT/1.0\r\n\r\n
+ONECHAT/1.0\r\nPAYLOAD_LEN: 587\r\n\r\n
 {
     "cmd": "ack",
     "action": "offline_single_chat_msg",
@@ -137,7 +137,7 @@ CHAT/1.0\r\n\r\n
 #### server send group chat offline msg to client
 
 ```json
-CHAT/1.0\r\n\r\n
+ONECHAT/1.0\r\nPAYLOAD_LEN: 587\r\n\r\n
 {
     "cmd": "offline_group_chat_msg",
     "msg": [
@@ -165,7 +165,7 @@ CHAT/1.0\r\n\r\n
 ###### client reply ack to server with this ack
 
 ```json
-CHAT/1.0\r\n\r\n
+ONECHAT/1.0\r\nPAYLOAD_LEN: 587\r\n\r\n
 {
     "cmd": "ack",
     "action": "offline_group_chat_msg",
@@ -177,7 +177,7 @@ CHAT/1.0\r\n\r\n
 #### error
 
 ```json
-CHAT/1.0\r\n\r\n
+ONECHAT/1.0\r\nPAYLOAD_LEN: 587\r\n\r\n
 {
     "cmd": "error",
     "msg": "404 Not Found user with this name",

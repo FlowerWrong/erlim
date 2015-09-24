@@ -148,7 +148,9 @@ stop(ClientPid) ->
     ok.
 
 reply(Socket, Msg, tcp) ->
-    gen_tcp:send(Socket, Msg);
+    PayloadLen = byte_size(Msg),
+    Payload = iolist_to_binary([<<"ONECHAT/1.0\r\nPAYLOAD_LEN: ">>, util:integer2binary(PayloadLen), <<"\r\n\r\n">>, Msg]),
+    gen_tcp:send(Socket, Payload);
 reply(Socket, Msg, websocket) ->
     ws_util:send_ws_data(Socket, Msg).
 
