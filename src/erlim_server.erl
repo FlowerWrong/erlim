@@ -23,7 +23,7 @@
     {ip, {0, 0, 0, 0}},
     {packet, 0},
     %% {backlog, 8192},
-    {buffer, 1048576},
+    {buffer, 1024},
     %% {recbuf, 8192},
     {active, false},
     {reuseaddr, true},

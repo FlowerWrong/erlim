@@ -1,6 +1,6 @@
 -module(util).
 
--export([timestamp/0, datetime2timestamp/1, uuid/0]).
+-export([timestamp/0, datetime2timestamp/1, uuid/0, integer2binary/1]).
 
 %% 16位的timestamp
 timestamp() ->
@@ -15,3 +15,6 @@ datetime2timestamp(DateTime) ->
 %% uuid v4
 uuid() ->
     uuid:generate().
+
+integer2binary(Number) when is_integer(Number) ->
+    list_to_binary(integer_to_list(Number)).

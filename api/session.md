@@ -3,7 +3,7 @@
 #### client send login params to server
 
 ```json
-CHAT/1.0\r\nPAYLOAD_LEN: 587\r\n\r\n
+ONECHAT/1.0\r\nPAYLOAD_LEN: 587\r\n\r\n
 {
     "cmd": "login",
     "name": "yang",
@@ -16,7 +16,7 @@ CHAT/1.0\r\nPAYLOAD_LEN: 587\r\n\r\n
 ###### server reply to client with client send ack, ack is an uuid or others
 
 ```json
-CHAT/1.0\r\nPAYLOAD_LEN: 587\r\n\r\n
+ONECHAT/1.0\r\nPAYLOAD_LEN: 587\r\n\r\n
 {
     "cmd": "ack",
     "action": "login",
@@ -27,7 +27,7 @@ CHAT/1.0\r\nPAYLOAD_LEN: 587\r\n\r\n
 #### Logout
 
 ```json
-CHAT/1.0\r\nPAYLOAD_LEN: 587\r\n\r\n
+ONECHAT/1.0\r\nPAYLOAD_LEN: 587\r\n\r\n
 {
     "cmd": "logout"
 }

@@ -24,7 +24,10 @@
     uid,
     device,
     node,
-    data_complete = false
+    data_complete = 0,  %% 0: 开始接收 1: 接收剩余 2: 接收完成
+    client_data = [],
+    payload_len,
+    already_receive_payload_len = 0
 }).
 
 -include("table.hrl").
@@ -107,62 +110,90 @@ handle_cast(_Msg, State) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_info({tcp, Socket, Data}, #state{socket = Socket} = State) ->
+handle_info({tcp, Socket, Data}, #state{socket = Socket, data_complete = DCFlag, client_data = ClientData, payload_len = PayloadLen, already_receive_payload_len = AlreadyReceivePayloadLen, protocol = P} = State) ->
     setopts(Socket),
     io:format("Data is ~p~n", [Data]),
     %% 首先判断是否ws，然后模式匹配自定义协议，去除http
-    IsJSON = jsx:is_json(Data),
-    NewState =
-        case IsJSON of
-            false ->
-                %% websocket and http
-                case ws_util:is_websocket(Data) of
-                    false ->
-                        case erlang:decode_packet(http_bin, Data, []) of
-                            {more, undefined} ->
-                                self() ! {tcp_closed, Socket},
-                                State;
-                            {ok, {http_request, _Method, _RawPath, _Version}, Rest} ->
-                                RestHeaders = cow_http:parse_headers(Rest),
-                                {RestHeaders1, <<>>} = RestHeaders,
-                                case lists:member({<<"upgrade">>, <<"websocket">>}, RestHeaders1) of
-                                    false ->
-                                        io:format("Protocol is http~n"),
-                                        http,
-                                        State;
-                                    true ->
-                                        Keys = lists:filter(fun(E) ->
-                                            case catch {<<"sec-websocket-key">>, _Key} = E of
-                                                E -> true;
-                                                _Error -> false
-                                            end
-                                        end, RestHeaders1),
-                                        [{<<"sec-websocket-key">>, Key}] = Keys,
-                                        AcceptKey = ws_util:key(Key),
-                                        WebSocketDataToBeSend = iolist_to_binary([<<"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ">>, AcceptKey, <<"\r\n\r\n">>]),
-                                        erlim_client:reply(Socket, WebSocketDataToBeSend, tcp),
-                                        State
-                                end;
-                            {ok, {http_error, _}, _} ->
-                                self() ! {tcp_closed, Socket},
-                                State;
-                            {ok, {http_response, _, _, _}, _} ->
-                                self() ! {tcp_closed, Socket},
-                                State
-                        end;
-                    true ->
-                        WsData = ws_util:websocket_data(Data),
-                        lager:info("WsData is ~p~n", [WsData]),
-                        case jsx:is_json(WsData) of
-                            true -> process_data(WsData, Socket, State, websocket);
-                            false ->
-                                erlim_client:reply_error(Socket, <<"invide json">>, 10400, websocket),
-                                State
-                        end
-                end;
-            true ->
-                process_data(Data, Socket, State, tcp)
-        end,
+    NewState = case DCFlag of
+        0 ->
+            case string:str(binary_to_list(Data), "ONECHAT/1.0\r\n") of
+                0 ->
+                    websocket_or_http,
+                    case ws_util:is_websocket(Data) of
+                        true ->
+                            websocket,
+                            WsData = ws_util:websocket_data(Data),
+                            lager:info("WsData is ~p~n", [WsData]),
+                            case jsx:is_json(WsData) of
+                                true -> process_data(WsData, Socket, State, websocket);
+                                false ->
+                                    erlim_client:reply_error(Socket, <<"invide json">>, 10400, websocket),
+                                    State
+                            end;
+                        false ->
+                            case erlang:decode_packet(http_bin, Data, []) of
+                                {ok, {http_request, _Method, _RawPath, _Version}, Rest} ->
+                                    RestHeaders = cow_http:parse_headers(Rest),
+                                    {RestHeaders1, <<>>} = RestHeaders,
+                                    case lists:member({<<"upgrade">>, <<"websocket">>}, RestHeaders1) of
+                                        true ->
+                                            Keys = lists:filter(fun(E) ->
+                                                case catch {<<"sec-websocket-key">>, _Key} = E of
+                                                    E -> true;
+                                                    _Error -> false
+                                                end
+                                            end, RestHeaders1),
+                                            [{<<"sec-websocket-key">>, Key}] = Keys,
+                                            AcceptKey = ws_util:key(Key),
+                                            WebSocketDataToBeSend = iolist_to_binary([<<"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ">>, AcceptKey, <<"\r\n\r\n">>]),
+                                            erlim_client:reply(Socket, WebSocketDataToBeSend, tcp),
+                                            State;
+                                        false ->
+                                            http,
+                                            self() ! {tcp_closed, Socket},
+                                            State
+                                    end;
+                                _ ->
+                                    self() ! {tcp_closed, Socket},
+                                    State
+                            end
+                    end;
+                1 ->
+                    tcp,
+                    DataList = string:tokens(binary_to_list(Data), "\r\n"),
+                    PayloadLength0 = string:tokens(lists:nth(2, DataList), ": "),
+                    PayloadLength1 = lists:nth(2, PayloadLength0),
+                    PayloadLength = list_to_integer(PayloadLength1),
+                    io:format("Datalist is ~p, len is ~p~n", [DataList, PayloadLength]),
+                    if
+                        PayloadLength > 8192 ->
+                            erlim_client:reply_error(Socket, <<"data must less than 8192 bytes">>, 10400, tcp),
+                            State;
+                        true ->
+                            PayloadTmp = lists:nth(3, DataList),
+                            Payload0 = list_to_binary(PayloadTmp),
+                            io:format("Payload0 is ~p~n", [Payload0]),
+                            case byte_size(Payload0) =:= PayloadLength of
+                                false ->
+                                    NewClientData0 = [Payload0 | ClientData],
+                                    State#state{data_complete = 1, client_data = NewClientData0, payload_len = PayloadLength, protocol = tcp};
+                                true ->
+                                    S = State#state{data_complete = 0, client_data = [], payload_len = undefined, protocol = tcp, already_receive_payload_len = 0},
+                                    process_data(Payload0, Socket, S, tcp)
+                            end
+                    end
+            end;
+        1 ->
+            NewClientData1 = [Data | ClientData],
+            AlreadyReceivePayloadLen1 = byte_size(Data) + AlreadyReceivePayloadLen,
+            case AlreadyReceivePayloadLen1 =:= PayloadLen of
+                false ->
+                    State#state{data_complete = 1, client_data = NewClientData1, payload_len = AlreadyReceivePayloadLen1, protocol = P};
+                true ->
+                    S = State#state{data_complete = 0, client_data = [], payload_len = undefined, protocol = P, already_receive_payload_len = 0},
+                    process_data(iolist_to_binary(NewClientData1), Socket, S, P)
+            end
+    end,
     lager:info("NewState is ~p~n", [NewState]),
     {noreply, NewState, NewState#state.heartbeat_timeout};
 % tcp connection change to passive
@@ -257,7 +288,7 @@ process_data(Data, Socket, State, Protocol) ->
                                 CreatedAtT = util:datetime2timestamp(CreatedAtD),
                                 UpdatedAtT = util:datetime2timestamp(UpdatedAtD),
                                 {[{id, M#msg_record.id}, {f, M#msg_record.f}, {t, M#msg_record.t}, {msg, M#msg_record.msg}, {unread, M#msg_record.unread}, {created_at, CreatedAtT}, {updated_at, UpdatedAtT}]}
-                                                    end, Msgs),
+                            end, Msgs),
                             MsgsIds = lists:map(fun(M) ->
                                 M#msg_record.id
                                                 end, Msgs),
