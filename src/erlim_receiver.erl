@@ -112,24 +112,30 @@ handle_cast(_Msg, State) ->
 %%--------------------------------------------------------------------
 handle_info({tcp, Socket, Data}, #state{socket = Socket, data_complete = DCFlag, client_data = ClientData, payload_len = PayloadLen, already_receive_payload_len = AlreadyReceivePayloadLen, protocol = P} = State) ->
     setopts(Socket),
-    lager:info("Data is ~p~n", [Data]),
     NewState = case DCFlag of
                    0 ->
-                       lager:info("flag is ~p~n", [string:str(binary_to_list(Data), "ONECHAT/1.0\r\n")]),
                        case string:str(binary_to_list(Data), "ONECHAT/1.0\r\n") of
                            0 ->
                                case ws_util:is_websocket(Data) of
                                    true ->
-                                       WsData = ws_util:websocket_data(Data),
-                                       lager:info("WsData is ~p~n", [WsData]),
-                                       case jsx:is_json(WsData) of
-                                           true -> process_data(WsData, Socket, State, websocket);
+                                       PayLoadLength = ws_util:get_payload_len(Data),
+                                       WsDataList = ws_util:get_packet_data(Data),
+                                       WsData = list_to_binary(WsDataList),
+                                       Alrpl = byte_size(WsData),
+                                       lager:info("Payloadlen is ~p, alrpl is ~p~n", [PayLoadLength, Alrpl]),
+                                       case PayLoadLength =:= Alrpl of
+                                           true ->
+                                               case jsx:is_json(WsData) of
+                                                   true -> process_data(WsData, Socket, State, websocket);
+                                                   false ->
+                                                       erlim_client:reply_error(Socket, <<"invide json">>, 10400, websocket),
+                                                       State#state{protocol = websocket}
+                                               end;
                                            false ->
-                                               erlim_client:reply_error(Socket, <<"invide json">>, 10400, websocket),
-                                               State#state{protocol = websocket}
+                                               NewClientData = [WsData | ClientData],
+                                               State#state{data_complete = 1, client_data = NewClientData, payload_len = PayLoadLength, protocol = websocket, already_receive_payload_len = Alrpl}
                                        end;
                                    false ->
-                                       lager:info("Data is ~p~n", [Data]),
                                        case erlang:decode_packet(http_bin, Data, []) of
                                            {ok, {http_request, _Method, _RawPath, _Version}, Rest} ->
                                                %% 解析http头部
@@ -188,6 +194,7 @@ handle_info({tcp, Socket, Data}, #state{socket = Socket, data_complete = DCFlag,
                        NewClientData = [Data | ClientData],
                        %% 已经接收到的数据大小
                        Alrpl = byte_size(Data) + AlreadyReceivePayloadLen,
+                       lager:info("Payloadlen is ~p, alrpl is ~p~n", [PayloadLen, Alrpl]),
                        case Alrpl =:= PayloadLen of
                            false ->
                                State#state{data_complete = 1, client_data = NewClientData, already_receive_payload_len = Alrpl, protocol = P};
@@ -195,10 +202,15 @@ handle_info({tcp, Socket, Data}, #state{socket = Socket, data_complete = DCFlag,
                                S = State#state{data_complete = 0, client_data = [], payload_len = undefined, protocol = P, already_receive_payload_len = 0},
                                PayloadOver = iolist_to_binary(lists:reverse(NewClientData)),
                                lager:info("Payload last is ~p~n", [PayloadOver]),
-                               process_data(PayloadOver, Socket, S, P)
+
+                               case jsx:is_json(PayloadOver) of
+                                   true -> process_data(PayloadOver, Socket, S, P);
+                                   false ->
+                                       erlim_client:reply_error(Socket, <<"invide json">>, 10400, P),
+                                       S
+                               end
                        end
                end,
-    lager:info("NewState is ~p~n", [NewState]),
     {noreply, NewState, NewState#state.heartbeat_timeout};
 % tcp connection change to passive
 handle_info({tcp_passive, Socket}, #state{socket = Socket} = State) ->
