@@ -98,7 +98,7 @@ cp erlim.example.toml /etc/erlim/erlim.toml
 - [x] add websocket support
 - [ ] add edoc
 - [ ] add video chat support(ICE  STUN: RFC3489  TURN: RFC5766  SIP  WebRTC SDP)
-- [ ] multi video chat without p2p
+- [ ] multi video chat without p2p, rtmp and hls
 - [ ] implement cluster mode with a scheduler in erlang or nodejs or ruby
 - [ ] add web admin support
 - [ ] add max connection number test
