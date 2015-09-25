@@ -76,7 +76,7 @@ cp erlim.example.toml /etc/erlim/erlim.toml
 * [Building a signaling server in Erlang](https://www.packtpub.com/packtlib/book/Application-Development/9781783284450/1/ch01lvl1sec09/Building%20a%20signaling%20server%20in%20Erlang)
 * [erlang Socket acceptor pool for TCP protocols.](https://github.com/ninenines/ranch)
 * [peerjs](http://peerjs.com/)
-* [](http://rtc.io/)
+* [rtc](http://rtc.io/)
 
 #### Todo
 
