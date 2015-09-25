@@ -59,6 +59,24 @@ cp erlim.example.toml /etc/erlim/erlim.toml
 * [Open+Source+VOIP+Software](http://www.voip-info.org/wiki/view/Open+Source+VOIP+Software)
 * [nksip](https://github.com/kalta/nksip)
 * [使用Mini Sipserver 搭建小型的sip服务器](http://blog.csdn.net/cazicaquw/article/details/7345327)
+* [asterisk](http://www.asterisk.org/downloads/source-code)
+* [freeswitch](https://freeswitch.org/)
+
+#### webRTC
+
+* [talky](https://talky.io/)
+* [simplewebrtc](http://simplewebrtc.com/)
+* [easyrtc](https://easyrtc.com)
+* [STUN and TURN server in c](https://github.com/otalk/restund/tree/master/docs)
+* [stun server in c++](http://www.stunprotocol.org/)
+* [BitTorrent over WebRTC](https://github.com/feross/webtorrent/)
+* [erlang webrtc-sig-server](https://github.com/mlodzianck/webrtc-sig-server)
+* [nodejs webrtc signaling server](https://github.com/LingyuCoder/SkyRTC)
+* [webrtcexample](https://github.com/fycth/webrtcexample)
+* [Building a signaling server in Erlang](https://www.packtpub.com/packtlib/book/Application-Development/9781783284450/1/ch01lvl1sec09/Building%20a%20signaling%20server%20in%20Erlang)
+* [erlang Socket acceptor pool for TCP protocols.](https://github.com/ninenines/ranch)
+* [peerjs](http://peerjs.com/)
+* [](http://rtc.io/)
 
 #### Todo
 
