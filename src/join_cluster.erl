@@ -25,7 +25,7 @@ set_tables([Table | Tables], Remote) ->
     set_tables(Tables, Remote).
 
 start(Remote) ->
-    io:format("~n",[]),
+    io:format("~n", []),
     case net_adm:ping(Remote) of
         pong ->
             mnesia:stop(),

@@ -44,6 +44,8 @@ cp erlim.example.toml /etc/erlim/erlim.toml
 * single chat: chat must be friends
 * group chat: whatsapp-like
 * chat history both single chat and group chat
+* websocket support
+* ONECHAT protocol(Design by FlowerWrong) support
 
 #### Cluster
 
@@ -51,6 +53,12 @@ cp erlim.example.toml /etc/erlim/erlim.toml
 * [ejabberd cluster](https://raymii.org/s/tutorials/Set_up_a_federated_XMPP_Chat_Network_with_ejabberd.html)
 * [load balance long tcp connection](http://stackoverflow.com/questions/8915959/how-do-you-load-balance-tcp-traffic)
 * [mnesia cluster](http://stackoverflow.com/questions/787755/how-to-add-a-node-to-an-mnesia-cluster)
+
+#### VOIP
+
+* [Open+Source+VOIP+Software](http://www.voip-info.org/wiki/view/Open+Source+VOIP+Software)
+* [nksip](https://github.com/kalta/nksip)
+* [使用Mini Sipserver 搭建小型的sip服务器](http://blog.csdn.net/cazicaquw/article/details/7345327)
 
 #### Todo
 
@@ -69,9 +77,12 @@ cp erlim.example.toml /etc/erlim/erlim.toml
 - [x] timeout
 - [x] implement mnesia cluster
 - [x] add websocket support
+- [ ] add edoc
+- [ ] add video chat support(ICE  STUN: RFC3489  TURN: RFC5766  SIP  WebRTC)
 - [ ] implement cluster mode with a scheduler in erlang or nodejs or ruby
 - [ ] add web admin support
 - [ ] add max connection number test
+- [ ] add tls support
 - [ ] keep session(避免移动端重连风暴)
 - [ ] implement pubsub with erlang(gen_event)
 - [ ] yrl and xrl(语法分析/词法分析) write json parse in erlang(yecc and leex)

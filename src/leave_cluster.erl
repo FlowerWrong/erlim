@@ -16,7 +16,7 @@ del_tables([Table | Tables], Node) ->
     del_tables(Tables, Node).
 
 start() ->
-    io:format("~n",[]),
+    io:format("~n", []),
     Removed = node(),
     case mnesia:system_info(running_db_nodes)--[Removed] of
         [] -> io:format("Error: no other node running in the cluster~n");
