@@ -475,6 +475,7 @@ process_data(Data, Socket, State, Protocol) ->
                                     self() ! {tcp_closed, Socket},
                                     State;
                                 _ ->
+                                    %% FIXME webrtc signaling server
                                     %% 用户登陆后发送了未知命令
                                     erlim_client:reply_error(Socket, <<"Unknown cmd">>, 10400, Protocol),
                                     State
