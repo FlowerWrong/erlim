@@ -148,7 +148,7 @@ handle_info({tcp, Socket, Data}, #state{socket = Socket, data_complete = DCFlag,
                                                                E -> true;
                                                                _Error -> false
                                                            end
-                                                                           end, RestHeaders),
+                                                       end, RestHeaders),
                                                        [{<<"sec-websocket-key">>, Key}] = Keys,
                                                        %% 计算加密key
                                                        AcceptKey = ws_util:key(Key),
@@ -305,10 +305,10 @@ process_data(Data, Socket, State, Protocol) ->
                                 CreatedAtT = util:datetime2timestamp(CreatedAtD),
                                 UpdatedAtT = util:datetime2timestamp(UpdatedAtD),
                                 {[{id, M#msg_record.id}, {f, M#msg_record.f}, {t, M#msg_record.t}, {msg, M#msg_record.msg}, {unread, M#msg_record.unread}, {created_at, CreatedAtT}, {updated_at, UpdatedAtT}]}
-                                                    end, Msgs),
+                            end, Msgs),
                             MsgsIds = lists:map(fun(M) ->
                                 M#msg_record.id
-                                                end, Msgs),
+                            end, Msgs),
                             MsgDataToBeSend = jiffy:encode({[{<<"cmd">>, <<"offline_single_chat_msg">>}, {<<"msg">>, MsgsForJson}, {<<"ack">>, MsgsIds}]}),
                             lager:info("offline single chat msgs are ~p~n", [MsgDataToBeSend]),
                             erlim_client:reply(Socket, MsgDataToBeSend, Protocol)
@@ -325,10 +325,10 @@ process_data(Data, Socket, State, Protocol) ->
                                 CreatedAtT = util:datetime2timestamp(CreatedAtD),
                                 UpdatedAtT = util:datetime2timestamp(UpdatedAtD),
                                 {[{id, R#roommsg_record.id}, {f, R#roommsg_record.f}, {t, R#roommsg_record.t}, {msg, R#roommsg_record.msg}, {created_at, CreatedAtT}, {updated_at, UpdatedAtT}]}
-                                                        end, Roommsgs),
+                            end, Roommsgs),
                             RoommsgsIds = lists:map(fun(R) ->
                                 R#roommsg_record.id
-                                                    end, Roommsgs),
+                            end, Roommsgs),
                             RoomMsgDataToBeSend = jiffy:encode({[{<<"cmd">>, <<"offline_group_chat_msg">>}, {<<"msg">>, RoommsgsForJson}, {<<"ack">>, RoommsgsIds}]}),
                             lager:info("offline group chat msgs are ~p~n", [RoomMsgDataToBeSend]),
                             erlim_client:reply(Socket, RoomMsgDataToBeSend, Protocol)
@@ -391,7 +391,7 @@ process_data(Data, Socket, State, Protocol) ->
                                                                             false ->
                                                                                 {U#session.register_name, U#session.node} ! {single_chat, DataToSend}
                                                                         end
-                                                                                  end, ToUsers)
+                                                                    end, ToUsers)
                                                             end,
                                                             State
                                                     end
@@ -439,10 +439,10 @@ process_data(Data, Socket, State, Protocol) ->
                                                                                 lists:foreach(fun(U) ->
                                                                                     DataToSend = jiffy:encode({[{<<"cmd">>, <<"group_chat">>}, {<<"from">>, SessionUserMnesia#session.uid}, {<<"to">>, ToRoomId}, {<<"msg">>, Msg}, {<<"ack">>, UserRoommsgId}]}),
                                                                                     {U#session.register_name, U#session.node} ! {group_chat, DataToSend}
-                                                                                              end, ToUsers)
+                                                                                end, ToUsers)
                                                                         end
                                                                 end
-                                                                          end, Members),
+                                                            end, Members),
                                                             State
                                                     end
                                             end
@@ -461,12 +461,12 @@ process_data(Data, Socket, State, Protocol) ->
                                             lager:info("Single chat offline msg ack is ~p~n", [Ack]),
                                             lists:foreach(fun(MsgId) ->
                                                 mysql_util:mark_read(MsgId, single_chat)
-                                                          end, Ack);
+                                            end, Ack);
                                         <<"offline_group_chat_msg">> ->
                                             lager:info("Group chat offline msg ack is ~p~n", [Ack]),
                                             lists:foreach(fun(RoomMsgId) ->
                                                 mysql_util:mark_read(RoomMsgId, Uid, group_chat)
-                                                          end, Ack);
+                                            end, Ack);
                                         _ ->
                                             erlim_client:reply_error(Socket, <<"404 Not Found this ack action">>, 10404, Protocol)
                                     end,
@@ -476,9 +476,81 @@ process_data(Data, Socket, State, Protocol) ->
                                     State;
                                 _ ->
                                     %% FIXME webrtc signaling server
-                                    %% 用户登陆后发送了未知命令
-                                    erlim_client:reply_error(Socket, <<"Unknown cmd">>, 10400, Protocol),
-                                    State
+                                    case Protocol of
+                                        websocket ->
+                                            case Cmd of
+                                                <<"webrtc_create">> ->
+                                                    [{<<"to">>, ToUid}, {<<"ack">>, Ack}] = T,
+                                                    %% 对方是否在线
+                                                    case mnesia_util:query_session_by_uid(ToUid) of
+                                                        false ->
+                                                            erlim_client:reply_error(Socket, <<"User is not online.">>, 10403, Protocol),
+                                                            State;
+                                                        ToUsers ->
+                                                            Room = ws_util:new_room_name(),
+                                                            io:format("Room is ~p~n", [Room]),
+                                                            ok = pg2:create(Room),
+                                                            ok = pg2:join(Room, self()),
+                                                            %% 发送视频通讯请求给用户,但是此处发给多个终端还是一个, join就表示了ack
+                                                            lists:foreach(fun(U) ->
+                                                                DataToSend = jiffy:encode({[{<<"cmd">>, <<"webrtc_create">>}, {<<"from">>, SessionUserMnesia#session.uid}, {<<"msg">>, <<"send a video chat request to you">>}, {<<"ack">>, binary_to_integer(Room)}]}),
+                                                                {U#session.register_name, U#session.node} ! {webrtc_create, DataToSend}
+                                                            end, ToUsers),
+                                                            erlim_client:reply_ack(Socket, <<"webrtc_create">>, Ack, Protocol),
+                                                            State
+                                                    end;
+                                                <<"webrtc_join">> ->
+                                                    [{<<"to">>, ToRoomid}, {<<"ack">>, Ack}] = T,
+                                                    Room = integer_to_binary(ToRoomid),
+                                                    case pg2:get_members(Room) of
+                                                        {error, _} ->
+                                                            erlim_client:reply_error(Socket, <<"Invide room.">>, 10404, Protocol);
+                                                        Members ->
+                                                            case length(Members) of
+                                                                1 ->
+                                                                    ok = pg2:join(Room, self()),
+                                                                    DataToSend = jiffy:encode({[{<<"cmd">>, <<"webrtc_join">>}, {<<"from">>, SessionUserMnesia#session.uid}, {<<"to">>, ToRoomid}, {<<"ack">>, Ack}]}),
+                                                                    ws_util:relay_message(DataToSend, Room),
+                                                                    erlim_client:reply_ack(Socket, <<"webrtc_join">>, Ack, Protocol),
+                                                                    State;
+                                                                _ ->
+                                                                    erlim_client:reply_error(Socket, <<"Invide room.">>, 10404, Protocol),
+                                                                    State
+                                                            end
+                                                    end;
+                                                <<"webrtc_leave">> ->
+                                                    [{<<"to">>, ToRoomid}, {<<"ack">>, Ack}] = T,
+                                                    Room = integer_to_binary(ToRoomid),
+                                                    case pg2:get_members(Room) of
+                                                        {error, _} ->
+                                                            erlim_client:reply_error(Socket, <<"Invide room.">>, 10404, Protocol);
+                                                        Members ->
+                                                            case length(Members) of
+                                                                0 ->
+                                                                    pg2:delete(Room);
+                                                                1 ->
+                                                                    ok = pg2:leave(Room, self()),
+                                                                    pg2:delete(Room),
+                                                                    erlim_client:reply_ack(Socket, <<"webrtc_leave">>, Ack, Protocol),
+                                                                    State;
+                                                                _ ->
+                                                                    ok = pg2:leave(Room, self()),
+                                                                    DataToSend = jiffy:encode({[{<<"cmd">>, <<"webrtc_leave">>}, {<<"from">>, SessionUserMnesia#session.uid}, {<<"to">>, ToRoomid}, {<<"ack">>, Ack}]}),
+                                                                    ws_util:relay_message(DataToSend, Room),
+                                                                    erlim_client:reply_ack(Socket, <<"webrtc_leave">>, Ack, Protocol),
+                                                                    State
+                                                            end
+                                                    end;
+                                                _ ->
+                                                    %% 用户登陆后发送了未知命令
+                                                    erlim_client:reply_error(Socket, <<"Unknown cmd">>, 10400, Protocol),
+                                                    State
+                                            end;
+                                        _ ->
+                                            %% 用户登陆后发送了未知命令
+                                            erlim_client:reply_error(Socket, <<"Unknown cmd">>, 10400, Protocol),
+                                            State
+                                    end
                             end
                     end
             end

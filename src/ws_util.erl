@@ -12,7 +12,7 @@
 -define(WEBSOCKET_GUID, "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").
 
 %% API
--export([key/1, is_websocket/1, get_payload_len/1, get_packet_data/1]).
+-export([key/1, is_websocket/1, get_payload_len/1, get_packet_data/1, new_room_name/0, relay_message/2]).
 
 key(Key) ->
     base64:encode(crypto:hash(sha, << Key/binary, ?WEBSOCKET_GUID >>)).
@@ -58,3 +58,12 @@ get_packet_data([H | T], Key, Counter, Result) ->
     get_packet_data(T, Key, Counter + 1, [H bxor lists:nth((Counter rem 4) + 1, Key) | Result]);
 get_packet_data([], _, _, Result) ->
     lists:reverse(Result).
+
+%% webRTC
+new_room_name() ->
+    Bin = crypto:rand_uniform(1, 100000),
+    integer_to_binary(Bin).
+
+%% pg2: http://www.erlang.org/doc/man/pg2.html
+relay_message(Msg, Room) ->
+    [Pid ! Msg || Pid <- pg2:get_members(Room) -- [self()]].

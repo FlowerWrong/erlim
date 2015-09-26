@@ -5,6 +5,7 @@
     query_session_by_uid/1,
     query_session_by_pid_and_device/2,
     query_session_by_uid_and_device/2,
+    is_online/1,
     all/0
 ]).
 
@@ -39,6 +40,12 @@ query_session_by_uid_and_device(Uid, Device) when is_integer(Uid) ->
     case mnesia:transaction(Fun) of
         {atomic, []} -> false;
         {atomic, [User]} -> User
+    end.
+
+is_online(Uid) when is_integer(Uid) ->
+    case query_session_by_uid(Uid) of
+        false -> false;
+        _ -> true
     end.
 
 all() ->
