@@ -78,6 +78,11 @@ cp erlim.example.toml /etc/erlim/erlim.toml
 * [peerjs](http://peerjs.com/)
 * [rtc](http://rtc.io/)
 * Session Description Protocol(SDP)
+* [webRTC.io-erlang](https://github.com/cavedweller/webRTC.io-erlang/blob/master/src/webRTCio_server.erl)
+* [webRTC.io-client](https://github.com/webRTC-io/webrtc.io-client/blob/master/lib/webrtc.io.js)
+* [js sdp](http://fisheye.igniterealtime.org/browse/openfire/trunk/src/plugins/jitsivideobridge/src/js/webrtc.sdp.js?r=13852)
+* [mozilla developer api](https://developer.mozilla.org/en-US/docs/Web/API/RTCSessionDescription/sdp)
+* [signaling and ice](http://segmentfault.com/a/1190000000439103)
 
 #### Todo
 
