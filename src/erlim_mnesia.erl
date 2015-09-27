@@ -35,10 +35,30 @@ create_table() ->
         {attributes, record_info(fields, session)},
         {ram_copies, [node()]}
     ]),
-    mnesia:add_table_copy(session, node(), ram_copies).
+    mnesia:add_table_copy(session, node(), ram_copies),
+
+    mnesia:create_table(webrtc_room, [
+        {attributes, record_info(fields, webrtc_room)},
+        {ram_copies, [node()]}
+    ]),
+    mnesia:add_table_copy(webrtc_room, node(), ram_copies),
+
+    mnesia:create_table(webrtc_members, [
+        {attributes, record_info(fields, webrtc_members)},
+        {ram_copies, [node()]}
+    ]),
+    mnesia:add_table_copy(webrtc_members, node(), ram_copies).
 
 update_tables() ->
     case catch mnesia:table_info(session, attributes) of
-      [uid, pid, device, node] -> mnesia:delete_table(session);
-      {'EXIT', _} -> ok
+        [uid, pid, device, node, register_name] -> mnesia:delete_table(session);
+        {'EXIT', _} -> ok
+    end,
+    case catch mnesia:table_info(webrtc_room, attributes) of
+        [uuid, name] -> mnesia:delete_table(webrtc_room);
+        {'EXIT', _} -> ok
+    end,
+    case catch mnesia:table_info(webrtc_members, attributes) of
+        [room_uuid, pid, nick_name] -> mnesia:delete_table(webrtc_members);
+        {'EXIT', _} -> ok
     end.

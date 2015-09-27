@@ -33,7 +33,6 @@ start(Remote) ->
             mnesia:start(),
             mnesia:change_config(extra_db_nodes, [Remote]),
             set_table_copy(schema, node(), disc_copies),
-            %% rpc:call => [schema, session]
             set_tables(rpc:call(Remote, mnesia, system_info, [tables]), Remote);
         pang ->
             io:format("node ~p is not reachable, please check epmd port, and FIREWALL_WINDOW ports~n", [Remote])

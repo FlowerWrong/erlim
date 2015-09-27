@@ -16,6 +16,17 @@
     register_name
 }).
 
+-record(webrtc_room, {
+    uuid,
+    name
+}).
+
+-record(webrtc_members, {
+    room_uuid,
+    pid,
+    nick_name
+}).
+
 %% For mysql record
 -record(user_record, {
     id,
