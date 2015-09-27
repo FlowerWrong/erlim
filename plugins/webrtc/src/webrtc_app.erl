@@ -6,7 +6,10 @@
 
 start(_Type, _Args) ->
 	Dispatch = cowboy_router:compile([
-		{'_', [{"/", cowboy_static, {priv_file, webrtc, "static/index.html"}}]}
+		{'_', [
+            {"/", cowboy_static, {priv_file, webrtc, "static/index.html"}},
+            {"/assets/[...]", cowboy_static, {priv_dir, webrtc, "assets"}}
+        ]}
 	]),
 	cowboy:start_http(http, 100, [{port, 8081}],
 		[{env, [{dispatch, Dispatch}]}]

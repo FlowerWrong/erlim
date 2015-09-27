@@ -12,10 +12,10 @@
 -define(WEBSOCKET_GUID, "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").
 
 %% API
--export([key/1, is_websocket/1, get_payload_len/1, get_packet_data/1, new_room_name/0, relay_message/2]).
+-export([key/1, is_websocket/1, get_payload_len/1, get_packet_data/1, send_ws_data/2]).
 
 key(Key) ->
-    base64:encode(crypto:hash(sha, << Key/binary, ?WEBSOCKET_GUID >>)).
+    base64:encode(crypto:hash(sha, <<Key/binary, ?WEBSOCKET_GUID>>)).
 
 is_websocket(Data) ->
     case catch <<1:1, 0:3, _Opcode:4, 1:1, _Len:7, _Rest/binary>> = Data of
@@ -24,32 +24,32 @@ is_websocket(Data) ->
     end.
 
 get_payload_len(Packet) ->
-    <<_FIN: 1, _RSV1: 1, _RSV2: 1, _RSV3: 1, _OPCODE: 4, _MASK: 1, PAYLOADLEN: 7, Rest/binary>> = Packet,
+    <<_FIN:1, _RSV1:1, _RSV2:1, _RSV3:1, _OPCODE:4, _MASK:1, PAYLOADLEN:7, Rest/binary>> = Packet,
     if
         PAYLOADLEN =< 125 ->
-            <<_MASK_KEY: 32, PAYLOAD/binary>> = Rest,
+            <<_MASK_KEY:32, PAYLOAD/binary>> = Rest,
             byte_size(PAYLOAD);
         PAYLOADLEN == 126 ->
-            <<LENGTH: 16, _MASK_KEY: 32, _PAYLOAD/binary>> = Rest,
+            <<LENGTH:16, _MASK_KEY:32, _PAYLOAD/binary>> = Rest,
             LENGTH;
         PAYLOADLEN == 127 ->
-            <<LENGTH: 64, _MASK_KEY: 32, _PAYLOAD/binary>> = Rest,
+            <<LENGTH:64, _MASK_KEY:32, _PAYLOAD/binary>> = Rest,
             LENGTH
     end.
 
 get_packet_data(Packet) ->
-    <<_FIN: 1, _RSV1: 1, _RSV2: 1, _RSV3: 1, _OPCODE: 4, _MASK: 1, PAYLOADLEN: 7, Rest/binary>> = Packet,
+    <<_FIN:1, _RSV1:1, _RSV2:1, _RSV3:1, _OPCODE:4, _MASK:1, PAYLOADLEN:7, Rest/binary>> = Packet,
     if
         PAYLOADLEN =< 125 ->
-            <<MASK_KEY1: 8, MASK_KEY2: 8, MASK_KEY3: 8, MASK_KEY4: 8, PAYLOAD/binary>> = Rest,
+            <<MASK_KEY1:8, MASK_KEY2:8, MASK_KEY3:8, MASK_KEY4:8, PAYLOAD/binary>> = Rest,
             MASK_KEY = [MASK_KEY1, MASK_KEY2, MASK_KEY3, MASK_KEY4],
             get_packet_data(binary_to_list(PAYLOAD), MASK_KEY, 0, []);
         PAYLOADLEN == 126 ->
-            <<_LENGTH: 16, MASK_KEY1: 8, MASK_KEY2: 8, MASK_KEY3: 8, MASK_KEY4: 8, PAYLOAD/binary>> = Rest,
+            <<_LENGTH:16, MASK_KEY1:8, MASK_KEY2:8, MASK_KEY3:8, MASK_KEY4:8, PAYLOAD/binary>> = Rest,
             MASK_KEY = [MASK_KEY1, MASK_KEY2, MASK_KEY3, MASK_KEY4],
             get_packet_data(binary_to_list(PAYLOAD), MASK_KEY, 0, []);
         PAYLOADLEN == 127 ->
-            <<_LENGTH: 64, MASK_KEY1: 8, MASK_KEY2: 8, MASK_KEY3: 8, MASK_KEY4: 8, PAYLOAD/binary>> = Rest,
+            <<_LENGTH:64, MASK_KEY1:8, MASK_KEY2:8, MASK_KEY3:8, MASK_KEY4:8, PAYLOAD/binary>> = Rest,
             MASK_KEY = [MASK_KEY1, MASK_KEY2, MASK_KEY3, MASK_KEY4],
             get_packet_data(binary_to_list(PAYLOAD), MASK_KEY, 0, [])
     end.
@@ -59,11 +59,15 @@ get_packet_data([H | T], Key, Counter, Result) ->
 get_packet_data([], _, _, Result) ->
     lists:reverse(Result).
 
-%% webRTC
-new_room_name() ->
-    Bin = crypto:rand_uniform(1, 100000),
-    integer_to_binary(Bin).
+%% 发送文本给Client
+send_ws_data(Socket, Payload) ->
+    Len = iolist_size(Payload),
+    BinLen = payload_length_to_binary(Len),
+    gen_tcp:send(Socket, [<<1:1, 0:3, 1:4, 0:1, BinLen/bits>>, Payload]).
 
-%% pg2: http://www.erlang.org/doc/man/pg2.html
-relay_message(Msg, Room) ->
-    [Pid ! Msg || Pid <- pg2:get_members(Room) -- [self()]].
+payload_length_to_binary(N) ->
+    case N of
+        N when N =< 125 -> <<N:7>>;
+        N when N =< 16#ffff -> <<126:7, N:16>>;
+        N when N =< 16#7fffffffffffffff -> <<127:7, N:64>>
+    end.

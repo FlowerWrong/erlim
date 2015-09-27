@@ -23,7 +23,12 @@ init_mnesia() ->
             mnesia:start(),
             update_tables(),
             mnesia:change_table_copy_type(schema, node(), disc_copies),
-            create_table();
+            create_table(),
+            WebrtcRoomMnesia = #webrtc_room{uuid = "36d685c6-dac4-484a-9865-8dcc75800e50", name = "demo"},
+            F = fun() ->
+                mnesia:write(WebrtcRoomMnesia)
+            end,
+            mnesia:transaction(F);
         _ ->
             ok
     end,

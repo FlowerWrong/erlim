@@ -480,38 +480,44 @@ process_data(Data, Socket, State, Protocol) ->
                                         websocket ->
                                             case Cmd of
                                                 <<"webrtc_create">> ->
-                                                    [{<<"to">>, ToUid}, {<<"ack">>, Ack}] = T,
+                                                    [{<<"to">>, ToUid}, {<<"name">>, RoomName}] = T,
                                                     %% 对方是否在线
                                                     case mnesia_util:query_session_by_uid(ToUid) of
                                                         false ->
                                                             erlim_client:reply_error(Socket, <<"User is not online.">>, 10403, Protocol),
                                                             State;
                                                         ToUsers ->
-                                                            Room = ws_util:new_room_name(),
-                                                            io:format("Room is ~p~n", [Room]),
-                                                            ok = pg2:create(Room),
-                                                            ok = pg2:join(Room, self()),
+                                                            Uuid = util:uuid(),
+                                                            webrtc_room:create(Uuid, RoomName),
+                                                            webrtc_room:join(Uuid, SessionUserMnesia#session.pid, ""),
                                                             %% 发送视频通讯请求给用户,但是此处发给多个终端还是一个, join就表示了ack
+                                                            DataToSend = jiffy:encode({[{<<"cmd">>, <<"webrtc_create">>}, {<<"from">>, SessionUserMnesia#session.uid}, {<<"room_uuid">>, Uuid}]}),
                                                             lists:foreach(fun(U) ->
-                                                                DataToSend = jiffy:encode({[{<<"cmd">>, <<"webrtc_create">>}, {<<"from">>, SessionUserMnesia#session.uid}, {<<"msg">>, <<"send a video chat request to you">>}, {<<"ack">>, binary_to_integer(Room)}]}),
                                                                 {U#session.register_name, U#session.node} ! {webrtc_create, DataToSend}
                                                             end, ToUsers),
-                                                            erlim_client:reply_ack(Socket, <<"webrtc_create">>, Ack, Protocol),
+                                                            %% 发送房间信息给请求者
+                                                            erlim_client:reply(Socket, DataToSend, Protocol),
                                                             State
                                                     end;
                                                 <<"webrtc_join">> ->
-                                                    [{<<"to">>, ToRoomid}, {<<"ack">>, Ack}] = T,
-                                                    Room = integer_to_binary(ToRoomid),
-                                                    case pg2:get_members(Room) of
-                                                        {error, _} ->
+                                                    [{<<"to">>, ToRoomUuid}] = T,
+                                                    case webrtc_room:get_members(ToRoomUuid) of
+                                                        false ->
                                                             erlim_client:reply_error(Socket, <<"Invide room.">>, 10404, Protocol);
                                                         Members ->
                                                             case length(Members) of
                                                                 1 ->
-                                                                    ok = pg2:join(Room, self()),
-                                                                    DataToSend = jiffy:encode({[{<<"cmd">>, <<"webrtc_join">>}, {<<"from">>, SessionUserMnesia#session.uid}, {<<"to">>, ToRoomid}, {<<"ack">>, Ack}]}),
-                                                                    ws_util:relay_message(DataToSend, Room),
-                                                                    erlim_client:reply_ack(Socket, <<"webrtc_join">>, Ack, Protocol),
+                                                                    {atomic, ok} = webrtc_room:join(ToRoomUuid, SessionUserMnesia#session.pid, ""),
+                                                                    DataToSend = jiffy:encode({[{<<"cmd">>, <<"webrtc_join">>}, {<<"from">>, SessionUserMnesia#session.uid}, {<<"to">>, ToRoomUuid}]}),
+                                                                    lists:foreach(fun(U) ->
+                                                                        case mnesia_util:query_session_by_pid(U#webrtc_members.pid) of
+                                                                            false -> ok;
+                                                                            ToU ->
+                                                                                {ToU#session.register_name, ToU#session.node} ! {webrtc_join, DataToSend}
+                                                                        end
+                                                                    end, Members),
+                                                                    %% 发送加入信息给请求者
+                                                                    erlim_client:reply(Socket, DataToSend, Protocol),
                                                                     State;
                                                                 _ ->
                                                                     erlim_client:reply_error(Socket, <<"Invide room.">>, 10404, Protocol),
@@ -519,6 +525,7 @@ process_data(Data, Socket, State, Protocol) ->
                                                             end
                                                     end;
                                                 <<"webrtc_leave">> ->
+                                                    %% FIXME
                                                     [{<<"to">>, ToRoomid}, {<<"ack">>, Ack}] = T,
                                                     Room = integer_to_binary(ToRoomid),
                                                     case pg2:get_members(Room) of

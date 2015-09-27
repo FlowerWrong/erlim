@@ -3,6 +3,7 @@
 %% API functions
 -export([
     query_session_by_uid/1,
+    query_session_by_pid/1,
     query_session_by_pid_and_device/2,
     query_session_by_uid_and_device/2,
     is_online/1,
@@ -11,6 +12,16 @@
 
 -include("table.hrl").
 -include_lib("stdlib/include/qlc.hrl").
+
+query_session_by_pid(Pid) ->
+    Fun = fun() ->
+        Query = qlc:q([X || X <- mnesia:table(session), X#session.pid =:= Pid]),
+        qlc:e(Query)
+    end,
+    case mnesia:transaction(Fun) of
+        {atomic, []} -> false;
+        {atomic, [User]} -> User
+    end.
 
 query_session_by_pid_and_device(Pid, Device) ->
     Fun = fun() ->

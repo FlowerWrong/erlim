@@ -1,12 +1,12 @@
-## webRTC api(websocket)
+## webRTC api(websocket) without ack
 
 #### client send want to video chat with other, it send a `webrtc_create` to server
 
 ```json
 {
     "cmd": "webrtc_create",
-    "to": "to room mysql id, must be integer",
-    "ack": "72cdf1ae-62a3-4ebf-821c-a809d1931293"
+    "to": "to user mysql id, must be integer",
+    "name": "room name"
 }
 ```
 
@@ -16,17 +16,17 @@
 {
     "cmd": "webrtc_create",
     "from": "from user mysql id, must be integer",
-    "ack": "72cdf1ae-62a3-4ebf-821c-a809d1931293"
+    "room_uuid": "72cdf1ae-62a3-4ebf-821c-a809d1931293"
 }
 ```
 
-###### server reply ack to client, and then client verify this ack
+###### server send room msg to client
 
 ```json
 {
-    "cmd": "ack",
-    "action": "webrtc_create",
-    "ack": "72cdf1ae-62a3-4ebf-821c-a809d1931293"
+    "cmd": "webrtc_create",
+    "from": "from user mysql id, must be integer, 此处是自己的id",
+    "room_uuid": "72cdf1ae-62a3-4ebf-821c-a809d1931293"
 }
 ```
 
@@ -36,8 +36,7 @@
 ```json
 {
     "cmd": "webrtc_join",
-    "to": "to room pg2 id, must be integer",
-    "ack": "to room pg2 id, must be integer"
+    "to": "to room uuid, must be string"
 }
 ```
 
@@ -47,18 +46,7 @@
 {
     "cmd": "webrtc_join",
     "from": "from user mysql id, must be integer",
-    "to": "to room pg2 id, must be integer",
-    "ack": "to room pg2 id, must be integer"
-}
-```
-
-###### server reply ack to client, and then client verify this ack
-
-```json
-{
-    "cmd": "ack",
-    "action": "webrtc_join",
-    "ack": "to room pg2 id, must be integer"
+    "to": "to room uuid, must be integer"
 }
 ```
 
