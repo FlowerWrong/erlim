@@ -541,6 +541,54 @@ process_data(Data, Socket, State, Protocol) ->
                                                                     State
                                                             end
                                                     end;
+                                                <<"webrtc_send_offer">> ->
+                                                    [{<<"to">>, ToUid}, {<<"sdp">>, Sdp}, {<<"ack">>, _Ack}] = T,
+                                                    io:format("Sdp is ~p~n", [Sdp]),
+                                                    %% 对方是否在线
+                                                    case mnesia_util:query_session_by_uid(ToUid) of
+                                                        false ->
+                                                            erlim_client:reply_error(Socket, <<"User is not online.">>, 10403, Protocol),
+                                                            State;
+                                                        ToUsers ->
+                                                            %% 发送offer给用户,但是此处发给多个终端还是一个
+                                                            lists:foreach(fun(U) ->
+                                                                DataToSend = jiffy:encode({[{<<"cmd">>, <<"webrtc_send_offer">>}, {<<"from">>, SessionUserMnesia#session.uid}, {<<"sdp">>, Sdp}, {<<"ack">>, util:uuid()}]}),
+                                                                {U#session.register_name, U#session.node} ! {webrtc_send_offer, DataToSend}
+                                                            end, ToUsers),
+                                                            State
+                                                    end;
+                                                <<"webrtc_send_answer">> ->
+                                                    [{<<"to">>, ToUid}, {<<"sdp">>, Sdp}, {<<"ack">>, _Ack}] = T,
+                                                    io:format("Sdp is ~p~n", [Sdp]),
+                                                    %% 对方是否在线
+                                                    case mnesia_util:query_session_by_uid(ToUid) of
+                                                        false ->
+                                                            erlim_client:reply_error(Socket, <<"User is not online.">>, 10403, Protocol),
+                                                            State;
+                                                        ToUsers ->
+                                                            %% 发送answer给用户,但是此处发给多个终端还是一个
+                                                            lists:foreach(fun(U) ->
+                                                                DataToSend = jiffy:encode({[{<<"cmd">>, <<"webrtc_send_answer">>}, {<<"from">>, SessionUserMnesia#session.uid}, {<<"sdp">>, Sdp}, {<<"ack">>, util:uuid()}]}),
+                                                                {U#session.register_name, U#session.node} ! {webrtc_send_answer, DataToSend}
+                                                            end, ToUsers),
+                                                            State
+                                                    end;
+                                                <<"webrtc_send_ice_candidate">> ->
+                                                    [{<<"to">>, ToUid}, {<<"label">>, Label}, {<<"candidate">>, Candidate}, {<<"ack">>, _Ack}] = T,
+                                                    io:format("Candidate is ~p, label is ~p~n", [Candidate, Label]),
+                                                    %% 对方是否在线
+                                                    case mnesia_util:query_session_by_uid(ToUid) of
+                                                        false ->
+                                                            erlim_client:reply_error(Socket, <<"User is not online.">>, 10403, Protocol),
+                                                            State;
+                                                        ToUsers ->
+                                                            %% 发送ice_candidate给用户,但是此处发给多个终端还是一个
+                                                            lists:foreach(fun(U) ->
+                                                                DataToSend = jiffy:encode({[{<<"cmd">>, <<"webrtc_send_ice_candidate">>}, {<<"from">>, SessionUserMnesia#session.uid}, {<<"label">>, Label}, {<<"candidate">>, Candidate}, {<<"ack">>, util:uuid()}]}),
+                                                                {U#session.register_name, U#session.node} ! {webrtc_send_ice_candidate, DataToSend}
+                                                            end, ToUsers),
+                                                            State
+                                                    end;
                                                 _ ->
                                                     %% 用户登陆后发送了未知命令
                                                     erlim_client:reply_error(Socket, <<"Unknown cmd">>, 10400, Protocol),
