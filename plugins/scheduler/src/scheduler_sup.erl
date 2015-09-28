@@ -10,5 +10,4 @@ start_link() ->
 	supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
 init([]) ->
-    Mnesia = ?CHILD(scheduler_mnesia, worker),
-	{ok, {{one_for_one, 1, 5}, [Mnesia]}}.
+	{ok, {{one_for_one, 1, 5}, []}}.

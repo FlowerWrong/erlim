@@ -6,7 +6,8 @@
     {applications, [
         kernel,
         stdlib,
-        cowboy
+        cowboy,
+        mnesia
     ]},
     {mod, {scheduler_app, []}},
     {env, []}
