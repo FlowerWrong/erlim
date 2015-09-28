@@ -118,6 +118,22 @@ handle_info({webrtc_join, Msg}, #state{socket = Socket, protocol = Protocol} = S
     lager:info("erlim_client webrtc_join msg is ~p~n", [Msg]),
     reply(Socket, Msg, Protocol),
     {noreply, State};
+handle_info({webrtc_leave, Msg}, #state{socket = Socket, protocol = Protocol} = State) ->
+    lager:info("erlim_client webrtc_leave msg is ~p~n", [Msg]),
+    reply(Socket, Msg, Protocol),
+    {noreply, State};
+handle_info({webrtc_send_offer, Msg}, #state{socket = Socket, protocol = Protocol} = State) ->
+    lager:info("erlim_client webrtc_send_offer msg is ~p~n", [Msg]),
+    reply(Socket, Msg, Protocol),
+    {noreply, State};
+handle_info({webrtc_send_answer, Msg}, #state{socket = Socket, protocol = Protocol} = State) ->
+    lager:info("erlim_client webrtc_send_answer msg is ~p~n", [Msg]),
+    reply(Socket, Msg, Protocol),
+    {noreply, State};
+handle_info({webrtc_send_ice_candidate, Msg}, #state{socket = Socket, protocol = Protocol} = State) ->
+    lager:info("erlim_client webrtc_send_ice_candidate msg is ~p~n", [Msg]),
+    reply(Socket, Msg, Protocol),
+    {noreply, State};
 handle_info(_Info, State) ->
     {noreply, State}.
 

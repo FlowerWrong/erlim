@@ -36,6 +36,7 @@ delete(RoomUuid) when is_binary(RoomUuid) ->
     end.
 
 join(RoomUuid, Pid, NickName) when is_binary(RoomUuid), is_pid(Pid) ->
+    %% 表里面第一个字段通常觉得了是修改还是添加
     WebrtcMemberMnesia = #webrtc_members{room_uuid = RoomUuid, pid = Pid, nick_name = NickName},
     F = fun() ->
         mnesia:write(WebrtcMemberMnesia)

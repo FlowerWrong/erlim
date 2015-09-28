@@ -50,14 +50,12 @@
 }
 ```
 
-
 #### peer send `webrtc_leave` to server
 
 ```json
 {
     "cmd": "webrtc_leave",
-    "to": "to room pg2 id, must be integer",
-    "ack": "to room pg2 id, must be integer"
+    "to": "to room uuid, must be integer"
 }
 ```
 
@@ -67,18 +65,7 @@
 {
     "cmd": "webrtc_leave",
     "from": "from user mysql id, must be integer",
-    "to": "to room pg2 id, must be integer",
-    "ack": "to room pg2 id, must be integer"
-}
-```
-
-###### server reply ack to client, and then client verify this ack
-
-```json
-{
-    "cmd": "ack",
-    "action": "webrtc_leave",
-    "ack": "to room pg2 id, must be integer"
+    "to": "to room uuid, must be integer"
 }
 ```
 
@@ -90,8 +77,7 @@
 {
     "cmd": "webrtc_send_offer",
     "to": "to mysql user id, must be integer",
-    "sdp": "session_description.sdp",
-    "ack": "72cdf1ae-62a3-4ebf-821c-a809d1931293"
+    "sdp": "session_description.sdp"
 }
 ```
 
@@ -101,8 +87,7 @@
 {
     "cmd": "webrtc_send_offer",
     "from": "from mysql user id, must be integer",
-    "sdp": "session_description.sdp",
-    "ack": "72cdf1ae-62a3-4ebf-821c-a809d1931293"
+    "sdp": "session_description.sdp"
 }
 ```
 
@@ -112,8 +97,7 @@
 {
     "cmd": "webrtc_send_answer",
     "to": "to mysql user id, must be integer",
-    "sdp": "session_description.sdp",
-    "ack": "72cdf1ae-62a3-4ebf-821c-a809d1931293"
+    "sdp": "session_description.sdp"
 }
 ```
 
@@ -123,8 +107,7 @@
 {
     "cmd": "webrtc_send_answer",
     "from": "from mysql user id, must be integer",
-    "sdp": "session_description.sdp",
-    "ack": "72cdf1ae-62a3-4ebf-821c-a809d1931293"
+    "sdp": "session_description.sdp"
 }
 ```
 
@@ -138,8 +121,7 @@
     "cmd": "webrtc_send_ice_candidate",
     "to": "to mysql user id, must be integer",
     "label": "event.candidate.sdpMLineIndex",
-    "candidate": "event.candidate.candidate",
-    "ack": "72cdf1ae-62a3-4ebf-821c-a809d1931293"
+    "candidate": "event.candidate.candidate"
 }
 ```
 
@@ -150,8 +132,7 @@
     "cmd": "webrtc_send_ice_candidate",
     "from": "from mysql user id, must be integer",
     "label": "event.candidate.sdpMLineIndex",
-    "candidate": "event.candidate.candidate",
-    "ack": "72cdf1ae-62a3-4ebf-821c-a809d1931293"
+    "candidate": "event.candidate.candidate"
 }
 ```
 

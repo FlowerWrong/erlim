@@ -22,9 +22,9 @@
 }).
 
 -record(webrtc_members, {
-    room_uuid,
     pid,
-    nick_name
+    nick_name,
+    room_uuid
 }).
 
 %% For mysql record

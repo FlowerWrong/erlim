@@ -148,7 +148,7 @@ handle_info({tcp, Socket, Data}, #state{socket = Socket, data_complete = DCFlag,
                                                                E -> true;
                                                                _Error -> false
                                                            end
-                                                       end, RestHeaders),
+                                                                           end, RestHeaders),
                                                        [{<<"sec-websocket-key">>, Key}] = Keys,
                                                        %% 计算加密key
                                                        AcceptKey = ws_util:key(Key),
@@ -305,10 +305,10 @@ process_data(Data, Socket, State, Protocol) ->
                                 CreatedAtT = util:datetime2timestamp(CreatedAtD),
                                 UpdatedAtT = util:datetime2timestamp(UpdatedAtD),
                                 {[{id, M#msg_record.id}, {f, M#msg_record.f}, {t, M#msg_record.t}, {msg, M#msg_record.msg}, {unread, M#msg_record.unread}, {created_at, CreatedAtT}, {updated_at, UpdatedAtT}]}
-                            end, Msgs),
+                                                    end, Msgs),
                             MsgsIds = lists:map(fun(M) ->
                                 M#msg_record.id
-                            end, Msgs),
+                                                end, Msgs),
                             MsgDataToBeSend = jiffy:encode({[{<<"cmd">>, <<"offline_single_chat_msg">>}, {<<"msg">>, MsgsForJson}, {<<"ack">>, MsgsIds}]}),
                             lager:info("offline single chat msgs are ~p~n", [MsgDataToBeSend]),
                             erlim_client:reply(Socket, MsgDataToBeSend, Protocol)
@@ -325,10 +325,10 @@ process_data(Data, Socket, State, Protocol) ->
                                 CreatedAtT = util:datetime2timestamp(CreatedAtD),
                                 UpdatedAtT = util:datetime2timestamp(UpdatedAtD),
                                 {[{id, R#roommsg_record.id}, {f, R#roommsg_record.f}, {t, R#roommsg_record.t}, {msg, R#roommsg_record.msg}, {created_at, CreatedAtT}, {updated_at, UpdatedAtT}]}
-                            end, Roommsgs),
+                                                        end, Roommsgs),
                             RoommsgsIds = lists:map(fun(R) ->
                                 R#roommsg_record.id
-                            end, Roommsgs),
+                                                    end, Roommsgs),
                             RoomMsgDataToBeSend = jiffy:encode({[{<<"cmd">>, <<"offline_group_chat_msg">>}, {<<"msg">>, RoommsgsForJson}, {<<"ack">>, RoommsgsIds}]}),
                             lager:info("offline group chat msgs are ~p~n", [RoomMsgDataToBeSend]),
                             erlim_client:reply(Socket, RoomMsgDataToBeSend, Protocol)
@@ -391,7 +391,7 @@ process_data(Data, Socket, State, Protocol) ->
                                                                             false ->
                                                                                 {U#session.register_name, U#session.node} ! {single_chat, DataToSend}
                                                                         end
-                                                                    end, ToUsers)
+                                                                                  end, ToUsers)
                                                             end,
                                                             State
                                                     end
@@ -439,10 +439,10 @@ process_data(Data, Socket, State, Protocol) ->
                                                                                 lists:foreach(fun(U) ->
                                                                                     DataToSend = jiffy:encode({[{<<"cmd">>, <<"group_chat">>}, {<<"from">>, SessionUserMnesia#session.uid}, {<<"to">>, ToRoomId}, {<<"msg">>, Msg}, {<<"ack">>, UserRoommsgId}]}),
                                                                                     {U#session.register_name, U#session.node} ! {group_chat, DataToSend}
-                                                                                end, ToUsers)
+                                                                                              end, ToUsers)
                                                                         end
                                                                 end
-                                                            end, Members),
+                                                                          end, Members),
                                                             State
                                                     end
                                             end
@@ -461,12 +461,12 @@ process_data(Data, Socket, State, Protocol) ->
                                             lager:info("Single chat offline msg ack is ~p~n", [Ack]),
                                             lists:foreach(fun(MsgId) ->
                                                 mysql_util:mark_read(MsgId, single_chat)
-                                            end, Ack);
+                                                          end, Ack);
                                         <<"offline_group_chat_msg">> ->
                                             lager:info("Group chat offline msg ack is ~p~n", [Ack]),
                                             lists:foreach(fun(RoomMsgId) ->
                                                 mysql_util:mark_read(RoomMsgId, Uid, group_chat)
-                                            end, Ack);
+                                                          end, Ack);
                                         _ ->
                                             erlim_client:reply_error(Socket, <<"404 Not Found this ack action">>, 10404, Protocol)
                                     end,
@@ -489,12 +489,12 @@ process_data(Data, Socket, State, Protocol) ->
                                                         ToUsers ->
                                                             Uuid = util:uuid(),
                                                             webrtc_room:create(Uuid, RoomName),
-                                                            webrtc_room:join(Uuid, SessionUserMnesia#session.pid, ""),
+                                                            webrtc_room:join(Uuid, SessionUserMnesia#session.pid, "anymous"),
                                                             %% 发送视频通讯请求给用户,但是此处发给多个终端还是一个, join就表示了ack
                                                             DataToSend = jiffy:encode({[{<<"cmd">>, <<"webrtc_create">>}, {<<"from">>, SessionUserMnesia#session.uid}, {<<"room_uuid">>, Uuid}]}),
                                                             lists:foreach(fun(U) ->
                                                                 {U#session.register_name, U#session.node} ! {webrtc_create, DataToSend}
-                                                            end, ToUsers),
+                                                                          end, ToUsers),
                                                             %% 发送房间信息给请求者
                                                             erlim_client:reply(Socket, DataToSend, Protocol),
                                                             State
@@ -507,7 +507,7 @@ process_data(Data, Socket, State, Protocol) ->
                                                         Members ->
                                                             case length(Members) of
                                                                 1 ->
-                                                                    {atomic, ok} = webrtc_room:join(ToRoomUuid, SessionUserMnesia#session.pid, ""),
+                                                                    {atomic, ok} = webrtc_room:join(ToRoomUuid, SessionUserMnesia#session.pid, "anymous"),
                                                                     DataToSend = jiffy:encode({[{<<"cmd">>, <<"webrtc_join">>}, {<<"from">>, SessionUserMnesia#session.uid}, {<<"to">>, ToRoomUuid}]}),
                                                                     lists:foreach(fun(U) ->
                                                                         case mnesia_util:query_session_by_pid(U#webrtc_members.pid) of
@@ -515,7 +515,7 @@ process_data(Data, Socket, State, Protocol) ->
                                                                             ToU ->
                                                                                 {ToU#session.register_name, ToU#session.node} ! {webrtc_join, DataToSend}
                                                                         end
-                                                                    end, Members),
+                                                                                  end, Members),
                                                                     %% 发送加入信息给请求者
                                                                     erlim_client:reply(Socket, DataToSend, Protocol),
                                                                     State;
@@ -525,31 +525,38 @@ process_data(Data, Socket, State, Protocol) ->
                                                             end
                                                     end;
                                                 <<"webrtc_leave">> ->
-                                                    %% FIXME
-                                                    [{<<"to">>, ToRoomid}, {<<"ack">>, Ack}] = T,
-                                                    Room = integer_to_binary(ToRoomid),
-                                                    case pg2:get_members(Room) of
-                                                        {error, _} ->
+                                                    [{<<"to">>, ToRoomUuid}] = T,
+                                                    case webrtc_room:get_members(ToRoomUuid) of
+                                                        false ->
                                                             erlim_client:reply_error(Socket, <<"Invide room.">>, 10404, Protocol);
                                                         Members ->
                                                             case length(Members) of
-                                                                0 ->
-                                                                    pg2:delete(Room);
+                                                                0 -> webrtc_room:delete(ToRoomUuid);
                                                                 1 ->
-                                                                    ok = pg2:leave(Room, self()),
-                                                                    pg2:delete(Room),
-                                                                    erlim_client:reply_ack(Socket, <<"webrtc_leave">>, Ack, Protocol),
+                                                                    {atomic, ok} = webrtc_room:leave(ToRoomUuid, SessionUserMnesia#session.pid),
+                                                                    webrtc_room:delete(ToRoomUuid),
+                                                                    DataToSend = jiffy:encode({[{<<"cmd">>, <<"webrtc_leave">>}, {<<"from">>, SessionUserMnesia#session.uid}, {<<"to">>, ToRoomUuid}]}),
+                                                                    %% 发送离开信息给请求者
+                                                                    erlim_client:reply(Socket, DataToSend, Protocol),
                                                                     State;
                                                                 _ ->
-                                                                    ok = pg2:leave(Room, self()),
-                                                                    DataToSend = jiffy:encode({[{<<"cmd">>, <<"webrtc_leave">>}, {<<"from">>, SessionUserMnesia#session.uid}, {<<"to">>, ToRoomid}, {<<"ack">>, Ack}]}),
-                                                                    ws_util:relay_message(DataToSend, Room),
-                                                                    erlim_client:reply_ack(Socket, <<"webrtc_leave">>, Ack, Protocol),
+                                                                    {atomic, ok} = webrtc_room:leave(ToRoomUuid, SessionUserMnesia#session.pid),
+                                                                    DataToSend = jiffy:encode({[{<<"cmd">>, <<"webrtc_leave">>}, {<<"from">>, SessionUserMnesia#session.uid}, {<<"to">>, ToRoomUuid}]}),
+
+                                                                    lists:foreach(fun(U) ->
+                                                                        case mnesia_util:query_session_by_pid(U#webrtc_members.pid) of
+                                                                            false -> ok;
+                                                                            ToU ->
+                                                                                {ToU#session.register_name, ToU#session.node} ! {webrtc_leave, DataToSend}
+                                                                        end
+                                                                                  end, webrtc_room:get_members(ToRoomUuid)),
+                                                                    %% 发送离开信息给请求者
+                                                                    erlim_client:reply(Socket, DataToSend, Protocol),
                                                                     State
                                                             end
                                                     end;
                                                 <<"webrtc_send_offer">> ->
-                                                    [{<<"to">>, ToUid}, {<<"sdp">>, Sdp}, {<<"ack">>, _Ack}] = T,
+                                                    [{<<"to">>, ToUid}, {<<"sdp">>, Sdp}] = T,
                                                     io:format("Sdp is ~p~n", [Sdp]),
                                                     %% 对方是否在线
                                                     case mnesia_util:query_session_by_uid(ToUid) of
@@ -559,13 +566,13 @@ process_data(Data, Socket, State, Protocol) ->
                                                         ToUsers ->
                                                             %% 发送offer给用户,但是此处发给多个终端还是一个
                                                             lists:foreach(fun(U) ->
-                                                                DataToSend = jiffy:encode({[{<<"cmd">>, <<"webrtc_send_offer">>}, {<<"from">>, SessionUserMnesia#session.uid}, {<<"sdp">>, Sdp}, {<<"ack">>, util:uuid()}]}),
+                                                                DataToSend = jiffy:encode({[{<<"cmd">>, <<"webrtc_send_offer">>}, {<<"from">>, SessionUserMnesia#session.uid}, {<<"sdp">>, Sdp}]}),
                                                                 {U#session.register_name, U#session.node} ! {webrtc_send_offer, DataToSend}
-                                                            end, ToUsers),
+                                                                          end, ToUsers),
                                                             State
                                                     end;
                                                 <<"webrtc_send_answer">> ->
-                                                    [{<<"to">>, ToUid}, {<<"sdp">>, Sdp}, {<<"ack">>, _Ack}] = T,
+                                                    [{<<"to">>, ToUid}, {<<"sdp">>, Sdp}] = T,
                                                     io:format("Sdp is ~p~n", [Sdp]),
                                                     %% 对方是否在线
                                                     case mnesia_util:query_session_by_uid(ToUid) of
@@ -575,13 +582,13 @@ process_data(Data, Socket, State, Protocol) ->
                                                         ToUsers ->
                                                             %% 发送answer给用户,但是此处发给多个终端还是一个
                                                             lists:foreach(fun(U) ->
-                                                                DataToSend = jiffy:encode({[{<<"cmd">>, <<"webrtc_send_answer">>}, {<<"from">>, SessionUserMnesia#session.uid}, {<<"sdp">>, Sdp}, {<<"ack">>, util:uuid()}]}),
+                                                                DataToSend = jiffy:encode({[{<<"cmd">>, <<"webrtc_send_answer">>}, {<<"from">>, SessionUserMnesia#session.uid}, {<<"sdp">>, Sdp}]}),
                                                                 {U#session.register_name, U#session.node} ! {webrtc_send_answer, DataToSend}
-                                                            end, ToUsers),
+                                                                          end, ToUsers),
                                                             State
                                                     end;
                                                 <<"webrtc_send_ice_candidate">> ->
-                                                    [{<<"to">>, ToUid}, {<<"label">>, Label}, {<<"candidate">>, Candidate}, {<<"ack">>, _Ack}] = T,
+                                                    [{<<"to">>, ToUid}, {<<"label">>, Label}, {<<"candidate">>, Candidate}] = T,
                                                     io:format("Candidate is ~p, label is ~p~n", [Candidate, Label]),
                                                     %% 对方是否在线
                                                     case mnesia_util:query_session_by_uid(ToUid) of
@@ -591,9 +598,9 @@ process_data(Data, Socket, State, Protocol) ->
                                                         ToUsers ->
                                                             %% 发送ice_candidate给用户,但是此处发给多个终端还是一个
                                                             lists:foreach(fun(U) ->
-                                                                DataToSend = jiffy:encode({[{<<"cmd">>, <<"webrtc_send_ice_candidate">>}, {<<"from">>, SessionUserMnesia#session.uid}, {<<"label">>, Label}, {<<"candidate">>, Candidate}, {<<"ack">>, util:uuid()}]}),
+                                                                DataToSend = jiffy:encode({[{<<"cmd">>, <<"webrtc_send_ice_candidate">>}, {<<"from">>, SessionUserMnesia#session.uid}, {<<"label">>, Label}, {<<"candidate">>, Candidate}]}),
                                                                 {U#session.register_name, U#session.node} ! {webrtc_send_ice_candidate, DataToSend}
-                                                            end, ToUsers),
+                                                                          end, ToUsers),
                                                             State
                                                     end;
                                                 _ ->
