@@ -1,27 +1,26 @@
 <html>
 <head>
-    <meta charset="UTF-8">
-    <title>webrtc.io</title>
-    <link type="text/css" href="/assets/stylesheets/style.css" rel="stylesheet"></link>
-
-    <script src="/assets/javascripts/webrtc.js"></script>
+  <meta charset="UTF-8">
+  <title>webrtc</title>
+  <link type="text/css" href="/assets/stylesheets/style.css" rel="stylesheet"/>
 </head>
 <body onload="init()">
 <div id="videos">
-    <video id="you" class="flip" autoplay width="263" height="200" style="position: absolute; left: 0px; bottom: 0px;"></video>
+  <video id="you" class="flip" autoplay width="263" height="200"
+         style="position: absolute; left: 0px; bottom: 0px;"></video>
 </div>
 <div id="chatbox">
-    <div id="hideShowMessages" class="button">toggle chat</div>
-    <div id="messages">
-    </div>
-    <input id="chatinput" type="text" placeholder="Message:"/>
+  <div id="hideShowMessages" class="button">toggle chat</div>
+  <div id="messages">
+  </div>
+  <input id="chatinput" type="text" placeholder="Message:"/>
 </div>
 
 <div class="buttonBox">
-    <div id="fullscreen" class="button">Enter Full Screen</div>
-    <div id="newRoom" class="button">Create A New Room</div>
+  <div id="fullscreen" class="button">Enter Full Screen</div>
+  <div id="newRoom" class="button">Create A New Room</div>
 </div>
-
-<script src="/assets/javascripts/script.js"></script>
+<script src="/assets/javascripts/jquery-2.1.4.js"></script>
+<script src="/assets/javascripts/webrtc.js"></script>
 </body>
 </html>
