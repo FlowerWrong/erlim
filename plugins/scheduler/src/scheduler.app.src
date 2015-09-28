@@ -1,0 +1,13 @@
+{application, scheduler, [
+    {description, "A restful scheduler for onechat."},
+    {vsn, "0.1.0"},
+    {modules, []},
+    {registered, [scheduler_sup]},
+    {applications, [
+        kernel,
+        stdlib,
+        cowboy
+    ]},
+    {mod, {scheduler_app, []}},
+    {env, []}
+]}.
