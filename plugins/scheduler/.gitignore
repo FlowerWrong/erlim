@@ -4,3 +4,5 @@
 /deps/
 
 /rel/webrtc/
+
+Mnesia.*
