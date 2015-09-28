@@ -112,6 +112,7 @@ handle_cast(_Msg, State) ->
 %%--------------------------------------------------------------------
 handle_info({tcp, Socket, Data}, #state{socket = Socket, data_complete = DCFlag, client_data = ClientData, payload_len = PayloadLen, already_receive_payload_len = AlreadyReceivePayloadLen, protocol = P} = State) ->
     setopts(Socket),
+    io:format("Data is ~p~n", [Data]),
     NewState = case DCFlag of
                    0 ->
                        case string:str(binary_to_list(Data), "ONECHAT/1.0\r\n") of
@@ -168,25 +169,36 @@ handle_info({tcp, Socket, Data}, #state{socket = Socket, data_complete = DCFlag,
                                end;
                            1 ->
                                DataList = string:tokens(binary_to_list(Data), "\r\n"),
-                               PayloadLength0 = string:tokens(lists:nth(2, DataList), ": "),
-                               PayloadLength1 = lists:nth(2, PayloadLength0),
-                               PayloadLength = list_to_integer(PayloadLength1),
-                               if
-                                   PayloadLength > 1048576 ->
-                                       erlim_client:reply_error(Socket, <<"data must less than 8192 bytes">>, 10400, tcp),
-                                       State;
+                               lager:info("DataList is ~p~n", [DataList]),
+                               case length(DataList) > 3 of
                                    true ->
-                                       PayloadList = lists:nth(3, DataList),
-                                       PayloadBinary = list_to_binary(PayloadList),
-                                       %% 已经接收到的数据大小
-                                       Alrpl = byte_size(PayloadBinary),
-                                       case Alrpl =:= PayloadLength of
-                                           false ->
-                                               NewClientData = [PayloadBinary | ClientData],
-                                               State#state{data_complete = 1, client_data = NewClientData, payload_len = PayloadLength, protocol = tcp, already_receive_payload_len = Alrpl};
+                                       erlim_client:reply_error(Socket, <<"data is invide, may be you have more \r\n">>, 10400, tcp),
+                                       State;
+                                   false ->
+                                       PayloadLength0 = string:tokens(lists:nth(2, DataList), ": "),
+                                       PayloadLength1 = lists:nth(2, PayloadLength0),
+                                       PayloadLength = list_to_integer(PayloadLength1),
+                                       lager:info("Payloadlength is ~p~n", [PayloadLength]),
+                                       if
+                                           PayloadLength > 1048576 ->
+                                               erlim_client:reply_error(Socket, <<"data must less than 8192 bytes">>, 10400, tcp),
+                                               State;
                                            true ->
-                                               S = State#state{data_complete = 0, client_data = [], payload_len = undefined, protocol = tcp, already_receive_payload_len = 0},
-                                               process_data(PayloadBinary, Socket, S, tcp)
+                                               PayloadList = lists:nth(3, DataList),
+                                               PayloadBinary = list_to_binary(PayloadList),
+                                               %% 已经接收到的数据大小
+                                               lager:info("PayloadList is ~p~n", [PayloadList]),
+                                               lager:info("PayloadBinary is ~p~n", [PayloadBinary]),
+                                               Alrpl = byte_size(PayloadBinary),
+                                               lager:info("Alrpl is ~p~n", [Alrpl]),
+                                               case Alrpl =:= PayloadLength of
+                                                   false ->
+                                                       NewClientData = [PayloadBinary | ClientData],
+                                                       State#state{data_complete = 1, client_data = NewClientData, payload_len = PayloadLength, protocol = tcp, already_receive_payload_len = Alrpl};
+                                                   true ->
+                                                       S = State#state{data_complete = 0, client_data = [], payload_len = undefined, protocol = tcp, already_receive_payload_len = 0},
+                                                       process_data(PayloadBinary, Socket, S, tcp)
+                                               end
                                        end
                                end
                        end;
@@ -449,7 +461,7 @@ process_data(Data, Socket, State, Protocol) ->
                                     end;
                                 <<"ack">> ->
                                     [{<<"action">>, Action}, {<<"ack">>, Ack}] = T,
-                                    lager:info("Action is ~p, Timestamp is ~p~n", [Action, Ack]),
+                                    lager:info("Action is ~p, Ack is ~p~n", [Action, Ack]),
                                     case Action of
                                         <<"single_chat">> ->
                                             lager:info("Single chat msg ack is ~p~n", [Ack]),
