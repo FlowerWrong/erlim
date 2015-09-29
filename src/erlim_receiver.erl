@@ -463,7 +463,11 @@ process_data(Data, Socket, State, Protocol) ->
                                             end
                                     end;
                                 <<"create_friendship">> ->
-                                    %% @doc 添加好友, 会发一个通知给对方, 对方同意, 才确认好友关系, 事先不会创建
+                                    %% @doc 添加好友, 会发一个通知给对方, 对方同意, 才确认好友关系
+                                    %% @TODO
+                                    State;
+                                <<"deny_friendship">> ->
+                                    %% @doc 拒绝添加好友, 会发一个通知给对方
                                     %% @TODO
                                     State;
                                 <<"del_friendship">> ->
