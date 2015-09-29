@@ -101,3 +101,11 @@
     created_at,
     updated_at
 }).
+
+-record(blockship_record, {
+    id,
+    user_id,
+    block_id,
+    created_at,
+    updated_at
+}).
