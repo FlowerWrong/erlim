@@ -97,6 +97,7 @@
     id,
     user_id,
     friend_id,
+    nickname,
     confirmed,
     created_at,
     updated_at
@@ -106,6 +107,21 @@
     id,
     user_id,
     block_id,
+    created_at,
+    updated_at
+}).
+
+-record(notification_record, {
+    id,
+    sender_id,
+    receiver_id,
+    notification_type,
+    notifiable_type,
+    notifiable_action,
+    notifiable_id,
+    subject,
+    body,
+    read,
     created_at,
     updated_at
 }).

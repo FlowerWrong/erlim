@@ -291,6 +291,7 @@ process_data(Data, Socket, State, Protocol) ->
     {[{<<"cmd">>, Cmd} | T]} = Json,
     if
         Cmd =:= <<"login">> ->
+            %% @doc 登陆
             [{<<"name">>, Name}, {<<"pass">>, Pass}, {<<"ack">>, Ack}, {<<"device">>, Device}] = T,
             LoginUserMysql = mysql_util:query_user_by_mobile(Name),
             case LoginUserMysql of
@@ -365,6 +366,7 @@ process_data(Data, Socket, State, Protocol) ->
                         _ ->
                             case Cmd of
                                 <<"single_chat">> ->
+                                    %% @doc 私聊
                                     [{<<"to">>, ToUid}, {<<"msg">>, Msg}, {<<"ack">>, Ack}] = T,
                                     case is_integer(ToUid) of
                                         false ->
@@ -410,6 +412,7 @@ process_data(Data, Socket, State, Protocol) ->
                                             end
                                     end;
                                 <<"group_chat">> ->
+                                    %% @doc 群聊
                                     [{<<"to">>, ToRoomId}, {<<"msg">>, Msg}, {<<"ack">>, Ack}] = T,
                                     case is_integer(ToRoomId) of
                                         false ->
@@ -459,7 +462,36 @@ process_data(Data, Socket, State, Protocol) ->
                                                     end
                                             end
                                     end;
+                                <<"create_friendship">> ->
+                                    %% @doc 添加好友, 会发一个通知给对方, 对方同意, 才确认好友关系, 事先不会创建
+                                    %% @TODO
+                                    State;
+                                <<"del_friendship">> ->
+                                    %% @doc 移除好友, 无需对方同意, 直接移除, 但会发送通知
+                                    %% @TODO
+                                    State;
+                                <<"create_room">> ->
+                                    %% @doc 建群, 群主可设置是否需要密码等, 拉人, 无需对方同意, 有通知给对方
+                                    %% @TODO
+                                    State;
+                                <<"del_room">> ->
+                                    %% @doc 删除群(群主), 无需对方同意, 有通知给对方
+                                    %% @TODO
+                                    State;
+                                <<"join_room">> ->
+                                    %% @doc 加群, 群主可设置是否需要密码等, 通知所有群成员
+                                    %% @TODO
+                                    State;
+                                <<"leave_room">> ->
+                                    %% @doc 退群, 群主退群则下一个加入的人自动成为群主, 通知所有群成员
+                                    %% @TODO
+                                    State;
+                                <<"change_room_info">> ->
+                                    %% @doc 修改群信息(暂时不限制), 通知所有群成员
+                                    %% @TODO
+                                    State;
                                 <<"ack">> ->
+                                    %% @doc 消息回执
                                     [{<<"action">>, Action}, {<<"ack">>, Ack}] = T,
                                     lager:info("Action is ~p, Ack is ~p~n", [Action, Ack]),
                                     case Action of
@@ -484,10 +516,11 @@ process_data(Data, Socket, State, Protocol) ->
                                     end,
                                     State;
                                 <<"logout">> ->
+                                    %% @doc 手动退出登陆
                                     self() ! {tcp_closed, Socket},
                                     State;
                                 _ ->
-                                    %% FIXME webrtc signaling server
+                                    %% @TODO webrtc signaling server
                                     case Protocol of
                                         websocket ->
                                             case Cmd of

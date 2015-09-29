@@ -78,6 +78,7 @@
     id,
     user_id,
     friend_id,
+    nickname,
     confirmed,
     created_at,
     updated_at
