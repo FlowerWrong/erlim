@@ -4,6 +4,13 @@
 curl -i -X GET "http://127.0.0.1:8083/?port=8080&type=onechat"
 ```
 
+```json
+{
+    "ip": "192.168.10.140",
+    "port": 8080
+}
+```
+
 #### error
 
 ```json
