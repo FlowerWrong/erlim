@@ -1,3 +1,3 @@
 PROJECT = scheduler
-DEPS = cowboy
+DEPS = cowboy jiffy
 include erlang.mk
