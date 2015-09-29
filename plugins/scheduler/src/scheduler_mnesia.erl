@@ -10,10 +10,28 @@
 -author("yy").
 
 -include("scheduler.hrl").
+-include_lib("stdlib/include/qlc.hrl").
 
-%% API
+%% @doc API for setup
 -export([init/0]).
 
+%% @doc mnesia CURD API
+-export([reqs/0]).
+
+
+%% @doc req records
+reqs() ->
+    Fun = fun() ->
+        Query = qlc:q([X || X <- mnesia:table(req)]),
+        qlc:e(Query)
+          end,
+    case mnesia:transaction(Fun) of
+        {atomic, []} -> [];
+        {atomic, Requests} -> Requests
+    end.
+
+
+%% @doc API for setup
 init() ->
     case mnesia:system_info(extra_db_nodes) of
         [] ->

@@ -1,4 +1,4 @@
 -name scheduler@127.0.0.1
 -setcookie scheduler
--mnesia dir '"/home/yang/dev/erlang/erlim/plugins/scheduler"'
+-mnesia dir '"/home/yy/dev/erlang/erlim/plugins/scheduler/Mnesia.scheduler"'
 -heart
