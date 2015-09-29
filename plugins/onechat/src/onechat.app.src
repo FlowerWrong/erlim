@@ -1,0 +1,16 @@
+{application, onechat, [
+    {description, "Onechat restful api."},
+    {vsn, "0.1.0"},
+    {modules, []},
+    {registered, [onechat_sup]},
+    {applications, [
+        kernel,
+        stdlib,
+        crypto,
+        emysql,
+        cowboy,
+        jiffy
+    ]},
+    {mod, {onechat_app, []}},
+    {env, []}
+]}.
