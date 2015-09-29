@@ -9,7 +9,8 @@
         crypto,
         emysql,
         cowboy,
-        jiffy
+        jiffy,
+        etoml
     ]},
     {mod, {onechat_app, []}},
     {env, []}
