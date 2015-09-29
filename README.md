@@ -104,11 +104,11 @@ cp erlim.example.toml /etc/erlim/erlim.toml
 - [x] add websocket support
 - [x] [implement a module like pg2 with mnesia](https://github.com/erlang/otp/blob/maint/lib/kernel/src/pg2.erl)
 - [x] add video chat support(ICE  STUN: RFC3489  TURN: RFC5766  SIP  WebRTC SDP)
-- [ ] implement cluster mode with a scheduler in erlang or nodejs or ruby
-- [ ] add web admin support
+- [x] implement cluster mode with a scheduler in erlang or nodejs or ruby on rails
 - [ ] add max connection number test
 - [ ] add tls support
 - [ ] add edoc
+- [ ] add web admin support
 - [ ] multi video chat without p2p, rtmp and hls
 - [ ] keep session(避免移动端重连风暴)
 - [ ] implement pubsub with erlang(gen_event)
