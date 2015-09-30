@@ -1,3 +1,11 @@
+%%%-------------------------------------------------------------------
+%%% @author yang
+%%% @copyright (C) 2015, <COMPANY>
+%%% @doc
+%%%   onechat client
+%%% @end
+%%% Created : 27. 九月 2015 下午12:17
+%%%-------------------------------------------------------------------
 -module(erlim_client).
 
 -behaviour(gen_server).
@@ -172,10 +180,12 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Internal functions
 %%%===================================================================
 
+%% @doc stop a client
 stop(ClientPid) ->
     gen_server:cast(ClientPid, stop),
     ok.
 
+%% @doc reply to client
 reply(Socket, Msg, tcp) ->
     PayloadLen = byte_size(Msg),
     Payload = iolist_to_binary([<<"ONECHAT/1.0\r\nPAYLOAD_LEN: ">>, util:integer2binary(PayloadLen), <<"\r\n\r\n">>, Msg]),
@@ -183,6 +193,7 @@ reply(Socket, Msg, tcp) ->
 reply(Socket, Msg, websocket) ->
     ws_util:send_ws_data(Socket, Msg).
 
+%% @doc reply error to client
 reply_error(Socket, Error, Code, tcp) ->
     DataToSend = jiffy:encode({[{<<"cmd">>, <<"error">>}, {<<"msg">>, Error}, {<<"code">>, Code}]}),
     reply(Socket, DataToSend, tcp);
@@ -190,6 +201,7 @@ reply_error(Socket, Error, Code, websocket) ->
     DataToSend = jiffy:encode({[{<<"cmd">>, <<"error">>}, {<<"msg">>, Error}, {<<"code">>, Code}]}),
     reply(Socket, DataToSend, websocket).
 
+%% @doc reply ack to client
 reply_ack(Socket, Action, Ack, tcp) ->
     DataToSend = jiffy:encode({[{<<"cmd">>, <<"ack">>}, {<<"action">>, Action}, {<<"ack">>, Ack}]}),
     reply(Socket, DataToSend, tcp);

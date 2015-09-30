@@ -1,3 +1,11 @@
+%%%-------------------------------------------------------------------
+%%% @author yang
+%%% @copyright (C) 2015, <COMPANY>
+%%% @doc
+%%%   onechat session management
+%%% @end
+%%% Created : 27. 九月 2015 下午12:17
+%%%-------------------------------------------------------------------
 -module(erlim_sm).
 
 -behaviour(gen_server).
@@ -129,6 +137,7 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Internal functions
 %%%===================================================================
 
+%% @doc login a session
 login(Uid, ClientPid, Device) when is_integer(Uid), is_pid(ClientPid) ->
     RegisterName = binary_to_atom(util:uuid(), utf8),
     register(RegisterName, ClientPid),
@@ -138,17 +147,21 @@ login(Uid, ClientPid, Device) when is_integer(Uid), is_pid(ClientPid) ->
     end,
     mnesia:transaction(F).
 
+%% @doc get a session
 get_session(Uid) when is_integer(Uid) ->
     case mnesia_util:query_session_by_uid(Uid) of
         false -> false;
         Users -> Users
     end.
+
+%% @doc get a session
 get_session(Uid, Device) when is_integer(Uid) ->
     case mnesia_util:query_session_by_uid_and_device(Uid, Device) of
         false -> false;
         {session, _Name, ClientPid} -> ClientPid
     end.
 
+%% @doc logout a session
 logout(Uid, Device) when is_integer(Uid) ->
     CurrentUserMnesia = mnesia_util:query_session_by_uid_and_device(Uid, Device),
     F = fun() -> mnesia:delete_object(CurrentUserMnesia) end,

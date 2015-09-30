@@ -1,3 +1,4 @@
+%% @hidden
 -module(erlim_app).
 
 -behaviour(application).

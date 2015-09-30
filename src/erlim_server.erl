@@ -1,3 +1,11 @@
+%%%-------------------------------------------------------------------
+%%% @author yang
+%%% @copyright (C) 2015, <COMPANY>
+%%% @doc
+%%%   onechat tcp listener
+%%% @end
+%%% Created : 27. 九月 2015 下午12:17
+%%%-------------------------------------------------------------------
 -module(erlim_server).
 
 -behaviour(gen_server).
@@ -207,7 +215,7 @@ code_change(_OldVsn, State, _Extra) ->
 %% Internal functions
 %% ===================================================================
 
-%% Taken from prim_inet.  We are merely copying some socket options from the
+%% @doc Taken from prim_inet.  We are merely copying some socket options from the
 %% listening socket to the new TCP socket.
 set_sockopt(ListenSocket, ClientSocket) ->
     true = inet_db:register_socket(ClientSocket, inet_tcp),

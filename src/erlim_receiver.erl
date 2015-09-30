@@ -1,3 +1,11 @@
+%%%-------------------------------------------------------------------
+%%% @author yang
+%%% @copyright (C) 2015, <COMPANY>
+%%% @doc
+%%%   onechat tcp receiver
+%%% @end
+%%% Created : 27. 九月 2015 下午12:17
+%%%-------------------------------------------------------------------
 -module(erlim_receiver).
 
 -behaviour(gen_server).
@@ -281,10 +289,12 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Internal functions
 %%%===================================================================
 
+%% @doc set socket opts
 setopts(Socket) ->
     inet:setopts(Socket, [{active, once}]),
     inet:peername(Socket).
 
+%% @doc process socket data
 process_data(Data, Socket, State, Protocol) ->
     Json = jiffy:decode(Data),
     lager:info("Json is ~p.~n", [Json]),

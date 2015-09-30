@@ -2,7 +2,7 @@
 %%% @author yy
 %%% @copyright (C) 2015, <COMPANY>
 %%% @doc
-%%%
+%%%   onechat mnesia setup script
 %%% @end
 %%% Created : 02. 九月 2015 下午3:38
 %%%-------------------------------------------------------------------
@@ -14,6 +14,7 @@
 %% API
 -export([init_mnesia/0]).
 
+%% @doc init mnesia
 init_mnesia() ->
     case mnesia:system_info(extra_db_nodes) of
         [] ->
@@ -23,7 +24,7 @@ init_mnesia() ->
             mnesia:start(),
             update_tables(),
             mnesia:change_table_copy_type(schema, node(), disc_copies),
-            create_table(),
+            create_tables(),
             WebrtcRoomMnesia = #webrtc_room{uuid = "36d685c6-dac4-484a-9865-8dcc75800e50", name = "demo"},
             F = fun() ->
                 mnesia:write(WebrtcRoomMnesia)
@@ -34,7 +35,8 @@ init_mnesia() ->
     end,
     mnesia:info().
 
-create_table() ->
+%% @doc create tables
+create_tables() ->
     update_tables(),
     mnesia:create_table(session, [
         {attributes, record_info(fields, session)},
@@ -54,6 +56,7 @@ create_table() ->
     ]),
     mnesia:add_table_copy(webrtc_members, node(), ram_copies).
 
+%% @doc update tables
 update_tables() ->
     case catch mnesia:table_info(session, attributes) of
         [uid, pid, device, node, register_name] -> mnesia:delete_table(session);
