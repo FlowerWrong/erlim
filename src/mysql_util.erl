@@ -1,3 +1,11 @@
+%%%-------------------------------------------------------------------
+%%% @author yang
+%%% @copyright (C) 2015, <COMPANY>
+%%% @doc
+%%%   mysql query api
+%%% @end
+%%% Created : 27. 九月 2015 下午12:17
+%%%-------------------------------------------------------------------
 -module(mysql_util).
 
 -export([
@@ -24,7 +32,7 @@
 -include_lib("stdlib/include/qlc.hrl").
 
 %%% @doc user
-%% 添加好友
+%% @doc 添加好友
 add_firend(Uid, FriendId, NickName) when is_integer(Uid), is_integer(FriendId) ->
     emysql:prepare(add_firend_stmt, <<"INSERT INTO friendships SET user_id = ?, friend_id = ?, nickname = ?, confirmed = ?, created_at = ?, updated_at = ?">>),
     Now = calendar:local_time(),

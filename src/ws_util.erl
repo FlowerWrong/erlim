@@ -2,7 +2,7 @@
 %%% @author yy
 %%% @copyright (C) 2015, <COMPANY>
 %%% @doc
-%%%
+%%%   websocket utils
 %%% @end
 %%% Created : 23. 九月 2015 下午1:53
 %%%-------------------------------------------------------------------
@@ -14,15 +14,18 @@
 %% API
 -export([key/1, is_websocket/1, get_payload_len/1, get_packet_data/1, send_ws_data/2]).
 
+%% @doc get base64 key
 key(Key) ->
     base64:encode(crypto:hash(sha, <<Key/binary, ?WEBSOCKET_GUID>>)).
 
+%% @doc check the data is websocket?
 is_websocket(Data) ->
     case catch <<1:1, 0:3, _Opcode:4, 1:1, _Len:7, _Rest/binary>> = Data of
         Data -> true;
         _Error -> false
     end.
 
+%% @doc get the payload length
 get_payload_len(Packet) ->
     <<_FIN:1, _RSV1:1, _RSV2:1, _RSV3:1, _OPCODE:4, _MASK:1, PAYLOADLEN:7, Rest/binary>> = Packet,
     if
@@ -37,6 +40,7 @@ get_payload_len(Packet) ->
             LENGTH
     end.
 
+%% @doc get payload
 get_packet_data(Packet) ->
     <<_FIN:1, _RSV1:1, _RSV2:1, _RSV3:1, _OPCODE:4, _MASK:1, PAYLOADLEN:7, Rest/binary>> = Packet,
     if
@@ -59,12 +63,13 @@ get_packet_data([H | T], Key, Counter, Result) ->
 get_packet_data([], _, _, Result) ->
     lists:reverse(Result).
 
-%% 发送文本给Client
+%% @doc send websocket payload to client
 send_ws_data(Socket, Payload) ->
     Len = iolist_size(Payload),
     BinLen = payload_length_to_binary(Len),
     gen_tcp:send(Socket, [<<1:1, 0:3, 1:4, 0:1, BinLen/bits>>, Payload]).
 
+%% @doc payload length to binary
 payload_length_to_binary(N) ->
     case N of
         N when N =< 125 -> <<N:7>>;
