@@ -474,32 +474,72 @@ process_data(Data, Socket, State, Protocol) ->
                                         true ->
                                             %% @doc 好友请求消息回执
                                             erlim_client:reply_ack(Socket, <<"create_friendship">>, Ack, Protocol),
+                                            Sender = SessionUserMnesia#session.uid,
 
                                             %% @doc 添加记录前是否已经是好友了
-
-                                            %% @doc 添加记录后已经是好友了
-
-                                            %% @doc 添加记录后不是好友
-                                            Sender = SessionUserMnesia#session.uid,
-                                            %% @doc 对方是否在线
-                                            ToUsers = erlim_sm:get_session(ToUid),
-                                            case ToUsers of
+                                            case mysql_util:are_friends(Sender, ToUid) of
+                                                true ->
+                                                    erlim_client:reply_error(Socket, <<"You are already friends">>, 10403, Protocol),
+                                                    State;
                                                 false ->
-                                                    NR = #notification_record{sender_id = Sender, receiver_id = ToUid, notification_type = 2, notifiable_type = <<"User">>, notifiable_action = <<"create_friendship">>, notifiable_id = ToUid, subject = Msg, body = Msg, read = 0},
-                                                    mysql_util:save_notification(NR);
-                                                _ ->
-                                                    %% online: 发消息给多个终端设备
-                                                    NR = #notification_record{sender_id = Sender, receiver_id = ToUid, notification_type = 2, notifiable_type = <<"User">>, notifiable_action = <<"create_friendship">>, notifiable_id = ToUid, subject = Msg, body = Msg, read = 1},
-                                                    mysql_util:save_notification(NR),
-                                                    lists:foreach(fun(U) ->
-                                                        DataToSend = jiffy:encode({[{<<"cmd">>, <<"notification">>}, {<<"notification_type">>, 2}, {<<"from">>, Sender}, {<<"msg">>, Msg}, {<<"ack">>, MsgId}]}),
-                                                        case node(U#session.pid) =:= node() of
-                                                            true ->
-                                                                U#session.pid ! {notification, DataToSend};
-                                                            false ->
-                                                                {U#session.register_name, U#session.node} ! {notification, DataToSend}
-                                                        end
-                                                                  end, ToUsers)
+                                                    ToUsers = erlim_sm:get_session(ToUid),
+                                                    %% @doc 添加记录后是否已经是好友了
+                                                    mysql_util:add_firend(Sender, ToUid, <<"">>),
+                                                    case mysql_util:are_friends(Sender, ToUid) of
+                                                        true ->
+                                                            %% @doc 发通知给双方, 他们已经成为了好友
+                                                            Subject = <<"You are friends">>,
+                                                            %% @doc 对方是否在线
+                                                            case ToUsers of
+                                                                false ->
+                                                                    NR = #notification_record{sender_id = Sender, receiver_id = ToUid, notification_type = 3, notifiable_type = <<"User">>, notifiable_action = <<"create_friendship">>, notifiable_id = ToUid, subject = Subject, body = Subject, read = 0},
+                                                                    mysql_util:save_notification(NR);
+                                                                _ ->
+                                                                    %% @doc 发通知给对方
+                                                                    NR = #notification_record{sender_id = Sender, receiver_id = ToUid, notification_type = 3, notifiable_type = <<"User">>, notifiable_action = <<"create_friendship">>, notifiable_id = ToUid, subject = Subject, body = Subject, read = 1},
+                                                                    {ok_packet, _, _, NotificationIdOfTo, _, _, _} = mysql_util:save_notification(NR),
+                                                                    lists:foreach(fun(U) ->
+                                                                        DataToSend = jiffy:encode({[{<<"cmd">>, <<"notification">>}, {<<"notification_type">>, 3}, {<<"from">>, Sender}, {<<"msg">>, Subject}, {<<"ack">>, NotificationIdOfTo}]}),
+                                                                        case node(U#session.pid) =:= node() of
+                                                                            true ->
+                                                                                U#session.pid ! {notification, DataToSend};
+                                                                            false ->
+                                                                                {U#session.register_name, U#session.node} ! {notification, DataToSend}
+                                                                        end
+                                                                                  end, ToUsers)
+                                                            end,
+
+                                                            %% @doc 发通知给请求者
+                                                            NR1 = #notification_record{sender_id = ToUid, receiver_id = Sender, notification_type = 3, notifiable_type = <<"User">>, notifiable_action = <<"create_friendship">>, notifiable_id = Sender, subject = Subject, body = Subject, read = 1},
+                                                            {ok_packet, _, _, NotificationIdOfMine, _, _, _} = mysql_util:save_notification(NR1),
+                                                            DataToSend = jiffy:encode({[{<<"cmd">>, <<"notification">>}, {<<"notification_type">>, 3}, {<<"from">>, ToUid}, {<<"msg">>, Subject}, {<<"ack">>, NotificationIdOfMine}]}),
+                                                            erlim_client:reply(Socket, DataToSend, Protocol),
+                                                            State;
+                                                        false ->
+                                                            %% @doc 添加记录后不是好友
+                                                            %% @doc 对方是否在线
+                                                            case ToUsers of
+                                                                false ->
+                                                                    NR2 = #notification_record{sender_id = Sender, receiver_id = ToUid, notification_type = 2, notifiable_type = <<"User">>, notifiable_action = <<"create_friendship">>, notifiable_id = ToUid, subject = Msg, body = Msg, read = 0},
+                                                                    lager:info("Nr2 is ~p~n", [NR2]),
+                                                                    mysql_util:save_notification(NR2);
+                                                                _ ->
+                                                                    %% online: 发消息给多个终端设备
+                                                                    NR3 = #notification_record{sender_id = Sender, receiver_id = ToUid, notification_type = 2, notifiable_type = <<"User">>, notifiable_action = <<"create_friendship">>, notifiable_id = ToUid, subject = Msg, body = Msg, read = 1},
+                                                                    lager:info("Nr2 is ~p~n", [NR3]),
+                                                                    {ok_packet, _, _, NotificationIdOfRequest, _, _, _} = mysql_util:save_notification(NR3),
+                                                                    lists:foreach(fun(U) ->
+                                                                        DataToSend = jiffy:encode({[{<<"cmd">>, <<"notification">>}, {<<"notification_type">>, 2}, {<<"from">>, Sender}, {<<"msg">>, Msg}, {<<"ack">>, NotificationIdOfRequest}]}),
+                                                                        case node(U#session.pid) =:= node() of
+                                                                            true ->
+                                                                                U#session.pid ! {notification, DataToSend};
+                                                                            false ->
+                                                                                {U#session.register_name, U#session.node} ! {notification, DataToSend}
+                                                                        end
+                                                                                  end, ToUsers),
+                                                                    State
+                                                            end
+                                                    end
                                             end
                                     end;
                                 <<"deny_friendship">> ->

@@ -1,6 +1,6 @@
 -module(cy).
 
--export([login/0, sc/1, gc/1, logout/1, recv/1, loop_recv/1]).
+-export([login/0, sc/1, gc/1, add_friend/2, logout/1, recv/1, loop_recv/1]).
 
 
 login() ->
@@ -16,6 +16,10 @@ sc(Sock) ->
 gc(Sock) ->
     Msg = iolist_to_binary([<<"{\"cmd\": \"group_chat\", \"to\": 1, \"msg\": \"hello world, xiaomi\", \"ack\": \"72cdf1ae-62a3-4ebf-821c-a809d1931293\"}">>]),
     send(Sock, Msg).
+
+add_friend(Socket, FriendId) when is_integer(FriendId) ->
+    DataToSend = jiffy:encode({[{<<"cmd">>, <<"create_friendship">>}, {<<"to">>, FriendId}, {<<"msg">>, <<"I and yang.">>}, {<<"ack">>, <<"abc">>}]}),
+    send(Socket, DataToSend).
 
 logout(Sock) ->
     Msg = iolist_to_binary([<<"{\"cmd\": \"logout\"}">>]),
@@ -41,7 +45,9 @@ recv(Socket) ->
                         <<"single_chat">> ->
                             io:format("Single chat msg send success");
                         <<"group_chat">> ->
-                            io:format("Group chat msg send success")
+                            io:format("Group chat msg send success");
+                        <<"create_friendship">> ->
+                            io:format("create_friendship msg send success")
                     end;
                 <<"single_chat">> ->
                     [{<<"from">>, From}, {<<"msg">>, Msg}, {<<"ack">>, MsgId}] = T,
