@@ -42,8 +42,8 @@
 ).
 
 -record(state, {
-    port,                   % listen port
-    listen_socket,          % listen socket
+    port :: integer(),                   % listen port
+    listen_socket :: port(),          % listen socket
     acceptor_ref
 }).
 

@@ -30,8 +30,8 @@
 ]).
 
 -record(state, {
-    socket,
-    protocol
+    socket :: port(),
+    protocol :: atom()
 }).
 
 %%%===================================================================

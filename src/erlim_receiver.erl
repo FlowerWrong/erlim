@@ -24,18 +24,18 @@
 -define(HIBERNATE_TIMEOUT, 90000).
 
 -record(state, {
-    socket,
-    protocol,
-    heartbeat_timeout = ?HIBERNATE_TIMEOUT,
-    client_pid,
-    ip,
-    uid,
-    device,
-    node,
-    data_complete = 0,  %% 0: 开始接收 1: 接收剩余
-    client_data = [],
-    payload_len,
-    already_receive_payload_len = 0
+    socket :: port(),
+    protocol :: atom(),
+    heartbeat_timeout = ?HIBERNATE_TIMEOUT :: integer(),
+    client_pid :: pid(),
+    ip :: binary(),
+    uid :: integer(),
+    device :: binary(),
+    node :: node(),
+    data_complete = 0 :: integer(),  %% 0: 开始接收 1: 接收剩余
+    client_data = [] :: list(),
+    payload_len :: integer(),
+    already_receive_payload_len = 0 :: integer()
 }).
 
 -include("table.hrl").

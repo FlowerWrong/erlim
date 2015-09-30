@@ -2,34 +2,34 @@
 %%% @author yy
 %%% @copyright (C) 2015, <COMPANY>
 %%% @doc
-%%%
+%%%   onechat records
 %%% @end
 %%% Created : 02. 九月 2015 下午4:11
 %%%-------------------------------------------------------------------
 -author("yy").
 
 -record(session, {
-    uid,
-    pid,
-    device,
-    node,
-    register_name
+    uid :: integer(),
+    pid :: pid(),
+    device :: binary(),
+    node :: node(),
+    register_name :: binary()
 }).
 
 -record(webrtc_room, {
-    uuid,
-    name
+    uuid :: binary(),
+    name :: binary()
 }).
 
 -record(webrtc_members, {
-    pid,
-    nick_name,
-    room_uuid
+    pid :: pid(),
+    nick_name :: binary(),
+    room_uuid :: binary()
 }).
 
 %% For mysql record
 -record(user_record, {
-    id,
+    id :: integer(),
     mobile,
     password_digest,
     nick_name,
@@ -41,30 +41,30 @@
 }).
 
 -record(msg_record, {
-    id,
-    f,
-    t,
+    id :: integer(),
+    f :: integer(),
+    t :: integer(),
     msg,
-    unread,
+    unread :: integer(),
     created_at,
     updated_at
 }).
 
 -record(roommsg_record, {
-    id,
-    f,
-    t,
+    id :: integer(),
+    f :: integer(),
+    t :: integer(),
     msg,
     created_at,
     updated_at
 }).
 
 -record(room_record, {
-    id,
-    creator,
+    id :: integer(),
+    creator :: integer(),
     name,
-    max_member_count,
-    invitable,
+    max_member_count :: integer(),
+    invitable :: integer(),
     password,
     description,
     subject,
@@ -74,9 +74,9 @@
 }).
 
 -record(room_users_record, {
-    id,
-    room_id,
-    user_id,
+    id :: integer(),
+    room_id :: integer(),
+    user_id :: integer(),
     nick_name,
     none_bother,
     bg,
@@ -85,43 +85,43 @@
 }).
 
 -record(user_roommsgs_record, {
-    id,
-    user_id,
-    roommsg_id,
-    unread,
+    id :: integer(),
+    user_id :: integer(),
+    roommsg_id :: integer(),
+    unread :: integer(),
     created_at,
     updated_at
 }).
 
 -record(friendship_record, {
-    id,
-    user_id,
-    friend_id,
+    id :: integer(),
+    user_id :: integer(),
+    friend_id :: integer(),
     nickname,
-    confirmed,
+    confirmed :: integer(),
     created_at,
     updated_at
 }).
 
 -record(blockship_record, {
-    id,
-    user_id,
-    block_id,
+    id :: integer(),
+    user_id :: integer(),
+    block_id :: integer(),
     created_at,
     updated_at
 }).
 
 -record(notification_record, {
-    id,
-    sender_id,
-    receiver_id,
+    id :: integer(),
+    sender_id :: integer(),
+    receiver_id :: integer(),
     notification_type,
     notifiable_type,
     notifiable_action,
-    notifiable_id,
+    notifiable_id :: integer(),
     subject,
     body,
-    read,
+    read :: integer(),
     created_at,
     updated_at
 }).
