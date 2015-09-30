@@ -6,6 +6,9 @@ start: get-deps compile erl
 pre-compile:
 	cp erlim.example.toml /etc/erlim/erlim.toml
 
+edoc:
+    $(REBAR) doc skip_deps=true
+
 get-deps:
 	$(REBAR) get-deps
 
