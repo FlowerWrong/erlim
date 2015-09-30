@@ -110,6 +110,11 @@ handle_info({group_chat, Msg}, #state{socket = Socket, protocol = Protocol} = St
     lager:info("erlim_client group_chat msg is ~p~n", [Msg]),
     reply(Socket, Msg, Protocol),
     {noreply, State};
+%% @TODO notification
+handle_info({notification, Msg}, #state{socket = Socket, protocol = Protocol} = State) ->
+    lager:info("erlim_client notification msg is ~p~n", [Msg]),
+    reply(Socket, Msg, Protocol),
+    {noreply, State};
 handle_info({webrtc_create, Msg}, #state{socket = Socket, protocol = Protocol} = State) ->
     lager:info("erlim_client webrtc_create msg is ~p~n", [Msg]),
     reply(Socket, Msg, Protocol),

@@ -347,6 +347,8 @@ process_data(Data, Socket, State, Protocol) ->
                             erlim_client:reply(Socket, RoomMsgDataToBeSend, Protocol)
                     end,
 
+                    %% @TODO 离线通知
+
                     State#state{client_pid = ClientPid, uid = Uid, device = Device, protocol = Protocol}
             end;
         true ->
@@ -464,8 +466,42 @@ process_data(Data, Socket, State, Protocol) ->
                                     end;
                                 <<"create_friendship">> ->
                                     %% @doc 添加好友, 会发一个通知给对方, 对方同意, 才确认好友关系
-                                    %% @TODO
-                                    State;
+                                    [{<<"to">>, ToUid}, {<<"msg">>, Msg}, {<<"ack">>, Ack}] = T,
+                                    case is_integer(ToUid) of
+                                        false ->
+                                            erlim_client:reply_error(Socket, <<"To user id must be integer">>, 10400, Protocol),
+                                            State;
+                                        true ->
+                                            %% @doc 好友请求消息回执
+                                            erlim_client:reply_ack(Socket, <<"create_friendship">>, Ack, Protocol),
+
+                                            %% @doc 添加记录前是否已经是好友了
+
+                                            %% @doc 添加记录后已经是好友了
+
+                                            %% @doc 添加记录后不是好友
+                                            Sender = SessionUserMnesia#session.uid,
+                                            %% @doc 对方是否在线
+                                            ToUsers = erlim_sm:get_session(ToUid),
+                                            case ToUsers of
+                                                false ->
+                                                    NR = #notification_record{sender_id = Sender, receiver_id = ToUid, notification_type = 2, notifiable_type = <<"User">>, notifiable_action = <<"create_friendship">>, notifiable_id = ToUid, subject = Msg, body = Msg, read = 0},
+                                                    mysql_util:save_notification(NR);
+                                                _ ->
+                                                    %% online: 发消息给多个终端设备
+                                                    NR = #notification_record{sender_id = Sender, receiver_id = ToUid, notification_type = 2, notifiable_type = <<"User">>, notifiable_action = <<"create_friendship">>, notifiable_id = ToUid, subject = Msg, body = Msg, read = 1},
+                                                    mysql_util:save_notification(NR),
+                                                    lists:foreach(fun(U) ->
+                                                        DataToSend = jiffy:encode({[{<<"cmd">>, <<"notification">>}, {<<"notification_type">>, 2}, {<<"from">>, Sender}, {<<"msg">>, Msg}, {<<"ack">>, MsgId}]}),
+                                                        case node(U#session.pid) =:= node() of
+                                                            true ->
+                                                                U#session.pid ! {notification, DataToSend};
+                                                            false ->
+                                                                {U#session.register_name, U#session.node} ! {notification, DataToSend}
+                                                        end
+                                                                  end, ToUsers)
+                                            end
+                                    end;
                                 <<"deny_friendship">> ->
                                     %% @doc 拒绝添加好友, 会发一个通知给对方
                                     %% @TODO

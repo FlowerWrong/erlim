@@ -15,7 +15,8 @@
     room_members/1,
     is_an_exist_room/1,
     are_friends/2,
-    in_room/2
+    in_room/2,
+    save_notification/1
 ]).
 
 -include("table.hrl").
@@ -72,7 +73,7 @@ user_roommsgs(Uid, Unread) when is_integer(Uid), is_integer(Unread) ->
         RoommsgsRecords = emysql_util:as_record(RoommsgsResult, roommsg_record, record_info(fields, roommsg_record)),
         [Roommsg | _T] = RoommsgsRecords,
         Roommsg
-    end, UserRoommsgsRecords),
+                         end, UserRoommsgsRecords),
     Roommsgs.
 
 %% 查询所有群消息
@@ -143,3 +144,10 @@ in_room(Uid, Roomid) when is_integer(Uid), is_integer(Roomid) ->
         [] -> false;
         _ -> true
     end.
+
+
+%% @doc notification
+save_notification(NR) when is_record(NR, notification_record) ->
+    emysql:prepare(save_notification_stmt, <<"INSERT INTO notifications SET sender_id = ?, receiver_id = ?, notification_type = ?, notifiable_type = ?, notifiable_action = ?, notifiable_id = ?, subject = ?, body = ?, read = ?, created_at = ?, updated_at = ?">>),
+    Now = calendar:local_time(),
+    emysql:execute(erlim_pool, save_notification_stmt, [NR#notification_record.sender_id, NR#notification_record.receiver_id, NR#notification_record.notification_type, NR#notification_record.notifiable_type, NR#notification_record.notifiable_action, NR#notification_record.notifiable_id, NR#notification_record.subject, NR#notification_record.body, NR#notification_record.read, Now, Now]).

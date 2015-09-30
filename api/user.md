@@ -10,6 +10,7 @@ ONECHAT/1.0\r\nPAYLOAD_LEN: 587\r\n\r\n
 {
     "cmd": "create_friendship",
     "to": "user mysql id",
+    "msg": "I an yang",
     "ack": "ack"
 }
 ```
@@ -29,7 +30,9 @@ ONECHAT/1.0\r\nPAYLOAD_LEN: 587\r\n\r\n
 ONECHAT/1.0\r\nPAYLOAD_LEN: 587\r\n\r\n
 {
     "cmd": "notification",
+    "notification_type": 2,
     "from": "user mysql id",
+    "msg": "I an yang",
     "ack": "ack"
 }
 ```
@@ -39,17 +42,19 @@ ONECHAT/1.0\r\nPAYLOAD_LEN: 587\r\n\r\n
 ONECHAT/1.0\r\nPAYLOAD_LEN: 587\r\n\r\n
 {
     "cmd": "ack",
-    "action": "create_friendship",
+    "action": "notification",
+    "notification_type": 2,
     "ack": "ack"
 }
 ```
 
-对方统一创建
+对方同意创建
 ```
 ONECHAT/1.0\r\nPAYLOAD_LEN: 587\r\n\r\n
 {
     "cmd": "create_friendship",
     "to": "user mysql id",
+    "msg": "I an didi",
     "ack": "ack"
 }
 ```
@@ -64,22 +69,24 @@ ONECHAT/1.0\r\nPAYLOAD_LEN: 587\r\n\r\n
 }
 ```
 
-发送已经成为好友消息
+发送已经成为好友消息给双方
 ```
 ONECHAT/1.0\r\nPAYLOAD_LEN: 587\r\n\r\n
 {
-    "cmd": "become_friends",
+    "cmd": "notification",
+    "notification_type": 3,
     "from": "user mysql id",
     "ack": "ack"
 }
 ```
 
-消息回执
+客户端消息回执
 ```
 ONECHAT/1.0\r\nPAYLOAD_LEN: 587\r\n\r\n
 {
     "cmd": "ack",
-    "action": "become_friends",
+    "action": "notification",
+    "notification_type": 3,
     "ack": "ack"
 }
 ```
