@@ -7,7 +7,7 @@ pre-compile:
 	cp erlim.example.toml /etc/erlim/erlim.toml
 
 edoc:
-    $(REBAR) doc skip_deps=true
+	$(REBAR) doc skip_deps=true
 
 get-deps:
 	$(REBAR) get-deps
