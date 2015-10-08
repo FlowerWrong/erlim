@@ -100,3 +100,35 @@ ONECHAT/1.0\r\nPAYLOAD_LEN: 587\r\n\r\n
     "ack": "notification mysql id"
 }
 ```
+
+#### change room name
+```
+ONECHAT/1.0\r\nPAYLOAD_LEN: 587\r\n\r\n
+{
+    "cmd": "change_room_info",
+    "roomid": "room mysql id",
+    "newname": "new room name"
+}
+```
+
+server send notification to all(include creator)
+```
+ONECHAT/1.0\r\nPAYLOAD_LEN: 587\r\n\r\n
+{
+    "cmd": "notification",
+    "notification_type": 14,
+    "from": "user mysql id",
+    "msg": "I an yang",
+    "ack": "notification mysql id"
+}
+```
+
+client send the ack to server to ack this notification
+```
+ONECHAT/1.0\r\nPAYLOAD_LEN: 587\r\n\r\n
+{
+    "cmd": "ack",
+    "action": "notification",
+    "ack": "notification mysql id"
+}
+```

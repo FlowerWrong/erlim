@@ -683,7 +683,34 @@ process_data(Data, Socket, State, Protocol) ->
                                     State;
                                 <<"change_room_info">> ->
                                     %% 修改群信息(暂时不限制), 通知所有群成员
-                                    %% @TODO
+                                    RoomId = maps:get(<<"roomid">>, JsonMap),
+                                    NewName = maps:get(<<"newname">>, JsonMap),
+                                    lager:info("Room id is~p~n", [RoomId]),
+                                    lager:info("NewName is~p~n", [NewName]),
+                                    %% 群是否存在
+                                    case mysql_util:is_an_exist_room(RoomId) of
+                                        false ->
+                                            erlim_client:reply_error(Socket, <<"room not exist">>, 10400, Protocol);
+                                        true ->
+                                            Cid = SessionUserMnesia#session.uid,
+                                            %% 发送消息通知
+                                            lists:foreach(fun(M) ->
+                                                Mid = M#room_users_record.user_id,
+                                                case Mid =:= Cid of
+                                                    true ->
+                                                        Msg = <<"change room name success">>,
+                                                        NRRoom = #notification_record{sender_id = 0, receiver_id = Cid, notification_type = 14, notifiable_type = <<"User">>, notifiable_action = <<"change_room_info">>, notifiable_id = Cid, subject = Msg, body = Msg, unread = 1},
+                                                        {ok_packet, _, _, NotificationIdOfMine, _, _, _} = mysql_util:save_notification(NRRoom),
+                                                        send_notification_to_self(14, Msg, NotificationIdOfMine, Protocol, Socket);
+                                                    false ->
+                                                        Msg = <<"changed the room name">>,
+                                                        NRRoom = #notification_record{sender_id = Cid, receiver_id = Mid, notification_type = 14, notifiable_type = <<"User">>, notifiable_action = <<"change_room_info">>, notifiable_id = Mid, subject = Msg, body = Msg, unread = 1},
+                                                        {ok_packet, _, _, NotificationIdOfTo, _, _, _} = mysql_util:save_notification(NRRoom),
+                                                        send_notification(Cid, Mid, 14, Msg, NotificationIdOfTo)
+                                                end
+                                                          end, mysql_util:room_members(RoomId)),
+                                            mysql_util:change_room_name(RoomId, NewName)
+                                    end,
                                     State;
                                 <<"ack">> ->
                                     %% 消息回执

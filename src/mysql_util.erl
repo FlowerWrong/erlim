@@ -28,6 +28,7 @@
     is_an_exist_room/1,
     is_room_leader/2,
     change_room_leader/1,
+    change_room_name/2,
     are_friends/2,
     in_room/2,
     create_room/1,
@@ -209,6 +210,11 @@ change_room_leader(RoomId) when is_integer(RoomId) ->
             emysql:prepare(change_room_leader_stmt, <<"UPDATE rooms SET creator = ? WHERE id = ?">>),
             emysql:execute(erlim_pool, change_room_leader_stmt, [Uid, RoomId])
     end.
+
+%% @doc 修改群名
+change_room_name(RoomId, NewName) when is_integer(RoomId) ->
+    emysql:prepare(change_room_leader_stmt, <<"UPDATE rooms SET name = ? WHERE id = ?">>),
+    emysql:execute(erlim_pool, change_room_leader_stmt, [NewName, RoomId]).
 
 %% @doc 是否在该群
 in_room(Uid, Roomid) when is_integer(Uid), is_integer(Roomid) ->
