@@ -176,27 +176,26 @@ handle_info({tcp, Socket, Data}, #state{socket = Socket, data_complete = DCFlag,
                                        end
                                end;
                            1 ->
-                               DataList = string:tokens(binary_to_list(Data), "\r\n"),
+                               %% note: string:tokens 分割失败
+                               DataList = re:split(binary_to_list(Data), "\r\n\r\n"),
                                lager:info("DataList is ~p~n", [DataList]),
-                               case length(DataList) > 3 of
+                               case length(DataList) > 2 of
                                    true ->
                                        erlim_client:reply_error(Socket, <<"data is invide, may be you have more \r\n">>, 10400, tcp),
                                        State;
                                    false ->
-                                       PayloadLength0 = string:tokens(lists:nth(2, DataList), ": "),
+                                       HeaderBinary = lists:nth(1, DataList),
+                                       Header = string:tokens(binary_to_list(HeaderBinary), "\r\n"),
+                                       PayloadBinary = lists:nth(2, DataList),
+                                       PayloadLength0 = string:tokens(lists:nth(2, Header), ": "),
                                        PayloadLength1 = lists:nth(2, PayloadLength0),
                                        PayloadLength = list_to_integer(PayloadLength1),
-                                       lager:info("Payloadlength is ~p~n", [PayloadLength]),
                                        if
-                                           PayloadLength > 1048576 ->
+                                           PayloadLength > 10400 ->
                                                erlim_client:reply_error(Socket, <<"data must less than 8192 bytes">>, 10400, tcp),
                                                State;
                                            true ->
-                                               PayloadList = lists:nth(3, DataList),
-                                               PayloadBinary = list_to_binary(PayloadList),
                                                %% 已经接收到的数据大小
-                                               lager:info("PayloadList is ~p~n", [PayloadList]),
-                                               lager:info("PayloadBinary is ~p~n", [PayloadBinary]),
                                                Alrpl = byte_size(PayloadBinary),
                                                lager:info("Alrpl is ~p~n", [Alrpl]),
                                                case Alrpl =:= PayloadLength of
