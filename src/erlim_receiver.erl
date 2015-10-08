@@ -582,20 +582,18 @@ process_data(Data, Socket, State, Protocol) ->
 
                                     %% 加入群创建者
                                     mysql_util:add_member(RoomId, Creator),
-                                    %% 需要消息回执
                                     Msg = <<"create room success">>,
                                     NRRoom = #notification_record{sender_id = 0, receiver_id = Creator, notification_type = 11, notifiable_type = <<"User">>, notifiable_action = <<"create_room">>, notifiable_id = Creator, subject = Msg, body = Msg, unread = 1},
                                     {ok_packet, _, _, NotificationIdOfMine, _, _, _} = mysql_util:save_notification(NRRoom),
                                     send_notification_to_self(11, Msg, NotificationIdOfMine, Protocol, Socket),
 
+                                    %% 发消息给被拉入者
                                     lists:foreach(fun(Mid) ->
                                         mysql_util:add_member(RoomId, Mid),
-
-                                        %% 需要消息回执
-                                        Msg = <<"pull you to this room">>,
-                                        NRRoom = #notification_record{sender_id = Creator, receiver_id = Mid, notification_type = 11, notifiable_type = <<"User">>, notifiable_action = <<"create_room">>, notifiable_id = Mid, subject = Msg, body = Msg, unread = 1},
-                                        {ok_packet, _, _, NotificationIdOfTo, _, _, _} = mysql_util:save_notification(NRRoom),
-                                        send_notification(Creator, Mid, 11, Msg, NotificationIdOfTo)
+                                        MsgPull = <<"pull you to this room">>,
+                                        NRRoomPull = #notification_record{sender_id = Creator, receiver_id = Mid, notification_type = 11, notifiable_type = <<"User">>, notifiable_action = <<"create_room">>, notifiable_id = Mid, subject = MsgPull, body = MsgPull, unread = 1},
+                                        {ok_packet, _, _, NotificationIdOfTo, _, _, _} = mysql_util:save_notification(NRRoomPull),
+                                        send_notification(Creator, Mid, 11, MsgPull, NotificationIdOfTo)
                                                   end, Members),
                                     State;
                                 <<"del_room">> ->
@@ -604,12 +602,14 @@ process_data(Data, Socket, State, Protocol) ->
                                     lager:info("Room id is~p~n", [RoomId]),
                                     %% 群是否存在
                                     case mysql_util:is_an_exist_room(RoomId) of
-                                        false -> erlim_client:reply_error(Socket, <<"room not exist">>, 10400, Protocol);
+                                        false ->
+                                            erlim_client:reply_error(Socket, <<"room not exist">>, 10400, Protocol);
                                         true ->
                                             %% 是否群主
                                             Creator = SessionUserMnesia#session.uid,
                                             case mysql_util:is_room_leader(RoomId, Creator) of
-                                                false -> erlim_client:reply_error(Socket, <<"you are not the room leader">>, 10403, Protocol);
+                                                false ->
+                                                    erlim_client:reply_error(Socket, <<"you are not the room leader">>, 10403, Protocol);
                                                 true ->
                                                     %% 发送消息通知
                                                     lists:foreach(fun(M) ->
@@ -626,7 +626,7 @@ process_data(Data, Socket, State, Protocol) ->
                                                                 {ok_packet, _, _, NotificationIdOfTo, _, _, _} = mysql_util:save_notification(NRRoom),
                                                                 send_notification(Creator, Mid, 12, Msg, NotificationIdOfTo)
                                                         end
-                                                    end, mysql_util:room_members(RoomId)),
+                                                                  end, mysql_util:room_members(RoomId)),
                                                     %% 最后才删除群
                                                     mysql_util:del_room(RoomId)
                                             end
@@ -638,7 +638,48 @@ process_data(Data, Socket, State, Protocol) ->
                                     State;
                                 <<"leave_room">> ->
                                     %% 退群, 群主退群则下一个加入的人自动成为群主, 通知所有群成员
-                                    %% @TODO
+                                    RoomId = maps:get(<<"roomid">>, JsonMap),
+                                    lager:info("Room id is~p~n", [RoomId]),
+                                    %% 群是否存在
+                                    case mysql_util:is_an_exist_room(RoomId) of
+                                        false ->
+                                            erlim_client:reply_error(Socket, <<"room not exist">>, 10400, Protocol);
+                                        true ->
+                                            Cid = SessionUserMnesia#session.uid,
+                                            %% 发送消息通知
+                                            lists:foreach(fun(M) ->
+                                                Mid = M#room_users_record.user_id,
+                                                case Mid =:= Cid of
+                                                    true ->
+                                                        Msg = <<"leave room success">>,
+                                                        NRRoom = #notification_record{sender_id = 0, receiver_id = Cid, notification_type = 13, notifiable_type = <<"User">>, notifiable_action = <<"leave_room">>, notifiable_id = Cid, subject = Msg, body = Msg, unread = 1},
+                                                        {ok_packet, _, _, NotificationIdOfMine, _, _, _} = mysql_util:save_notification(NRRoom),
+                                                        send_notification_to_self(13, Msg, NotificationIdOfMine, Protocol, Socket);
+                                                    false ->
+                                                        Msg = <<"deleted this room, you have to leave it">>,
+                                                        NRRoom = #notification_record{sender_id = Cid, receiver_id = Mid, notification_type = 13, notifiable_type = <<"User">>, notifiable_action = <<"leave_room">>, notifiable_id = Mid, subject = Msg, body = Msg, unread = 1},
+                                                        {ok_packet, _, _, NotificationIdOfTo, _, _, _} = mysql_util:save_notification(NRRoom),
+                                                        send_notification(Cid, Mid, 13, Msg, NotificationIdOfTo)
+                                                end
+                                                          end, mysql_util:room_members(RoomId)),
+                                            %% 是否群主
+                                            case mysql_util:is_room_leader(RoomId, Cid) of
+                                                false ->
+                                                    %% 退群
+                                                    mysql_util:del_room_member(RoomId, Cid),
+
+                                                    %% 退群以后是否为空群
+                                                    case mysql_util:room_members(RoomId) of
+                                                        [] -> mysql_util:del_room(RoomId);
+                                                        _ -> ok
+                                                    end;
+                                                true ->
+                                                    %% 退群
+                                                    mysql_util:del_room_member(RoomId, Cid),
+                                                    %% 修改群主
+                                                    mysql_util:change_room_leader(RoomId)
+                                            end
+                                    end,
                                     State;
                                 <<"change_room_info">> ->
                                     %% 修改群信息(暂时不限制), 通知所有群成员
@@ -647,35 +688,29 @@ process_data(Data, Socket, State, Protocol) ->
                                 <<"ack">> ->
                                     %% 消息回执
                                     Action = maps:get(<<"action">>, JsonMap),
-
-                                    if
-                                        Action =:= <<"notification">> ->
-                                            NT = maps:get(<<"notification_type">>, JsonMap),
-                                            Ack = maps:get(<<"ack">>, JsonMap),
-                                            lager:info("Ack is ~p, Notification type is ~p~n", [Ack, NT]);
-                                        true ->
-                                            Ack = maps:get(<<"ack">>, JsonMap),
-                                            lager:info("Action is ~p, Ack is ~p~n", [Action, Ack]),
-                                            case Action of
-                                                <<"single_chat">> ->
-                                                    lager:info("Single chat msg ack is ~p~n", [Ack]),
-                                                    mysql_util:mark_read(Ack, single_chat);
-                                                <<"group_chat">> ->
-                                                    lager:info("Group chat msg ack is ~p~n", [Ack]),
-                                                    mysql_util:mark_read(Ack, group_chat);
-                                                <<"offline_single_chat_msg">> ->
-                                                    lager:info("Single chat offline msg ack is ~p~n", [Ack]),
-                                                    lists:foreach(fun(MsgId) ->
-                                                        mysql_util:mark_read(MsgId, single_chat)
-                                                                  end, Ack);
-                                                <<"offline_group_chat_msg">> ->
-                                                    lager:info("Group chat offline msg ack is ~p~n", [Ack]),
-                                                    lists:foreach(fun(RoomMsgId) ->
-                                                        mysql_util:mark_read(RoomMsgId, Uid, group_chat)
-                                                                  end, Ack);
-                                                _ ->
-                                                    erlim_client:reply_error(Socket, <<"404 Not Found this ack action">>, 10404, Protocol)
-                                            end
+                                    Ack = maps:get(<<"ack">>, JsonMap),
+                                    lager:info("Action is ~p, Ack is ~p~n", [Action, Ack]),
+                                    case Action of
+                                        <<"single_chat">> ->
+                                            lager:info("Single chat msg ack is ~p~n", [Ack]),
+                                            mysql_util:mark_read(Ack, single_chat);
+                                        <<"group_chat">> ->
+                                            lager:info("Group chat msg ack is ~p~n", [Ack]),
+                                            mysql_util:mark_read(Ack, group_chat);
+                                        <<"offline_single_chat_msg">> ->
+                                            lager:info("Single chat offline msg ack is ~p~n", [Ack]),
+                                            lists:foreach(fun(MsgId) ->
+                                                mysql_util:mark_read(MsgId, single_chat)
+                                                          end, Ack);
+                                        <<"offline_group_chat_msg">> ->
+                                            lager:info("Group chat offline msg ack is ~p~n", [Ack]),
+                                            lists:foreach(fun(RoomMsgId) ->
+                                                mysql_util:mark_read(RoomMsgId, Uid, group_chat)
+                                                          end, Ack);
+                                        <<"notification">> ->
+                                            lager:info("notification ack is ~p~n", [Ack]);
+                                        _ ->
+                                            erlim_client:reply_error(Socket, <<"404 Not Found this ack action">>, 10404, Protocol)
                                     end,
                                     State;
                                 <<"logout">> ->

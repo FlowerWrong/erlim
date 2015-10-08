@@ -43,7 +43,6 @@ ONECHAT/1.0\r\nPAYLOAD_LEN: 587\r\n\r\n
 {
     "cmd": "ack",
     "action": "notification",
-    "notification_type": 2,
     "ack": "ack"
 }
 ```
@@ -86,7 +85,6 @@ ONECHAT/1.0\r\nPAYLOAD_LEN: 587\r\n\r\n
 {
     "cmd": "ack",
     "action": "notification",
-    "notification_type": 3,
     "ack": "ack"
 }
 ```
@@ -119,7 +117,6 @@ ONECHAT/1.0\r\nPAYLOAD_LEN: 587\r\n\r\n
 {
     "cmd": "ack",
     "action": "notification",
-    "notification_type": 5,
     "ack": "notification id"
 }
 ```

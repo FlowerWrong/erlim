@@ -27,6 +27,7 @@
     room_members/1,
     is_an_exist_room/1,
     is_room_leader/2,
+    change_room_leader/1,
     are_friends/2,
     in_room/2,
     create_room/1,
@@ -197,6 +198,17 @@ is_room_leader(RoomId, Uid) when is_integer(RoomId), is_integer(Uid) ->
             true
     end.
 
+%% @doc 修改群主
+change_room_leader(RoomId) when is_integer(RoomId) ->
+    %% 退群以后是否为空群
+    case mysql_util:room_members(RoomId) of
+        [] -> mysql_util:del_room(RoomId);
+        Members ->
+            FirstMember = lists:nth(1, Members),
+            Uid = FirstMember#room_users_record.user_id,
+            emysql:prepare(change_room_leader_stmt, <<"UPDATE rooms SET creator = ? WHERE id = ?">>),
+            emysql:execute(erlim_pool, change_room_leader_stmt, [Uid, RoomId])
+    end.
 
 %% @doc 是否在该群
 in_room(Uid, Roomid) when is_integer(Uid), is_integer(Roomid) ->
