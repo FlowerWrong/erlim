@@ -121,7 +121,7 @@
     notifiable_id :: integer(),
     subject,
     body,
-    read :: integer(),
+    unread :: integer(),
     created_at,
     updated_at
 }).

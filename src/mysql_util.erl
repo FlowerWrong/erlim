@@ -34,9 +34,16 @@
 %%% @doc user
 %% @doc 添加好友
 add_firend(Uid, FriendId, NickName) when is_integer(Uid), is_integer(FriendId) ->
-    emysql:prepare(add_firend_stmt, <<"INSERT INTO friendships SET user_id = ?, friend_id = ?, nickname = ?, confirmed = ?, created_at = ?, updated_at = ?">>),
-    Now = calendar:local_time(),
-    emysql:execute(erlim_pool, add_firend_stmt, [Uid, FriendId, NickName, 1, Now, Now]).
+    emysql:prepare(have_add_firend_stmt, <<"SELECT * FROM friendships WHERE user_id = ? AND friend_id = ?">>),
+    Result = emysql:execute(erlim_pool, have_add_firend_stmt, [Uid, FriendId]),
+    case emysql_util:as_record(Result, friendship_record, record_info(fields, friendship_record)) of
+        [] ->
+            false;
+        _ ->
+            emysql:prepare(add_firend_stmt, <<"INSERT INTO friendships SET user_id = ?, friend_id = ?, nickname = ?, confirmed = ?, created_at = ?, updated_at = ?">>),
+            Now = calendar:local_time(),
+            emysql:execute(erlim_pool, add_firend_stmt, [Uid, FriendId, NickName, 1, Now, Now])
+    end.
 
 
 %% @doc 是否朋友关系
@@ -169,6 +176,6 @@ in_room(Uid, Roomid) when is_integer(Uid), is_integer(Roomid) ->
 %%% @doc notification
 %% @TODO SQL error
 save_notification(NR) when is_record(NR, notification_record) ->
-    emysql:prepare(save_notification_stmt, <<"INSERT INTO notifications SET sender_id = ?, receiver_id = ?, notification_type = ?, notifiable_type = ?, notifiable_action = ?, notifiable_id = ?, subject = ?, body = ?, read = ?, created_at = ?, updated_at = ?">>),
+    emysql:prepare(save_notification_stmt, <<"INSERT INTO notifications SET sender_id = ?, receiver_id = ?, notification_type = ?, notifiable_type = ?, notifiable_action = ?, notifiable_id = ?, subject = ?, body = ?, unread = ?, created_at = ?, updated_at = ?">>),
     Now = calendar:local_time(),
-    emysql:execute(erlim_pool, save_notification_stmt, [NR#notification_record.sender_id, NR#notification_record.receiver_id, NR#notification_record.notification_type, NR#notification_record.notifiable_type, NR#notification_record.notifiable_action, NR#notification_record.notifiable_id, NR#notification_record.subject, NR#notification_record.body, NR#notification_record.read, Now, Now]).
+    emysql:execute(erlim_pool, save_notification_stmt, [NR#notification_record.sender_id, NR#notification_record.receiver_id, NR#notification_record.notification_type, NR#notification_record.notifiable_type, NR#notification_record.notifiable_action, NR#notification_record.notifiable_id, NR#notification_record.subject, NR#notification_record.body, NR#notification_record.unread, Now, Now]).
