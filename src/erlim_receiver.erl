@@ -576,6 +576,8 @@ process_data(Data, Socket, State, Protocol) ->
                                     Subject = maps:get(<<"subject">>, JsonMap, <<"">>),
                                     Logo = maps:get(<<"logo">>, JsonMap, <<"">>),
 
+                                    %% add room member count limit
+
                                     Creator = SessionUserMnesia#session.uid,
                                     Room = #room_record{creator = Creator, name = RoomName, invitable = Invitable, password = Password, description = Description, subject = Subject, logo = Logo, max_member_count = 500},
                                     {ok_packet, _, _, RoomId, _, _, _} = mysql_util:create_room(Room),
