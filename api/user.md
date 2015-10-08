@@ -91,4 +91,37 @@ ONECHAT/1.0\r\nPAYLOAD_LEN: 587\r\n\r\n
 }
 ```
 
+###### 删除好友(服务器端消息回执用通知替代)
+
+删除好友请求
+```
+ONECHAT/1.0\r\nPAYLOAD_LEN: 587\r\n\r\n
+{
+    "cmd": "del_friendship",
+    "to": "user mysql id"
+}
+```
+
+发送删除好友通知给双方
+```
+ONECHAT/1.0\r\nPAYLOAD_LEN: 587\r\n\r\n
+{
+    "cmd": "notification",
+    "notification_type": 5,
+    "from": "user mysql id if you are sender, the from is 0/system message",
+    "ack": "notification id"
+}
+```
+
+客户端消息回执
+```
+ONECHAT/1.0\r\nPAYLOAD_LEN: 587\r\n\r\n
+{
+    "cmd": "ack",
+    "action": "notification",
+    "notification_type": 5,
+    "ack": "notification id"
+}
+```
+
 #### blockship

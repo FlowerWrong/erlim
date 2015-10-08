@@ -1,6 +1,6 @@
 -module(cy).
 
--export([login/0, sc/1, gc/1, add_friend/2, logout/1, recv/1, loop_recv/1]).
+-export([login/0, sc/1, gc/1, add_friend/2, del_friend/2, logout/1, recv/1, loop_recv/1]).
 
 
 login() ->
@@ -19,6 +19,10 @@ gc(Sock) ->
 
 add_friend(Socket, FriendId) when is_integer(FriendId) ->
     DataToSend = jiffy:encode({[{<<"cmd">>, <<"create_friendship">>}, {<<"to">>, FriendId}, {<<"msg">>, <<"I and yang.">>}, {<<"ack">>, <<"abc">>}]}),
+    send(Socket, DataToSend).
+
+del_friend(Socket, FriendId) when is_integer(FriendId) ->
+    DataToSend = jiffy:encode({[{<<"cmd">>, <<"del_friendship">>}, {<<"to">>, FriendId}]}),
     send(Socket, DataToSend).
 
 logout(Sock) ->

@@ -289,12 +289,12 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Internal functions
 %%%===================================================================
 
-%% set socket opts
+%% @doc set socket opts
 setopts(Socket) ->
     inet:setopts(Socket, [{active, once}]),
     inet:peername(Socket).
 
-%% process socket data
+%% @doc process socket data
 process_data(Data, Socket, State, Protocol) ->
     Json = jiffy:decode(Data),
     lager:info("Json is ~p.~n", [Json]),
@@ -302,7 +302,7 @@ process_data(Data, Socket, State, Protocol) ->
     if
         Cmd =:= <<"login">> ->
             %% 登陆
-            [{<<"name">>, Name}, {<<"pass">>, Pass}, {<<"ack">>, Ack}, {<<"device">>, Device}] = T,
+            [{<<"name">>, Name}, {<<"pass">>, Pass}, {<<"device">>, Device}] = T,
             LoginUserMysql = mysql_util:query_user_by_mobile(Name),
             case LoginUserMysql of
                 [] ->
@@ -313,8 +313,6 @@ process_data(Data, Socket, State, Protocol) ->
                     {ok, PassDigest} =:= bcrypt:hashpw(Pass, PassDigest),
                     ClientPid = erlim_client_sup:start_child(Socket, Protocol),
                     erlim_sm:login(Uid, ClientPid, Device),
-                    %% Send login ack to client
-                    erlim_client:reply_ack(Socket, <<"login">>, Ack, Protocol),
 
                     %% 登陆成功后推送离线消息
                     %% single chat offline msg
@@ -496,22 +494,21 @@ process_data(Data, Socket, State, Protocol) ->
                                                     %% 添加记录后是否已经是好友了
                                                     case mysql_util:add_firend(Sender, ToUid, <<"">>) of
                                                         false ->
-                                                            lager:info("You have already send a friendship request."),
+                                                            lager:info("You have already send a friendship request, please wait a moment."),
                                                             erlim_client:reply_error(Socket, <<"You have already send a friendship request.">>, 10403, Protocol);
                                                         _ ->
                                                             case mysql_util:are_friends(Sender, ToUid) of
                                                                 true ->
                                                                     %% 发通知给双方, 他们已经成为了好友
                                                                     Subject = <<"You are friends">>,
+                                                                    %% 发通知给对方
+                                                                    NR = #notification_record{sender_id = Sender, receiver_id = ToUid, notification_type = 3, notifiable_type = <<"User">>, notifiable_action = <<"create_friendship">>, notifiable_id = ToUid, subject = Subject, body = Subject, unread = 1},
+                                                                    {ok_packet, _, _, NotificationIdOfTo, _, _, _} = mysql_util:save_notification(NR),
+
                                                                     %% 对方是否在线
                                                                     case ToUsers of
-                                                                        false ->
-                                                                            NR = #notification_record{sender_id = Sender, receiver_id = ToUid, notification_type = 3, notifiable_type = <<"User">>, notifiable_action = <<"create_friendship">>, notifiable_id = ToUid, subject = Subject, body = Subject, unread = 1},
-                                                                            mysql_util:save_notification(NR);
+                                                                        false -> offline;
                                                                         _ ->
-                                                                            %% 发通知给对方
-                                                                            NR = #notification_record{sender_id = Sender, receiver_id = ToUid, notification_type = 3, notifiable_type = <<"User">>, notifiable_action = <<"create_friendship">>, notifiable_id = ToUid, subject = Subject, body = Subject, unread = 0},
-                                                                            {ok_packet, _, _, NotificationIdOfTo, _, _, _} = mysql_util:save_notification(NR),
                                                                             lists:foreach(fun(U) ->
                                                                                 DataToSend = jiffy:encode({[{<<"cmd">>, <<"notification">>}, {<<"notification_type">>, 3}, {<<"from">>, Sender}, {<<"msg">>, Subject}, {<<"ack">>, NotificationIdOfTo}]}),
                                                                                 case node(U#session.pid) =:= node() of
@@ -524,7 +521,7 @@ process_data(Data, Socket, State, Protocol) ->
                                                                     end,
 
                                                                     %% 发通知给请求者
-                                                                    NR1 = #notification_record{sender_id = ToUid, receiver_id = Sender, notification_type = 3, notifiable_type = <<"User">>, notifiable_action = <<"create_friendship">>, notifiable_id = Sender, subject = Subject, body = Subject, unread = 0},
+                                                                    NR1 = #notification_record{sender_id = ToUid, receiver_id = Sender, notification_type = 3, notifiable_type = <<"User">>, notifiable_action = <<"create_friendship">>, notifiable_id = Sender, subject = Subject, body = Subject, unread = 1},
                                                                     {ok_packet, _, _, NotificationIdOfMine, _, _, _} = mysql_util:save_notification(NR1),
                                                                     DataToSend = jiffy:encode({[{<<"cmd">>, <<"notification">>}, {<<"notification_type">>, 3}, {<<"from">>, ToUid}, {<<"msg">>, Subject}, {<<"ack">>, NotificationIdOfMine}]}),
                                                                     erlim_client:reply(Socket, DataToSend, Protocol),
@@ -567,8 +564,46 @@ process_data(Data, Socket, State, Protocol) ->
                                     State;
                                 <<"del_friendship">> ->
                                     %% 移除好友, 无需对方同意, 直接移除, 但会发送通知
-                                    %% @TODO
-                                    State;
+                                    [{<<"to">>, ToUid}] = T,
+                                    case is_integer(ToUid) of
+                                        false ->
+                                            lager:info("To user id must be integer"),
+                                            erlim_client:reply_error(Socket, <<"To user id must be integer">>, 10400, Protocol),
+                                            State;
+                                        true ->
+                                            Sender = SessionUserMnesia#session.uid,
+                                            mysql_util:del_friend(Sender, ToUid),
+
+                                            %% 需要消息回执
+                                            MsgSender = <<"you del friends success">>,
+                                            NRDelFriendshipSender = #notification_record{sender_id = 0, receiver_id = Sender, notification_type = 5, notifiable_type = <<"User">>, notifiable_action = <<"del_friendship">>, notifiable_id = Sender, subject = MsgSender, body = MsgSender, unread = 1},
+                                            {ok_packet, _, _, NotificationIdOfMine, _, _, _} = mysql_util:save_notification(NRDelFriendshipSender),
+                                            DataToSender = jiffy:encode({[{<<"cmd">>, <<"notification">>}, {<<"notification_type">>, 5}, {<<"from">>, 0}, {<<"msg">>, MsgSender}, {<<"ack">>, NotificationIdOfMine}]}),
+                                            erlim_client:reply(Socket, DataToSender, Protocol),
+
+                                            %% 需要消息回执
+                                            Msg = <<"del our friendship">>,
+                                            NRDelFriendship = #notification_record{sender_id = Sender, receiver_id = ToUid, notification_type = 5, notifiable_type = <<"User">>, notifiable_action = <<"del_friendship">>, notifiable_id = ToUid, subject = Msg, body = Msg, unread = 1},
+                                            {ok_packet, _, _, NotificationIdOfTo, _, _, _} = mysql_util:save_notification(NRDelFriendship),
+
+                                            ToUsers = erlim_sm:get_session(ToUid),
+                                            lager:info("del_friendship toUsers are ~p~n", [ToUsers]),
+                                            case ToUsers of
+                                                false -> offline;
+                                                _ ->
+                                                    %% online: 发消息给多个终端设备
+                                                    lists:foreach(fun(U) ->
+                                                        DataToSend = jiffy:encode({[{<<"cmd">>, <<"notification">>}, {<<"notification_type">>, 5}, {<<"from">>, Sender}, {<<"msg">>, Msg}, {<<"ack">>, NotificationIdOfTo}]}),
+                                                        case node(U#session.pid) =:= node() of
+                                                            true ->
+                                                                U#session.pid ! {notification, DataToSend};
+                                                            false ->
+                                                                {U#session.register_name, U#session.node} ! {notification, DataToSend}
+                                                        end
+                                                                  end, ToUsers)
+                                            end,
+                                            State
+                                    end;
                                 <<"create_room">> ->
                                     %% 建群, 群主可设置是否需要密码等, 拉人, 无需对方同意, 有通知给对方
                                     %% @TODO
@@ -591,27 +626,35 @@ process_data(Data, Socket, State, Protocol) ->
                                     State;
                                 <<"ack">> ->
                                     %% 消息回执
-                                    [{<<"action">>, Action}, {<<"ack">>, Ack}] = T,
-                                    lager:info("Action is ~p, Ack is ~p~n", [Action, Ack]),
-                                    case Action of
-                                        <<"single_chat">> ->
-                                            lager:info("Single chat msg ack is ~p~n", [Ack]),
-                                            mysql_util:mark_read(Ack, single_chat);
-                                        <<"group_chat">> ->
-                                            lager:info("Group chat msg ack is ~p~n", [Ack]),
-                                            mysql_util:mark_read(Ack, group_chat);
-                                        <<"offline_single_chat_msg">> ->
-                                            lager:info("Single chat offline msg ack is ~p~n", [Ack]),
-                                            lists:foreach(fun(MsgId) ->
-                                                mysql_util:mark_read(MsgId, single_chat)
-                                                          end, Ack);
-                                        <<"offline_group_chat_msg">> ->
-                                            lager:info("Group chat offline msg ack is ~p~n", [Ack]),
-                                            lists:foreach(fun(RoomMsgId) ->
-                                                mysql_util:mark_read(RoomMsgId, Uid, group_chat)
-                                                          end, Ack);
-                                        _ ->
-                                            erlim_client:reply_error(Socket, <<"404 Not Found this ack action">>, 10404, Protocol)
+                                    [{<<"action">>, Action}, _Tail] = T,
+
+                                    if
+                                        Action =:= <<"notification">> ->
+                                            [{<<"action">>, Action}, {<<"notification_type">>, NT}, {<<"ack">>, Ack}] = T,
+                                            lager:info("Ack is ~p, Notification type is ~p~n", [Ack, NT]);
+                                        true ->
+                                            [{<<"action">>, Action}, {<<"ack">>, Ack}] = T,
+                                            lager:info("Action is ~p, Ack is ~p~n", [Action, Ack]),
+                                            case Action of
+                                                <<"single_chat">> ->
+                                                    lager:info("Single chat msg ack is ~p~n", [Ack]),
+                                                    mysql_util:mark_read(Ack, single_chat);
+                                                <<"group_chat">> ->
+                                                    lager:info("Group chat msg ack is ~p~n", [Ack]),
+                                                    mysql_util:mark_read(Ack, group_chat);
+                                                <<"offline_single_chat_msg">> ->
+                                                    lager:info("Single chat offline msg ack is ~p~n", [Ack]),
+                                                    lists:foreach(fun(MsgId) ->
+                                                        mysql_util:mark_read(MsgId, single_chat)
+                                                                  end, Ack);
+                                                <<"offline_group_chat_msg">> ->
+                                                    lager:info("Group chat offline msg ack is ~p~n", [Ack]),
+                                                    lists:foreach(fun(RoomMsgId) ->
+                                                        mysql_util:mark_read(RoomMsgId, Uid, group_chat)
+                                                                  end, Ack);
+                                                _ ->
+                                                    erlim_client:reply_error(Socket, <<"404 Not Found this ack action">>, 10404, Protocol)
+                                            end
                                     end,
                                     State;
                                 <<"logout">> ->

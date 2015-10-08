@@ -10,6 +10,7 @@
 
 -export([
     add_firend/3,
+    del_friend/2,
     query_user_by_mobile/1,
     query_user_by_id/1,
     save_msg/1,
@@ -38,13 +39,17 @@ add_firend(Uid, FriendId, NickName) when is_integer(Uid), is_integer(FriendId) -
     Result = emysql:execute(erlim_pool, have_add_firend_stmt, [Uid, FriendId]),
     case emysql_util:as_record(Result, friendship_record, record_info(fields, friendship_record)) of
         [] ->
-            false;
-        _ ->
             emysql:prepare(add_firend_stmt, <<"INSERT INTO friendships SET user_id = ?, friend_id = ?, nickname = ?, confirmed = ?, created_at = ?, updated_at = ?">>),
             Now = calendar:local_time(),
-            emysql:execute(erlim_pool, add_firend_stmt, [Uid, FriendId, NickName, 1, Now, Now])
+            emysql:execute(erlim_pool, add_firend_stmt, [Uid, FriendId, NickName, 1, Now, Now]);
+        _ -> false
     end.
 
+%% @doc 删除好友
+del_friend(Uid, Fid) when is_integer(Uid), is_integer(Fid) ->
+    emysql:prepare(del_friend_stmt, <<"DELETE FROM friendships WHERE user_id = ? AND friend_id = ?">>),
+    emysql:execute(erlim_pool, del_friend_stmt, [Uid, Fid]),
+    emysql:execute(erlim_pool, del_friend_stmt, [Fid, Uid]).
 
 %% @doc 是否朋友关系
 are_friends(Uid, Fid) when is_integer(Uid), is_integer(Fid) ->
