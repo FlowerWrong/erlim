@@ -296,13 +296,16 @@ setopts(Socket) ->
 
 %% @doc process socket data
 process_data(Data, Socket, State, Protocol) ->
-    Json = jiffy:decode(Data),
-    lager:info("Json is ~p.~n", [Json]),
-    {[{<<"cmd">>, Cmd} | T]} = Json,
+    JsonMap = jiffy:decode(Data, [return_maps]),
+    lager:info("Json is ~p.~n", [JsonMap]),
+    Cmd = maps:get(<<"cmd">>, JsonMap),
     if
         Cmd =:= <<"login">> ->
             %% 登陆
-            [{<<"name">>, Name}, {<<"pass">>, Pass}, {<<"ack">>, Ack}, {<<"device">>, Device}] = T,
+            Name = maps:get(<<"name">>, JsonMap),
+            Pass = maps:get(<<"pass">>, JsonMap),
+            Ack = maps:get(<<"ack">>, JsonMap),
+            Device = maps:get(<<"device">>, JsonMap),
             LoginUserMysql = mysql_util:query_user_by_mobile(Name),
             case LoginUserMysql of
                 [] ->
@@ -379,7 +382,9 @@ process_data(Data, Socket, State, Protocol) ->
                             case Cmd of
                                 <<"single_chat">> ->
                                     %% 私聊
-                                    [{<<"to">>, ToUid}, {<<"msg">>, Msg}, {<<"ack">>, Ack}] = T,
+                                    ToUid = maps:get(<<"to">>, JsonMap),
+                                    Msg = maps:get(<<"msg">>, JsonMap),
+                                    Ack = maps:get(<<"ack">>, JsonMap),
                                     case is_integer(ToUid) of
                                         false ->
                                             erlim_client:reply_error(Socket, <<"Single chat send msg to user id must be integer">>, 10400, Protocol),
@@ -425,7 +430,9 @@ process_data(Data, Socket, State, Protocol) ->
                                     end;
                                 <<"group_chat">> ->
                                     %% 群聊
-                                    [{<<"to">>, ToRoomId}, {<<"msg">>, Msg}, {<<"ack">>, Ack}] = T,
+                                    ToRoomId = maps:get(<<"to">>, JsonMap),
+                                    Msg = maps:get(<<"msg">>, JsonMap),
+                                    Ack = maps:get(<<"ack">>, JsonMap),
                                     case is_integer(ToRoomId) of
                                         false ->
                                             erlim_client:reply_error(Socket, <<"Group chat send msg to room id must be integer">>, 10400, Protocol),
@@ -476,7 +483,9 @@ process_data(Data, Socket, State, Protocol) ->
                                     end;
                                 <<"create_friendship">> ->
                                     %% 添加好友, 会发一个通知给对方, 对方同意, 才确认好友关系, 否则只是单方面的好友, 会存在于通讯录
-                                    [{<<"to">>, ToUid}, {<<"msg">>, Msg}, {<<"ack">>, Ack}] = T,
+                                    ToUid = maps:get(<<"to">>, JsonMap),
+                                    Msg = maps:get(<<"msg">>, JsonMap),
+                                    Ack = maps:get(<<"ack">>, JsonMap),
                                     case is_integer(ToUid) of
                                         false ->
                                             erlim_client:reply_error(Socket, <<"To user id must be integer">>, 10400, Protocol),
@@ -566,7 +575,7 @@ process_data(Data, Socket, State, Protocol) ->
                                     State;
                                 <<"del_friendship">> ->
                                     %% 移除好友, 无需对方同意, 直接移除, 但会发送通知
-                                    [{<<"to">>, ToUid}] = T,
+                                    ToUid = maps:get(<<"to">>, JsonMap),
                                     case is_integer(ToUid) of
                                         false ->
                                             lager:info("To user id must be integer"),
@@ -608,7 +617,6 @@ process_data(Data, Socket, State, Protocol) ->
                                     end;
                                 <<"create_room">> ->
                                     %% 建群, 群主可设置是否需要密码等, 拉人, 无需对方同意, 有通知给对方
-                                    %% @TODO
                                     State;
                                 <<"del_room">> ->
                                     %% 删除群(群主), 无需对方同意, 有通知给对方
@@ -628,14 +636,15 @@ process_data(Data, Socket, State, Protocol) ->
                                     State;
                                 <<"ack">> ->
                                     %% 消息回执
-                                    [{<<"action">>, Action}, _Tail] = T,
+                                    Action = maps:get(<<"action">>, JsonMap),
 
                                     if
                                         Action =:= <<"notification">> ->
-                                            [{<<"action">>, Action}, {<<"notification_type">>, NT}, {<<"ack">>, Ack}] = T,
+                                            NT = maps:get(<<"notification_type">>, JsonMap),
+                                            Ack = maps:get(<<"ack">>, JsonMap),
                                             lager:info("Ack is ~p, Notification type is ~p~n", [Ack, NT]);
                                         true ->
-                                            [{<<"action">>, Action}, {<<"ack">>, Ack}] = T,
+                                            Ack = maps:get(<<"ack">>, JsonMap),
                                             lager:info("Action is ~p, Ack is ~p~n", [Action, Ack]),
                                             case Action of
                                                 <<"single_chat">> ->
@@ -669,7 +678,8 @@ process_data(Data, Socket, State, Protocol) ->
                                         websocket ->
                                             case Cmd of
                                                 <<"webrtc_create">> ->
-                                                    [{<<"to">>, ToUid}, {<<"name">>, RoomName}] = T,
+                                                    ToUid = maps:get(<<"to">>, JsonMap),
+                                                    RoomName = maps:get(<<"name">>, JsonMap),
                                                     %% 对方是否在线
                                                     case mnesia_util:query_session_by_uid(ToUid) of
                                                         false ->
@@ -689,7 +699,7 @@ process_data(Data, Socket, State, Protocol) ->
                                                             State
                                                     end;
                                                 <<"webrtc_join">> ->
-                                                    [{<<"to">>, ToRoomUuid}] = T,
+                                                    ToRoomUuid = maps:get(<<"to">>, JsonMap),
                                                     case webrtc_room:get_members(ToRoomUuid) of
                                                         false ->
                                                             erlim_client:reply_error(Socket, <<"Invide room.">>, 10404, Protocol);
@@ -714,7 +724,7 @@ process_data(Data, Socket, State, Protocol) ->
                                                             end
                                                     end;
                                                 <<"webrtc_leave">> ->
-                                                    [{<<"to">>, ToRoomUuid}] = T,
+                                                    ToRoomUuid = maps:get(<<"to">>, JsonMap),
                                                     case webrtc_room:get_members(ToRoomUuid) of
                                                         false ->
                                                             erlim_client:reply_error(Socket, <<"Invide room.">>, 10404, Protocol);
@@ -745,7 +755,8 @@ process_data(Data, Socket, State, Protocol) ->
                                                             end
                                                     end;
                                                 <<"webrtc_send_offer">> ->
-                                                    [{<<"to">>, ToUid}, {<<"sdp">>, Sdp}] = T,
+                                                    ToUid = maps:get(<<"to">>, JsonMap),
+                                                    Sdp = maps:get(<<"sdp">>, JsonMap),
                                                     io:format("Sdp is ~p~n", [Sdp]),
                                                     %% 对方是否在线
                                                     case mnesia_util:query_session_by_uid(ToUid) of
@@ -761,7 +772,8 @@ process_data(Data, Socket, State, Protocol) ->
                                                             State
                                                     end;
                                                 <<"webrtc_send_answer">> ->
-                                                    [{<<"to">>, ToUid}, {<<"sdp">>, Sdp}] = T,
+                                                    ToUid = maps:get(<<"to">>, JsonMap),
+                                                    Sdp = maps:get(<<"sdp">>, JsonMap),
                                                     io:format("Sdp is ~p~n", [Sdp]),
                                                     %% 对方是否在线
                                                     case mnesia_util:query_session_by_uid(ToUid) of
@@ -777,7 +789,9 @@ process_data(Data, Socket, State, Protocol) ->
                                                             State
                                                     end;
                                                 <<"webrtc_send_ice_candidate">> ->
-                                                    [{<<"to">>, ToUid}, {<<"label">>, Label}, {<<"candidate">>, Candidate}] = T,
+                                                    ToUid = maps:get(<<"to">>, JsonMap),
+                                                    Label = maps:get(<<"label">>, JsonMap),
+                                                    Candidate = maps:get(<<"candidate">>, JsonMap),
                                                     io:format("Candidate is ~p, label is ~p~n", [Candidate, Label]),
                                                     %% 对方是否在线
                                                     case mnesia_util:query_session_by_uid(ToUid) of

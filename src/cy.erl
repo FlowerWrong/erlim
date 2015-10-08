@@ -1,6 +1,6 @@
 -module(cy).
 
--export([login/0, sc/1, gc/1, add_friend/2, del_friend/2, logout/1, recv/1, loop_recv/1]).
+-export([login/0, sc/1, gc/1, add_friend/2, del_friend/2, logout/1, recv/1, loop_recv/1, create_room/1]).
 
 
 login() ->
@@ -23,6 +23,10 @@ add_friend(Socket, FriendId) when is_integer(FriendId) ->
 
 del_friend(Socket, FriendId) when is_integer(FriendId) ->
     DataToSend = jiffy:encode({[{<<"cmd">>, <<"del_friendship">>}, {<<"to">>, FriendId}]}),
+    send(Socket, DataToSend).
+
+create_room(Socket) ->
+    DataToSend = jiffy:encode({[{<<"cmd">>, <<"create_room">>}, {<<"name">>, <<"demoroom">>}, {<<"invitable">>, 1}, {<<"members">>, [1, 2]}, {<<"password">>, <<"123456">>}, {<<"description">>, <<"description">>}, {<<"subject">>, <<"subject">>}, {<<"logo">>, <<"logo">>}]}),
     send(Socket, DataToSend).
 
 logout(Sock) ->
