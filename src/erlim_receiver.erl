@@ -597,11 +597,40 @@ process_data(Data, Socket, State, Protocol) ->
                                         {ok_packet, _, _, NotificationIdOfTo, _, _, _} = mysql_util:save_notification(NRRoom),
                                         send_notification(Creator, Mid, 11, Msg, NotificationIdOfTo)
                                                   end, Members),
-
                                     State;
                                 <<"del_room">> ->
                                     %% 删除群(群主), 无需对方同意, 有通知给对方
-                                    %% @TODO
+                                    RoomId = maps:get(<<"roomid">>, JsonMap),
+                                    lager:info("Room id is~p~n", [RoomId]),
+                                    %% 群是否存在
+                                    case mysql_util:is_an_exist_room(RoomId) of
+                                        false -> erlim_client:reply_error(Socket, <<"room not exist">>, 10400, Protocol);
+                                        true ->
+                                            %% 是否群主
+                                            Creator = SessionUserMnesia#session.uid,
+                                            case mysql_util:is_room_leader(RoomId, Creator) of
+                                                false -> erlim_client:reply_error(Socket, <<"you are not the room leader">>, 10403, Protocol);
+                                                true ->
+                                                    %% 发送消息通知
+                                                    lists:foreach(fun(M) ->
+                                                        Mid = M#room_users_record.user_id,
+                                                        case Mid =:= Creator of
+                                                            true ->
+                                                                Msg = <<"del room success">>,
+                                                                NRRoom = #notification_record{sender_id = 0, receiver_id = Creator, notification_type = 12, notifiable_type = <<"User">>, notifiable_action = <<"create_room">>, notifiable_id = Creator, subject = Msg, body = Msg, unread = 1},
+                                                                {ok_packet, _, _, NotificationIdOfMine, _, _, _} = mysql_util:save_notification(NRRoom),
+                                                                send_notification_to_self(12, Msg, NotificationIdOfMine, Protocol, Socket);
+                                                            false ->
+                                                                Msg = <<"deleted this room, you have to leave it">>,
+                                                                NRRoom = #notification_record{sender_id = Creator, receiver_id = Mid, notification_type = 12, notifiable_type = <<"User">>, notifiable_action = <<"create_room">>, notifiable_id = Mid, subject = Msg, body = Msg, unread = 1},
+                                                                {ok_packet, _, _, NotificationIdOfTo, _, _, _} = mysql_util:save_notification(NRRoom),
+                                                                send_notification(Creator, Mid, 12, Msg, NotificationIdOfTo)
+                                                        end
+                                                    end, mysql_util:room_members(RoomId)),
+                                                    %% 最后才删除群
+                                                    mysql_util:del_room(RoomId)
+                                            end
+                                    end,
                                     State;
                                 <<"join_room">> ->
                                     %% 加群, 群主可设置是否需要密码等, 通知所有群成员

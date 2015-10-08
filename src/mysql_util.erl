@@ -26,9 +26,13 @@
     add_member/2,
     room_members/1,
     is_an_exist_room/1,
+    is_room_leader/2,
     are_friends/2,
     in_room/2,
     create_room/1,
+    del_room_member/2,
+    del_room_members/2,
+    del_room/1,
     save_notification/1
 ]).
 
@@ -127,9 +131,9 @@ user_roommsgs(Uid, Unread) when is_integer(Uid), is_integer(Unread) ->
     Roommsgs.
 
 %% @doc 查询所有群消息
-room_msgs(Id) when is_integer(Id) ->
+room_msgs(RoomId) when is_integer(RoomId) ->
     emysql:prepare(roommsg_stmt, <<"SELECT * FROM roommsgs WHERE t = ?">>),
-    Result = emysql:execute(erlim_pool, roommsg_stmt, [Id]),
+    Result = emysql:execute(erlim_pool, roommsg_stmt, [RoomId]),
     emysql_util:as_record(Result, roommsg_record, record_info(fields, roommsg_record)).
 
 %% @doc 标记私聊/群聊消息为已读
@@ -182,6 +186,18 @@ is_an_exist_room(Roomid) when is_integer(Roomid) ->
             true
     end.
 
+%% @doc 是否群主
+is_room_leader(RoomId, Uid) when is_integer(RoomId), is_integer(Uid) ->
+    emysql:prepare(is_room_leader_stmt, <<"SELECT * FROM rooms WHERE id = ? AND creator = ?">>),
+    Result = emysql:execute(erlim_pool, is_room_leader_stmt, [RoomId, Uid]),
+    case emysql_util:as_record(Result, room_record, record_info(fields, room_record)) of
+        [] ->
+            false;
+        _ ->
+            true
+    end.
+
+
 %% @doc 是否在该群
 in_room(Uid, Roomid) when is_integer(Uid), is_integer(Roomid) ->
     emysql:prepare(in_room_stmt, <<"SELECT * FROM room_users WHERE user_id = ? AND room_id = ?">>),
@@ -197,6 +213,42 @@ create_room(Room) when is_record(Room, room_record) ->
     Now = calendar:local_time(),
     emysql:execute(erlim_pool, create_room_stmt, [Room#room_record.creator, Room#room_record.name, Room#room_record.max_member_count, Room#room_record.invitable, Room#room_record.password, Room#room_record.description, Room#room_record.subject, <<"">>, Room#room_record.logo, Now, Now]).
 
+%% @doc 移除群成员
+del_room_member(RoomId, UserId) when is_integer(RoomId), is_integer(UserId) ->
+    emysql:prepare(del_room_member_stmt, <<"DELETE FROM room_users WHERE room_id = ? AND user_id = ?">>),
+    emysql:execute(erlim_pool, del_room_member_stmt, [RoomId, UserId]).
+
+%% @doc 删除全部群成员
+del_room_members(RoomId, MemberIds) when is_integer(RoomId) ->
+    lists:foreach(fun(Id) ->
+        del_room_member(RoomId, Id)
+                  end, MemberIds).
+
+%% @doc 删除全部群成员
+del_all_room_members(RoomId) when is_integer(RoomId) ->
+    emysql:prepare(del_all_room_members_stmt, <<"DELETE FROM room_users WHERE room_id = ?">>),
+    emysql:execute(erlim_pool, del_all_room_members_stmt, [RoomId]).
+
+%% @doc 删除全部群消息
+del_all_roommsgs(RoomId) when is_integer(RoomId) ->
+    emysql:prepare(del_all_roommsgs_stmt, <<"DELETE FROM roommsgs WHERE t = ?">>),
+    emysql:execute(erlim_pool, del_all_roommsgs_stmt, [RoomId]).
+
+%% @doc 删除全部用户群消息
+del_all_user_roommsgs(RoomId) when is_integer(RoomId) ->
+    Roommsgs = room_msgs(RoomId),
+    lists:foreach(fun(Roommsg) ->
+        emysql:prepare(del_all_user_roommsgs_stmt, <<"DELETE FROM user_roommsgs WHERE roommsg_id = ?">>),
+        emysql:execute(erlim_pool, del_all_user_roommsgs_stmt, [Roommsg#roommsg_record.id])
+                  end, Roommsgs).
+
+%% @doc 删除群(先删除所有群消息, 然后删除所有群成员, 最后删除群)
+del_room(RoomId) when is_integer(RoomId) ->
+    del_all_user_roommsgs(RoomId),
+    del_all_roommsgs(RoomId),
+    del_all_room_members(RoomId),
+    emysql:prepare(del_room_stmt, <<"DELETE FROM rooms WHERE id = ?">>),
+    emysql:execute(erlim_pool, del_room_stmt, [RoomId]).
 
 %%% @doc notification
 %% @TODO SQL error

@@ -38,3 +38,36 @@ ONECHAT/1.0\r\nPAYLOAD_LEN: 587\r\n\r\n
     "ack": "notification mysql id"
 }
 ```
+
+#### del room
+
+```
+ONECHAT/1.0\r\nPAYLOAD_LEN: 587\r\n\r\n
+{
+    "cmd": "del_room",
+    "roomid": "room mysql id"
+}
+```
+
+server send notification to all(include creator)
+```
+ONECHAT/1.0\r\nPAYLOAD_LEN: 587\r\n\r\n
+{
+    "cmd": "notification",
+    "notification_type": 12,
+    "from": "user mysql id",
+    "msg": "I an yang",
+    "ack": "notification mysql id"
+}
+```
+
+client send the ack to server to ack this notification
+```
+ONECHAT/1.0\r\nPAYLOAD_LEN: 587\r\n\r\n
+{
+    "cmd": "ack",
+    "action": "notification",
+    "notification_type": 12,
+    "ack": "notification mysql id"
+}
+```
