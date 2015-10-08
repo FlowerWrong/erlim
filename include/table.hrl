@@ -69,6 +69,7 @@
     description,
     subject,
     qrcode,
+    logo,
     created_at,
     updated_at
 }).

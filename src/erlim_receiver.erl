@@ -302,7 +302,7 @@ process_data(Data, Socket, State, Protocol) ->
     if
         Cmd =:= <<"login">> ->
             %% 登陆
-            [{<<"name">>, Name}, {<<"pass">>, Pass}, {<<"device">>, Device}] = T,
+            [{<<"name">>, Name}, {<<"pass">>, Pass}, {<<"ack">>, Ack}, {<<"device">>, Device}] = T,
             LoginUserMysql = mysql_util:query_user_by_mobile(Name),
             case LoginUserMysql of
                 [] ->
@@ -313,6 +313,8 @@ process_data(Data, Socket, State, Protocol) ->
                     {ok, PassDigest} =:= bcrypt:hashpw(Pass, PassDigest),
                     ClientPid = erlim_client_sup:start_child(Socket, Protocol),
                     erlim_sm:login(Uid, ClientPid, Device),
+                    %% Send login ack to client
+                    erlim_client:reply_ack(Socket, <<"login">>, Ack, Protocol),
 
                     %% 登陆成功后推送离线消息
                     %% single chat offline msg
