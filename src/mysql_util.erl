@@ -22,10 +22,13 @@
     mark_read/2,
     mark_read/3,
     query_msg_by_id/1,
+    add_member/5,
+    add_member/2,
     room_members/1,
     is_an_exist_room/1,
     are_friends/2,
     in_room/2,
+    create_room/1,
     save_notification/1
 ]).
 
@@ -151,6 +154,17 @@ query_msg_by_id(MsgId) when is_integer(MsgId) ->
     Msg.
 
 %%% @doc room
+%% @doc 添加群成员
+add_member(RoomId, Uid, NickName, NoneBother, Bg) when is_integer(RoomId), is_integer(Uid) ->
+    emysql:prepare(add_member_stmt, <<"INSERT INTO room_users SET room_id = ?, user_id = ?, nick_name = ?, none_bother = ?, bg = ?, created_at = ?, updated_at = ?">>),
+    Now = calendar:local_time(),
+    emysql:execute(erlim_pool, add_member_stmt, [RoomId, Uid, NickName, NoneBother, Bg, Now, Now]).
+
+add_member(RoomId, Uid) when is_integer(RoomId), is_integer(Uid) ->
+    emysql:prepare(add_member_stmt, <<"INSERT INTO room_users SET room_id = ?, user_id = ?, nick_name = ?, none_bother = ?, bg = ?, created_at = ?, updated_at = ?">>),
+    Now = calendar:local_time(),
+    emysql:execute(erlim_pool, add_member_stmt, [RoomId, Uid, <<"">>, 0, <<"">>, Now, Now]).
+
 %% @doc 群成员
 room_members(RoomId) when is_integer(RoomId) ->
     emysql:prepare(room_members_stmt, <<"SELECT * FROM room_users WHERE room_id = ?">>),
@@ -176,6 +190,12 @@ in_room(Uid, Roomid) when is_integer(Uid), is_integer(Roomid) ->
         [] -> false;
         _ -> true
     end.
+
+%% @doc 建群
+create_room(Room) when is_record(Room, room_record) ->
+    emysql:prepare(create_room_stmt, <<"INSERT INTO rooms SET creator = ?, name = ?, max_member_count = ?, invitable = ?, password = ?, description = ?, subject = ?, qrcode = ?, logo = ?, created_at = ?, updated_at = ?">>),
+    Now = calendar:local_time(),
+    emysql:execute(erlim_pool, create_room_stmt, [Room#room_record.creator, Room#room_record.name, Room#room_record.max_member_count, Room#room_record.invitable, Room#room_record.password, Room#room_record.description, Room#room_record.subject, <<"">>, Room#room_record.logo, Now, Now]).
 
 
 %%% @doc notification

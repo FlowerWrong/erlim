@@ -1,6 +1,6 @@
 ## Room api(群)
 
-#### create room(name, invitable, members must send)
+#### create room(name must send)
 
 ```
 ONECHAT/1.0\r\nPAYLOAD_LEN: 587\r\n\r\n
