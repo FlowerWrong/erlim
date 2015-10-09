@@ -140,13 +140,16 @@ room_msgs(RoomId) when is_integer(RoomId) ->
     Result = emysql:execute(erlim_pool, roommsg_stmt, [RoomId]),
     emysql_util:as_record(Result, roommsg_record, record_info(fields, roommsg_record)).
 
-%% @doc 标记私聊/群聊消息为已读
+%% @doc 标记私聊/群聊/通知消息为已读
 mark_read(MsgId, single_chat) when is_integer(MsgId) ->
     emysql:prepare(mark_read_single_chat_stmt, <<"UPDATE msgs SET unread = ? WHERE id = ?">>),
     emysql:execute(erlim_pool, mark_read_single_chat_stmt, [0, MsgId]);
 mark_read(UserRoommsgId, group_chat) when is_integer(UserRoommsgId) ->
     emysql:prepare(mark_read_group_chat_stmt, <<"UPDATE user_roommsgs SET unread = ? WHERE id = ?">>),
-    emysql:execute(erlim_pool, mark_read_group_chat_stmt, [0, UserRoommsgId]).
+    emysql:execute(erlim_pool, mark_read_group_chat_stmt, [0, UserRoommsgId]);
+mark_read(NotificationId, notification) when is_integer(NotificationId) ->
+    emysql:prepare(mark_read_notification_stmt, <<"UPDATE notifications SET unread = ? WHERE id = ?">>),
+    emysql:execute(erlim_pool, mark_read_notification_stmt, [0, NotificationId]).
 
 %% @doc 标记私聊/群聊消息为已读
 mark_read(RoommsgId, Uid, group_chat) when is_integer(RoommsgId), is_integer(Uid) ->

@@ -807,7 +807,8 @@ process_data(Data, Socket, State, Protocol) ->
                                                 mysql_util:mark_read(RoomMsgId, Uid, group_chat)
                                                           end, Ack);
                                         <<"notification">> ->
-                                            lager:info("notification ack is ~p~n", [Ack]);
+                                            lager:info("notification ack is ~p~n", [Ack]),
+                                            mysql_util:mark_read(Ack, notification);
                                         _ ->
                                             erlim_client:reply_error(Socket, <<"404 Not Found this ack action">>, 10404, Protocol)
                                     end,
