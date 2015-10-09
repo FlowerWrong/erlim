@@ -576,8 +576,6 @@ process_data(Data, Socket, State, Protocol) ->
                                     Subject = maps:get(<<"subject">>, JsonMap, <<"">>),
                                     Logo = maps:get(<<"logo">>, JsonMap, <<"">>),
 
-                                    %% add room member count limit
-
                                     Creator = SessionUserMnesia#session.uid,
                                     Room = #room_record{creator = Creator, name = RoomName, invitable = Invitable, password = Password, description = Description, subject = Subject, logo = Logo, max_member_count = 500},
                                     {ok_packet, _, _, RoomId, _, _, _} = mysql_util:create_room(Room),
@@ -635,8 +633,80 @@ process_data(Data, Socket, State, Protocol) ->
                                     end,
                                     State;
                                 <<"join_room">> ->
-                                    %% 加群, 群主可设置是否需要密码等, 通知所有群成员
-                                    %% @TODO
+                                    %% 加群
+                                    %% 1. 无密码, 自己申请进群
+                                    %% 2. 有密码, 自己申请进群, 需要输入密码
+                                    %% add room member count limit
+                                    %% 是否群成员
+                                    RoomId = maps:get(<<"roomid">>, JsonMap),
+                                    lager:info("Room id is~p~n", [RoomId]),
+                                    %% 群是否存在
+                                    case mysql_util:is_an_exist_room(RoomId) of
+                                        false ->
+                                            erlim_client:reply_error(Socket, <<"room not exist">>, 10400, Protocol);
+                                        true ->
+                                            %% @TODO
+                                            ok
+                                    end,
+                                    State;
+                                <<"pull_to_room">> ->
+                                    %% 其他人拉某人进群, 无需密码
+                                    %% add room member count limit
+                                    %% 是否群成员
+                                    RoomId = maps:get(<<"roomid">>, JsonMap),
+                                    UserId = maps:get(<<"userid">>, JsonMap),
+                                    lager:info("Room id is ~p userid is ~p~n", [RoomId, UserId]),
+                                    Puller = SessionUserMnesia#session.uid,
+                                    %% 群是否存在
+                                    case mysql_util:is_an_exist_room(RoomId) of
+                                        false ->
+                                            erlim_client:reply_error(Socket, <<"room not exist">>, 10400, Protocol);
+                                        true ->
+                                            %% 邀请人是否群成员
+                                            case mysql_util:in_room(Puller, RoomId) of
+                                                false ->
+                                                    erlim_client:reply_error(Socket, <<"You are not the room member">>, 10403, Protocol);
+                                                true ->
+                                                    RoomMembersCount = mysql_util:room_members_count(RoomId),
+                                                    RoomRecordMysql = mysql_util:room(RoomId),
+                                                    MaxMembersCount = RoomRecordMysql#room_record.max_member_count,
+                                                    %% 群成员数限制
+                                                    case MaxMembersCount > RoomMembersCount of
+                                                        true ->
+                                                            %% 是否群成员
+                                                            case mysql_util:in_room(UserId, RoomId) of
+                                                                false ->
+                                                                    mysql_util:add_member(RoomId, UserId),
+
+                                                                    %% 发送消息通知
+                                                                    lists:foreach(fun(M) ->
+                                                                        Mid = M#room_users_record.user_id,
+                                                                        if
+                                                                            Mid =:= Puller ->
+                                                                                Msg = <<"pull someone to room success">>,
+                                                                                NRRoom = #notification_record{sender_id = 0, receiver_id = Puller, notification_type = 15, notifiable_type = <<"User">>, notifiable_action = <<"pull_to_room">>, notifiable_id = Puller, subject = Msg, body = Msg, unread = 1},
+                                                                                {ok_packet, _, _, NotificationIdOfMine, _, _, _} = mysql_util:save_notification(NRRoom),
+                                                                                send_notification_to_self(15, Msg, NotificationIdOfMine, Protocol, Socket);
+                                                                            true ->
+                                                                                Msg = case Mid =:= UserId of
+                                                                                          true ->
+                                                                                              <<"invited you to this room">>;
+                                                                                          false ->
+                                                                                              <<"some one invited some one to this room">>
+                                                                                      end,
+                                                                                NRRoom = #notification_record{sender_id = Puller, receiver_id = Mid, notification_type = 15, notifiable_type = <<"User">>, notifiable_action = <<"pull_to_room">>, notifiable_id = Mid, subject = Msg, body = Msg, unread = 1},
+                                                                                {ok_packet, _, _, NotificationIdOfTo, _, _, _} = mysql_util:save_notification(NRRoom),
+                                                                                send_notification(Puller, Mid, 15, Msg, NotificationIdOfTo)
+                                                                        end
+                                                                                  end, mysql_util:room_members(RoomId));
+                                                                true ->
+                                                                    erlim_client:reply_error(Socket, <<"User is already room member">>, 10403, Protocol)
+                                                            end;
+                                                        false ->
+                                                            erlim_client:reply_error(Socket, <<"Room members limit">>, 10403, Protocol)
+                                                    end
+                                            end
+                                    end,
                                     State;
                                 <<"leave_room">> ->
                                     %% 退群, 群主退群则下一个加入的人自动成为群主, 通知所有群成员

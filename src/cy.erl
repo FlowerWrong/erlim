@@ -1,6 +1,6 @@
 -module(cy).
 
--export([login/0, sc/1, gc/1, add_friend/2, del_friend/2, logout/1, recv/1, loop_recv/1, create_room/1, del_room/2, leave_room/2, change_room_name/3]).
+-export([login/0, sc/1, gc/1, add_friend/2, del_friend/2, logout/1, recv/1, loop_recv/1, create_room/1, del_room/2, leave_room/2, change_room_name/3, pull_to_room/3]).
 
 
 login() ->
@@ -39,6 +39,10 @@ leave_room(Socket, RoomId) ->
 
 change_room_name(Socket, RoomId, NewName) ->
     DataToSend = jiffy:encode({[{<<"cmd">>, <<"change_room_info">>}, {<<"roomid">>, RoomId}, {<<"newname">>, NewName}]}),
+    send(Socket, DataToSend).
+
+pull_to_room(Socket, RoomId, UserId) ->
+    DataToSend = jiffy:encode({[{<<"cmd">>, <<"pull_to_room">>}, {<<"roomid">>, RoomId}, {<<"userid">>, UserId}]}),
     send(Socket, DataToSend).
 
 

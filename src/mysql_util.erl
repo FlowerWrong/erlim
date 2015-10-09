@@ -25,6 +25,8 @@
     add_member/5,
     add_member/2,
     room_members/1,
+    room_members_count/1,
+    room/1,
     is_an_exist_room/1,
     is_room_leader/2,
     change_room_leader/1,
@@ -176,6 +178,18 @@ room_members(RoomId) when is_integer(RoomId) ->
     emysql:prepare(room_members_stmt, <<"SELECT * FROM room_users WHERE room_id = ?">>),
     Result = emysql:execute(erlim_pool, room_members_stmt, [RoomId]),
     emysql_util:as_record(Result, room_users_record, record_info(fields, room_users_record)).
+
+%% @doc 群成员数
+room_members_count(RoomId) when is_integer(RoomId) ->
+    length(room_members(RoomId)).
+
+%% @doc 群
+room(RoomId) when is_integer(RoomId) ->
+    emysql:prepare(room_stmt, <<"SELECT * FROM rooms WHERE id = ?">>),
+    Result = emysql:execute(erlim_pool, room_stmt, [RoomId]),
+    Res = emysql_util:as_record(Result, room_record, record_info(fields, room_record)),
+    [Room | _T] = Res,
+    Room.
 
 %% @doc 该群是否存在
 is_an_exist_room(Roomid) when is_integer(Roomid) ->

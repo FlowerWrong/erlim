@@ -132,3 +132,70 @@ ONECHAT/1.0\r\nPAYLOAD_LEN: 587\r\n\r\n
     "ack": "notification mysql id"
 }
 ```
+
+
+#### pull someone to room
+```
+ONECHAT/1.0\r\nPAYLOAD_LEN: 587\r\n\r\n
+{
+    "cmd": "pull_to_room",
+    "roomid": "room mysql id",
+    "userid": "user nick name"
+}
+```
+
+server send notification to all(include creator)
+```
+ONECHAT/1.0\r\nPAYLOAD_LEN: 587\r\n\r\n
+{
+    "cmd": "notification",
+    "notification_type": 15,
+    "from": "user mysql id",
+    "msg": "I an yang",
+    "ack": "notification mysql id"
+}
+```
+
+client send the ack to server to ack this notification
+```
+ONECHAT/1.0\r\nPAYLOAD_LEN: 587\r\n\r\n
+{
+    "cmd": "ack",
+    "action": "notification",
+    "ack": "notification mysql id"
+}
+```
+
+
+#### join room(TODO)
+```
+ONECHAT/1.0\r\nPAYLOAD_LEN: 587\r\n\r\n
+{
+    "cmd": "join_room",
+    "roomid": "room mysql id",
+    "nickname": "user nick name",
+    "password": "room password"
+}
+```
+
+server send notification to all(include creator)
+```
+ONECHAT/1.0\r\nPAYLOAD_LEN: 587\r\n\r\n
+{
+    "cmd": "notification",
+    "notification_type": 15,
+    "from": "user mysql id",
+    "msg": "I an yang",
+    "ack": "notification mysql id"
+}
+```
+
+client send the ack to server to ack this notification
+```
+ONECHAT/1.0\r\nPAYLOAD_LEN: 587\r\n\r\n
+{
+    "cmd": "ack",
+    "action": "notification",
+    "ack": "notification mysql id"
+}
+```
