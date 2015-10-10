@@ -87,9 +87,9 @@ init(#state{port=Port}) ->
 
     erlim_mnesia:init_mnesia(),
 
-    application:start(crypto),
-    application:start(bcrypt),
-    application:start(emysql),
+    [ok = application:start(App) ||
+        App <- [crypto, bcrypt, emysql]],
+
     lager:start(),
 
     {ok,[{
@@ -113,6 +113,7 @@ init(#state{port=Port}) ->
         {encoding, binary_to_atom(Encoding, utf8)}
     ]),
 
+    %% @TODO
     observer:start(),
 
     {ok, ListenSocket} = gen_tcp:listen(Port, ?TCP_OPTIONS),

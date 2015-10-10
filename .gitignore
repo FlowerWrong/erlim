@@ -24,3 +24,5 @@ Mnesia.*
 
 *.swp
 *.so
+
+/crt/

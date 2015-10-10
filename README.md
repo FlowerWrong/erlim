@@ -105,10 +105,10 @@ cp erlim.example.toml /etc/erlim/erlim.toml
 - [x] [implement a module like pg2 with mnesia](https://github.com/erlang/otp/blob/maint/lib/kernel/src/pg2.erl)
 - [x] add video chat support(ICE  STUN: RFC3489  TURN: RFC5766  SIP  WebRTC SDP)
 - [x] implement cluster mode with a scheduler in erlang or nodejs or ruby on rails
-- [ ] block user, add friends, room onechat api
+- [x] block user, add friends, room onechat api
 - [ ] http api module(friends list, blocks list, room info...)
 - [ ] add tls support
-- [ ] add edoc
+- [x] add edoc
 - [ ] add web admin support
 - [ ] add max connection number test
 - [ ] multi video chat without p2p, rtmp and hls
