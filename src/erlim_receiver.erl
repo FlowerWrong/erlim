@@ -319,7 +319,7 @@ process_data(Data, Socket, State, Protocol) ->
                     erlim_client:reply_ack(Socket, <<"login">>, Ack, Protocol),
 
                     %% 登陆成功后推送离线消息
-                    %% single chat offline msg
+                    %% 私聊离线消息
                     Msgs = mysql_util:user_msgs(Uid, 1),
                     case Msgs of
                         [] -> ok;
@@ -339,7 +339,7 @@ process_data(Data, Socket, State, Protocol) ->
                             erlim_client:reply(Socket, MsgDataToBeSend, Protocol)
                     end,
 
-                    %% group chat offline msg
+                    %% 群聊离线消息
                     Roommsgs = mysql_util:user_roommsgs(Uid, 1),
                     case Roommsgs of
                         [] -> ok;
@@ -359,7 +359,25 @@ process_data(Data, Socket, State, Protocol) ->
                             erlim_client:reply(Socket, RoomMsgDataToBeSend, Protocol)
                     end,
 
-                    %% @TODO 离线通知
+                    %% 离线通知
+                    UnreadNotifications = mysql_util:user_unread_notifications(Uid),
+                    case UnreadNotifications of
+                        [] -> ok;
+                        _ ->
+                            UnreadNotificationsForJson = lists:map(fun(R) ->
+                                {datetime, CreatedAtD} = R#notification_record.created_at,
+                                {datetime, UpdatedAtD} = R#notification_record.updated_at,
+                                CreatedAtT = util:datetime2timestamp(CreatedAtD),
+                                UpdatedAtT = util:datetime2timestamp(UpdatedAtD),
+                                {[{id, R#notification_record.id}, {sender_id, R#notification_record.sender_id}, {receiver_id, R#notification_record.receiver_id}, {notification_type, R#notification_record.notification_type}, {notifiable_type, R#notification_record.notifiable_type}, {notifiable_action, R#notification_record.notifiable_action}, {notifiable_id, R#notification_record.notifiable_id}, {subject, R#notification_record.subject}, {body, R#notification_record.body}, {unread, R#notification_record.unread}, {created_at, CreatedAtT}, {updated_at, UpdatedAtT}]}
+                                                                   end, UnreadNotifications),
+                            UnreadNotificationsIds = lists:map(fun(R) ->
+                                R#notification_record.id
+                                                               end, UnreadNotifications),
+                            UnreadNotificationsToBeSend = jiffy:encode({[{<<"cmd">>, <<"offline_notifications">>}, {<<"msg">>, UnreadNotificationsForJson}, {<<"ack">>, UnreadNotificationsIds}]}),
+                            lager:info("offline notifications are ~p~n", [UnreadNotificationsToBeSend]),
+                            erlim_client:reply(Socket, UnreadNotificationsToBeSend, Protocol)
+                    end,
 
                     State#state{client_pid = ClientPid, uid = Uid, device = Device, protocol = Protocol}
             end;
@@ -806,9 +824,11 @@ process_data(Data, Socket, State, Protocol) ->
                                             lists:foreach(fun(RoomMsgId) ->
                                                 mysql_util:mark_read(RoomMsgId, Uid, group_chat)
                                                           end, Ack);
-                                        <<"notification">> ->
-                                            lager:info("notification ack is ~p~n", [Ack]),
-                                            mysql_util:mark_read(Ack, notification);
+                                        <<"offline_notifications">> ->
+                                            lager:info("offline_notifications acks are ~p~n", [Ack]),
+                                            lists:foreach(fun(Nid) ->
+                                                mysql_util:mark_read(Nid, notification)
+                                                          end, Ack);
                                         _ ->
                                             erlim_client:reply_error(Socket, <<"404 Not Found this ack action">>, 10404, Protocol)
                                     end,

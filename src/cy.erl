@@ -4,7 +4,7 @@
 
 
 login() ->
-    {ok, Sock} = gen_tcp:connect("localhost", 8080, [binary, {packet, 0}, {buffer, 512}]),
+    {ok, Sock} = gen_tcp:connect("localhost", 8080, [binary, {packet, 0}, {buffer, 4096}]),
     Msg = <<"{\"cmd\": \"login\", \"name\": \"13560474456\", \"pass\": \"12345678\", \"ack\": \"72cdf1ae-62a3-4ebf-821c-a809d1931293\", \"device\": \"android-xiaomi\"}">>,
     send(Sock, Msg),
     Sock.
@@ -76,23 +76,28 @@ recv(Socket) ->
                     end;
                 <<"single_chat">> ->
                     [{<<"from">>, From}, {<<"msg">>, Msg}, {<<"ack">>, MsgId}] = T,
-                    io:format("Recv msg ~p, from ~p, ack is ~p", [Msg, From, MsgId]),
+                    io:format("Recv msg ~p, from ~p, ack is ~p~n", [Msg, From, MsgId]),
                     DataToSend = jiffy:encode({[{<<"cmd">>, <<"ack">>}, {<<"action">>, <<"single_chat">>}, {<<"ack">>, MsgId}]}),
                     send(Socket, DataToSend);
                 <<"group_chat">> ->
                     [{<<"from">>, From}, {<<"to">>, To}, {<<"msg">>, Msg}, {<<"ack">>, UserRoommsgId}] = T,
-                    io:format("Recv msg ~p, from ~p, to room ~p, ack is ~p", [Msg, From, To, UserRoommsgId]),
+                    io:format("Recv msg ~p, from ~p, to room ~p, ack is ~p~n", [Msg, From, To, UserRoommsgId]),
                     DataToSend = jiffy:encode({[{<<"cmd">>, <<"ack">>}, {<<"action">>, <<"group_chat">>}, {<<"ack">>, UserRoommsgId}]}),
                     send(Socket, DataToSend);
                 <<"offline_single_chat_msg">> ->
                     [{<<"msg">>, Msgs}, {<<"ack">>, MsgIds}] = T,
-                    io:format("Recv offline msgs ~p, ack is ~p", [Msgs, MsgIds]),
+                    io:format("Recv offline msgs ~p, ack is ~p~n", [Msgs, MsgIds]),
                     DataToSend = jiffy:encode({[{<<"cmd">>, <<"ack">>}, {<<"action">>, <<"offline_single_chat_msg">>}, {<<"ack">>, MsgIds}]}),
                     send(Socket, DataToSend);
                 <<"offline_group_chat_msg">> ->
                     [{<<"msg">>, Msgs}, {<<"ack">>, MsgIds}] = T,
-                    io:format("Recv offline msgs ~p, ack is ~p", [Msgs, MsgIds]),
+                    io:format("Recv offline msgs ~p, ack is ~p~n", [Msgs, MsgIds]),
                     DataToSend = jiffy:encode({[{<<"cmd">>, <<"ack">>}, {<<"action">>, <<"offline_group_chat_msg">>}, {<<"ack">>, MsgIds}]}),
+                    send(Socket, DataToSend);
+                <<"offline_notifications">> ->
+                    [{<<"msg">>, Msgs}, {<<"ack">>, MsgIds}] = T,
+                    io:format("Recv notifications are ~p, ack is ~p~n", [Msgs, MsgIds]),
+                    DataToSend = jiffy:encode({[{<<"cmd">>, <<"ack">>}, {<<"action">>, <<"offline_notifications">>}, {<<"ack">>, MsgIds}]}),
                     send(Socket, DataToSend);
                 <<"error">> ->
                     [{<<"msg">>, ErrorMsg}, {<<"code">>, Code}] = T,

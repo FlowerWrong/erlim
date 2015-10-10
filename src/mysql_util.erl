@@ -37,7 +37,8 @@
     del_room_member/2,
     del_room_members/2,
     del_room/1,
-    save_notification/1
+    save_notification/1,
+    user_unread_notifications/1
 ]).
 
 -include("table.hrl").
@@ -286,8 +287,14 @@ del_room(RoomId) when is_integer(RoomId) ->
     emysql:execute(erlim_pool, del_room_stmt, [RoomId]).
 
 %%% @doc notification
-%% @TODO SQL error
+%% @doc 保存通知到数据库
 save_notification(NR) when is_record(NR, notification_record) ->
     emysql:prepare(save_notification_stmt, <<"INSERT INTO notifications SET sender_id = ?, receiver_id = ?, notification_type = ?, notifiable_type = ?, notifiable_action = ?, notifiable_id = ?, subject = ?, body = ?, unread = ?, created_at = ?, updated_at = ?">>),
     Now = calendar:local_time(),
     emysql:execute(erlim_pool, save_notification_stmt, [NR#notification_record.sender_id, NR#notification_record.receiver_id, NR#notification_record.notification_type, NR#notification_record.notifiable_type, NR#notification_record.notifiable_action, NR#notification_record.notifiable_id, NR#notification_record.subject, NR#notification_record.body, NR#notification_record.unread, Now, Now]).
+
+%% @doc 未读通知
+user_unread_notifications(Uid) when is_integer(Uid) ->
+    emysql:prepare(user_unread_notifications_stmt, <<"SELECT * FROM notifications WHERE receiver_id = ? AND unread = 1">>),
+    Result = emysql:execute(erlim_pool, user_unread_notifications_stmt, [Uid]),
+    emysql_util:as_record(Result, notification_record, record_info(fields, notification_record)).
