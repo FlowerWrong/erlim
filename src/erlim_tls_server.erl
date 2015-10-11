@@ -2,11 +2,11 @@
 %%% @author yang
 %%% @copyright (C) 2015, <COMPANY>
 %%% @doc
-%%%   onechat tcp listener
+%%%   onechat tls listener
 %%% @end
 %%% Created : 27. 九月 2015 下午12:17
 %%%-------------------------------------------------------------------
--module(erlim_server).
+-module(erlim_tls_server).
 
 -behaviour(gen_server).
 
@@ -28,6 +28,8 @@
 %% http://www.cnblogs.com/ribavnu/p/3409823.html
 %% http://learnyousomeerlang.com/buckets-of-sockets
 -define(TCP_OPTIONS, [binary,
+    {certfile,"certificate.pem"},
+    {keyfile, "key.pem"},
     {ip, {0, 0, 0, 0}},
     {packet, 0},
     %% {backlog, 8192},
@@ -75,7 +77,7 @@ start_link(Port) ->
 %% @private
 %% @doc
 %% Initializes the server
-%%
+%% demo 1 http://erlycoder.com/89/erlang-ssl-sockets-example-ssl-echo-server-ssl-client-
 %% @spec init(Args) -> {ok, State} |
 %%                     {ok, State, Timeout} |
 %%                     ignore |
@@ -89,7 +91,7 @@ init(#state{port=Port}) ->
 
     [ok = application:start(App) ||
         App <- [crypto, bcrypt, emysql]],
-
+    ssl:start(),
     lager:start(),
 
     {ok,[{

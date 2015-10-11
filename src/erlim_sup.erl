@@ -38,7 +38,7 @@ start_link() ->
 %% @end
 %%--------------------------------------------------------------------
 init([]) ->
-    ErlimServer = ?SERVERCHILD(erlim_server, worker),
-    ErlimReceiverSup = ?CHILD(erlim_receiver_sup, worker),
+    ErlimTlsServer = ?SERVERCHILD(erlim_tls_server, worker),
+    ErlimTlsReceiverSup = ?CHILD(erlim_tls_receiver_sup, worker),
     ErlimClientSup = ?CHILD(erlim_client_sup, worker),
-    {ok, { {one_for_one, 5, 10}, [ErlimServer, ErlimReceiverSup, ErlimClientSup] } }.
+    {ok, { {one_for_one, 5, 10}, [ErlimTlsServer, ErlimTlsReceiverSup, ErlimClientSup] } }.
