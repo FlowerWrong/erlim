@@ -24,6 +24,7 @@
 -define(HIBERNATE_TIMEOUT, 90000).
 
 -record(state, {
+    transport,
     socket :: port(),
     protocol :: atom(),
     heartbeat_timeout = ?HIBERNATE_TIMEOUT :: integer(),
@@ -52,8 +53,8 @@
 %% @spec start_link() -> {ok, Pid} | ignore | {error, Error}
 %% @end
 %%--------------------------------------------------------------------
-start_link(Socket) ->
-    gen_server:start_link(?MODULE, [Socket], []).
+start_link(SockArgs) ->
+    {ok, proc_lib:spawn_link(?MODULE, init, [SockArgs])}.
 
 
 %%%===================================================================
@@ -71,11 +72,11 @@ start_link(Socket) ->
 %%                     {stop, Reason}
 %% @end
 %%--------------------------------------------------------------------
-init([Socket]) ->
-    {ok, {IP, _Port}} = ssl:peername(Socket),
-    NewState = #state{socket = Socket, ip = IP, node = node()},
-    setopts(NewState#state.socket),
-    {ok, NewState}.
+init(SockArgs = {Transport, _Sock, _SockFun}) ->
+    {ok, NewSock} = esockd_connection:accept(SockArgs),
+    Transport:async_recv(NewSock, 0, infinity),
+    NewState = #state{transport = Transport, socket = NewSock},
+    gen_server:enter_loop(?MODULE, [], NewState).
 
 %%--------------------------------------------------------------------
 %% @private
@@ -118,8 +119,7 @@ handle_cast(_Msg, State) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_info({tcp, Socket, Data}, #state{socket = Socket, data_complete = DCFlag, client_data = ClientData, payload_len = PayloadLen, already_receive_payload_len = AlreadyReceivePayloadLen, protocol = P} = State) ->
-    setopts(Socket),
+handle_info({inet_async, Socket, _Ref, {ok, Data}}, #state{transport = Transport, socket = Socket, data_complete = DCFlag, client_data = ClientData, payload_len = PayloadLen, already_receive_payload_len = AlreadyReceivePayloadLen, protocol = P} = State) ->
     io:format("Data is ~p~n", [Data]),
     NewState = case DCFlag of
                    0 ->
@@ -135,9 +135,9 @@ handle_info({tcp, Socket, Data}, #state{socket = Socket, data_complete = DCFlag,
                                        case PayLoadLength =:= Alrpl of
                                            true ->
                                                case jsx:is_json(WsData) of
-                                                   true -> process_data(WsData, Socket, State, websocket);
+                                                   true -> process_data(Transport, WsData, Socket, State, websocket);
                                                    false ->
-                                                       erlim_client:reply_error(Socket, <<"invide json">>, 10400, websocket),
+                                                       erlim_client:reply_error(Transport, Socket, <<"invide json">>, 10400, websocket),
                                                        State#state{protocol = websocket}
                                                end;
                                            false ->
@@ -181,7 +181,7 @@ handle_info({tcp, Socket, Data}, #state{socket = Socket, data_complete = DCFlag,
                                lager:info("DataList is ~p~n", [DataList]),
                                case length(DataList) > 2 of
                                    true ->
-                                       erlim_client:reply_error(Socket, <<"data is invide, may be you have more \r\n">>, 10400, tcp),
+                                       erlim_client:reply_error(Transport, Socket, <<"data is invide, may be you have more \r\n">>, 10400, tcp),
                                        State;
                                    false ->
                                        HeaderBinary = lists:nth(1, DataList),
@@ -192,7 +192,7 @@ handle_info({tcp, Socket, Data}, #state{socket = Socket, data_complete = DCFlag,
                                        PayloadLength = list_to_integer(PayloadLength1),
                                        if
                                            PayloadLength > 10400 ->
-                                               erlim_client:reply_error(Socket, <<"data must less than 8192 bytes">>, 10400, tcp),
+                                               erlim_client:reply_error(Transport, Socket, <<"data must less than 8192 bytes">>, 10400, tcp),
                                                State;
                                            true ->
                                                %% 已经接收到的数据大小
@@ -204,7 +204,7 @@ handle_info({tcp, Socket, Data}, #state{socket = Socket, data_complete = DCFlag,
                                                        State#state{data_complete = 1, client_data = NewClientData, payload_len = PayloadLength, protocol = tcp, already_receive_payload_len = Alrpl};
                                                    true ->
                                                        S = State#state{data_complete = 0, client_data = [], payload_len = undefined, protocol = tcp, already_receive_payload_len = 0},
-                                                       process_data(PayloadBinary, Socket, S, tcp)
+                                                       process_data(Transport, PayloadBinary, Socket, S, tcp)
                                                end
                                        end
                                end
@@ -223,24 +223,18 @@ handle_info({tcp, Socket, Data}, #state{socket = Socket, data_complete = DCFlag,
                                lager:info("Payload last is ~p~n", [PayloadOver]),
 
                                case jsx:is_json(PayloadOver) of
-                                   true -> process_data(PayloadOver, Socket, S, P);
+                                   true -> process_data(Transport, PayloadOver, Socket, S, P);
                                    false ->
-                                       erlim_client:reply_error(Socket, <<"invide json">>, 10400, P),
+                                       erlim_client:reply_error(Transport, Socket, <<"invide json">>, 10400, P),
                                        S
                                end
                        end
                end,
+    Transport:async_recv(Socket, 0, infinity),
     {noreply, NewState, ?HIBERNATE_TIMEOUT};
-% tcp connection change to passive
-handle_info({tcp_passive, Socket}, #state{socket = Socket} = State) ->
-    lager:info("tcp_passive is ~p~n", [State]),
-    {noreply, State};
-% connection closed
-handle_info({tcp_closed, _Socket}, State) ->
-    {stop, normal, State};
-handle_info(timeout, State) ->
-    proc_lib:hibernate(gen_server, enter_loop, [?MODULE, [], State]),
-    {noreply, State, State#state.heartbeat_timeout};
+handle_info({inet_async, _Sock, _Ref, {error, Reason}}, State) ->
+    lager:info("==========closed========="),
+    {stop, {shutdown, {inet_async_error, Reason}}, State};
 handle_info(_Info, State) ->
     lager:info("_Info is ~p~n", [_Info]),
     {noreply, State}.
@@ -288,13 +282,8 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Internal functions
 %%%===================================================================
 
-%% @doc set socket opts
-setopts(Socket) ->
-    ssl:setopts(Socket, [{active, once}]),
-    ssl:peername(Socket).
-
 %% @doc process socket data
-process_data(Data, Socket, State, Protocol) ->
+process_data(Transport, Data, Socket, State, Protocol) ->
     JsonMap = jiffy:decode(Data, [return_maps]),
     lager:info("Json is ~p.~n", [JsonMap]),
     Cmd = maps:get(<<"cmd">>, JsonMap),
@@ -308,15 +297,15 @@ process_data(Data, Socket, State, Protocol) ->
             LoginUserMysql = mysql_util:query_user_by_mobile(Name),
             case LoginUserMysql of
                 [] ->
-                    erlim_client:reply_error(Socket, <<"404 Not Found user with this name">>, 10404, Protocol),
+                    erlim_client:reply_error(Transport, Socket, <<"404 Not Found user with this name">>, 10404, Protocol),
                     State;
                 #user_record{password_digest = PD, id = Uid} ->
                     PassDigest = binary_to_list(PD),
                     {ok, PassDigest} =:= bcrypt:hashpw(Pass, PassDigest),
-                    ClientPid = erlim_client_sup:start_child(Socket, Protocol),
+                    ClientPid = erlim_client_sup:start_child(Transport, Socket, Protocol),
                     erlim_sm:login(Uid, ClientPid, Device),
                     %% Send login ack to client
-                    erlim_client:reply_ack(Socket, <<"login">>, Ack, Protocol),
+                    erlim_client:reply_ack(Transport, Socket, <<"login">>, Ack, Protocol),
 
                     %% 登陆成功后推送离线消息
                     %% 私聊离线消息
@@ -336,7 +325,7 @@ process_data(Data, Socket, State, Protocol) ->
                                                 end, Msgs),
                             MsgDataToBeSend = jiffy:encode({[{<<"cmd">>, <<"offline_single_chat_msg">>}, {<<"msg">>, MsgsForJson}, {<<"ack">>, MsgsIds}]}),
                             lager:info("offline single chat msgs are ~p~n", [MsgDataToBeSend]),
-                            erlim_client:reply(Socket, MsgDataToBeSend, Protocol)
+                            erlim_client:reply(Transport, Socket, MsgDataToBeSend, Protocol)
                     end,
 
                     %% 群聊离线消息
@@ -356,7 +345,7 @@ process_data(Data, Socket, State, Protocol) ->
                                                     end, Roommsgs),
                             RoomMsgDataToBeSend = jiffy:encode({[{<<"cmd">>, <<"offline_group_chat_msg">>}, {<<"msg">>, RoommsgsForJson}, {<<"ack">>, RoommsgsIds}]}),
                             lager:info("offline group chat msgs are ~p~n", [RoomMsgDataToBeSend]),
-                            erlim_client:reply(Socket, RoomMsgDataToBeSend, Protocol)
+                            erlim_client:reply(Transport, Socket, RoomMsgDataToBeSend, Protocol)
                     end,
 
                     %% 离线通知
@@ -376,7 +365,7 @@ process_data(Data, Socket, State, Protocol) ->
                                                                end, UnreadNotifications),
                             UnreadNotificationsToBeSend = jiffy:encode({[{<<"cmd">>, <<"offline_notifications">>}, {<<"msg">>, UnreadNotificationsForJson}, {<<"ack">>, UnreadNotificationsIds}]}),
                             lager:info("offline notifications are ~p~n", [UnreadNotificationsToBeSend]),
-                            erlim_client:reply(Socket, UnreadNotificationsToBeSend, Protocol)
+                            erlim_client:reply(Transport, Socket, UnreadNotificationsToBeSend, Protocol)
                     end,
 
                     State#state{client_pid = ClientPid, uid = Uid, device = Device, protocol = Protocol}
@@ -386,14 +375,14 @@ process_data(Data, Socket, State, Protocol) ->
             SessionUserMnesia = mnesia_util:query_session_by_uid_and_device(Uid, Device),
             case SessionUserMnesia of
                 false ->
-                    erlim_client:reply_error(Socket, <<"404 Not Found this user, please login">>, 10404, Protocol),
+                    erlim_client:reply_error(Transport, Socket, <<"404 Not Found this user, please login">>, 10404, Protocol),
                     State;
                 _ ->
                     FromUserMysql = mysql_util:query_user_by_id(SessionUserMnesia#session.uid),
                     case FromUserMysql of
                         [] ->
                             %% 可能是因为mysql数据库删除了
-                            erlim_client:reply_error(Socket, <<"404 Not Found this user in mysql, please login again">>, 10404, Protocol),
+                            erlim_client:reply_error(Transport, Socket, <<"404 Not Found this user in mysql, please login again">>, 10404, Protocol),
                             State;
                         _ ->
                             case Cmd of
@@ -404,26 +393,26 @@ process_data(Data, Socket, State, Protocol) ->
                                     Ack = maps:get(<<"ack">>, JsonMap),
                                     case is_integer(ToUid) of
                                         false ->
-                                            erlim_client:reply_error(Socket, <<"Single chat send msg to user id must be integer">>, 10400, Protocol),
+                                            erlim_client:reply_error(Transport, Socket, <<"Single chat send msg to user id must be integer">>, 10400, Protocol),
                                             State;
                                         true ->
                                             %% 是否好友关系
                                             case mysql_util:are_friends(SessionUserMnesia#session.uid, ToUid) of
                                                 false ->
-                                                    erlim_client:reply_error(Socket, <<"You are not friends">>, 10403, Protocol),
+                                                    erlim_client:reply_error(Transport, Socket, <<"You are not friends">>, 10403, Protocol),
                                                     State;
                                                 true ->
                                                     ToUserMysql = mysql_util:query_user_by_id(ToUid),
                                                     case ToUserMysql of
                                                         [] ->
-                                                            erlim_client:reply_error(Socket, <<"404 Not Found this user in mysql">>, 10404, Protocol),
+                                                            erlim_client:reply_error(Transport, Socket, <<"404 Not Found this user in mysql">>, 10404, Protocol),
                                                             State;
                                                         _ ->
                                                             OffMsg = #msg_record{f = FromUserMysql#user_record.id, t = ToUserMysql#user_record.id, msg = Msg, unread = 1},
                                                             {ok_packet, _, _, MsgId, _, _, _} = mysql_util:save_msg(OffMsg),
 
                                                             %% Send single_chat ack to client
-                                                            erlim_client:reply_ack(Socket, <<"single_chat">>, Ack, Protocol),
+                                                            erlim_client:reply_ack(Transport, Socket, <<"single_chat">>, Ack, Protocol),
 
                                                             ToUsers = erlim_sm:get_session(ToUid),
                                                             lager:info("ToUsers is ~p~n", [ToUsers]),
@@ -452,19 +441,19 @@ process_data(Data, Socket, State, Protocol) ->
                                     Ack = maps:get(<<"ack">>, JsonMap),
                                     case is_integer(ToRoomId) of
                                         false ->
-                                            erlim_client:reply_error(Socket, <<"Group chat send msg to room id must be integer">>, 10400, Protocol),
+                                            erlim_client:reply_error(Transport, Socket, <<"Group chat send msg to room id must be integer">>, 10400, Protocol),
                                             State;
                                         true ->
                                             %% 群是否存在
                                             case mysql_util:is_an_exist_room(ToRoomId) of
                                                 false ->
-                                                    erlim_client:reply_error(Socket, <<"404 Not Found this room in mysql">>, 10404, Protocol),
+                                                    erlim_client:reply_error(Transport, Socket, <<"404 Not Found this room in mysql">>, 10404, Protocol),
                                                     State;
                                                 true ->
                                                     %% 用户是否在该群里面
                                                     case mysql_util:in_room(SessionUserMnesia#session.uid, ToRoomId) of
                                                         false ->
-                                                            erlim_client:reply_error(Socket, <<"You are not in this room">>, 10403, Protocol),
+                                                            erlim_client:reply_error(Transport, Socket, <<"You are not in this room">>, 10403, Protocol),
                                                             State;
                                                         true ->
                                                             RoomMsg = #roommsg_record{f = FromUserMysql#user_record.id, t = ToRoomId, msg = Msg},
@@ -474,7 +463,7 @@ process_data(Data, Socket, State, Protocol) ->
                                                             lager:info("Members are ~p.~n", [Members]),
 
                                                             %% Send group_chat ack to client
-                                                            erlim_client:reply_ack(Socket, <<"group_chat">>, Ack, Protocol),
+                                                            erlim_client:reply_ack(Transport, Socket, <<"group_chat">>, Ack, Protocol),
 
                                                             lists:foreach(fun(M) ->
                                                                 case mysql_util:query_user_by_id(M#room_users_record.user_id) of
@@ -505,24 +494,24 @@ process_data(Data, Socket, State, Protocol) ->
                                     Ack = maps:get(<<"ack">>, JsonMap),
                                     case is_integer(ToUid) of
                                         false ->
-                                            erlim_client:reply_error(Socket, <<"To user id must be integer">>, 10400, Protocol),
+                                            erlim_client:reply_error(Transport, Socket, <<"To user id must be integer">>, 10400, Protocol),
                                             State;
                                         true ->
                                             %% 好友请求消息回执
-                                            erlim_client:reply_ack(Socket, <<"create_friendship">>, Ack, Protocol),
+                                            erlim_client:reply_ack(Transport, Socket, <<"create_friendship">>, Ack, Protocol),
                                             Sender = SessionUserMnesia#session.uid,
 
                                             %% 添加记录前是否已经是好友了
                                             case mysql_util:are_friends(Sender, ToUid) of
                                                 true ->
-                                                    erlim_client:reply_error(Socket, <<"You are already friends">>, 10403, Protocol),
+                                                    erlim_client:reply_error(Transport, Socket, <<"You are already friends">>, 10403, Protocol),
                                                     State;
                                                 false ->
                                                     %% 添加记录后是否已经是好友了
                                                     case mysql_util:add_firend(Sender, ToUid, <<"">>) of
                                                         false ->
                                                             lager:info("You have already send a friendship request, please wait a moment."),
-                                                            erlim_client:reply_error(Socket, <<"You have already send a friendship request.">>, 10403, Protocol);
+                                                            erlim_client:reply_error(Transport, Socket, <<"You have already send a friendship request.">>, 10403, Protocol);
                                                         _ ->
                                                             case mysql_util:are_friends(Sender, ToUid) of
                                                                 true ->
@@ -538,7 +527,7 @@ process_data(Data, Socket, State, Protocol) ->
                                                                     %% 发通知给请求者
                                                                     NR1 = #notification_record{sender_id = ToUid, receiver_id = Sender, notification_type = 3, notifiable_type = <<"User">>, notifiable_action = <<"create_friendship">>, notifiable_id = Sender, subject = Subject, body = Subject, unread = 1},
                                                                     {ok_packet, _, _, NotificationIdOfMine, _, _, _} = mysql_util:save_notification(NR1),
-                                                                    send_notification_to_self(2, Subject, NotificationIdOfMine, Protocol, Socket),
+                                                                    send_notification_to_self(Transport, 2, Subject, NotificationIdOfMine, Protocol, Socket),
                                                                     State;
                                                                 false ->
                                                                     %% 添加记录后不是好友
@@ -565,7 +554,7 @@ process_data(Data, Socket, State, Protocol) ->
                                     case is_integer(ToUid) of
                                         false ->
                                             lager:info("To user id must be integer"),
-                                            erlim_client:reply_error(Socket, <<"To user id must be integer">>, 10400, Protocol),
+                                            erlim_client:reply_error(Transport, Socket, <<"To user id must be integer">>, 10400, Protocol),
                                             State;
                                         true ->
                                             Sender = SessionUserMnesia#session.uid,
@@ -575,7 +564,7 @@ process_data(Data, Socket, State, Protocol) ->
                                             MsgSender = <<"you del friends success">>,
                                             NRDelFriendshipSender = #notification_record{sender_id = 0, receiver_id = Sender, notification_type = 5, notifiable_type = <<"User">>, notifiable_action = <<"del_friendship">>, notifiable_id = Sender, subject = MsgSender, body = MsgSender, unread = 1},
                                             {ok_packet, _, _, NotificationIdOfMine, _, _, _} = mysql_util:save_notification(NRDelFriendshipSender),
-                                            send_notification_to_self(5, MsgSender, NotificationIdOfMine, Protocol, Socket),
+                                            send_notification_to_self(Transport, 5, MsgSender, NotificationIdOfMine, Protocol, Socket),
 
                                             %% 需要消息回执
                                             Msg = <<"del our friendship">>,
@@ -603,7 +592,7 @@ process_data(Data, Socket, State, Protocol) ->
                                     Msg = <<"create room success">>,
                                     NRRoom = #notification_record{sender_id = 0, receiver_id = Creator, notification_type = 11, notifiable_type = <<"User">>, notifiable_action = <<"create_room">>, notifiable_id = Creator, subject = Msg, body = Msg, unread = 1},
                                     {ok_packet, _, _, NotificationIdOfMine, _, _, _} = mysql_util:save_notification(NRRoom),
-                                    send_notification_to_self(11, Msg, NotificationIdOfMine, Protocol, Socket),
+                                    send_notification_to_self(Transport, 11, Msg, NotificationIdOfMine, Protocol, Socket),
 
                                     %% 发消息给被拉入者
                                     lists:foreach(fun(Mid) ->
@@ -621,13 +610,13 @@ process_data(Data, Socket, State, Protocol) ->
                                     %% 群是否存在
                                     case mysql_util:is_an_exist_room(RoomId) of
                                         false ->
-                                            erlim_client:reply_error(Socket, <<"room not exist">>, 10400, Protocol);
+                                            erlim_client:reply_error(Transport, Socket, <<"room not exist">>, 10400, Protocol);
                                         true ->
                                             %% 是否群主
                                             Creator = SessionUserMnesia#session.uid,
                                             case mysql_util:is_room_leader(RoomId, Creator) of
                                                 false ->
-                                                    erlim_client:reply_error(Socket, <<"you are not the room leader">>, 10403, Protocol);
+                                                    erlim_client:reply_error(Transport, Socket, <<"you are not the room leader">>, 10403, Protocol);
                                                 true ->
                                                     %% 发送消息通知
                                                     lists:foreach(fun(M) ->
@@ -637,7 +626,7 @@ process_data(Data, Socket, State, Protocol) ->
                                                                 Msg = <<"del room success">>,
                                                                 NRRoom = #notification_record{sender_id = 0, receiver_id = Creator, notification_type = 12, notifiable_type = <<"User">>, notifiable_action = <<"create_room">>, notifiable_id = Creator, subject = Msg, body = Msg, unread = 1},
                                                                 {ok_packet, _, _, NotificationIdOfMine, _, _, _} = mysql_util:save_notification(NRRoom),
-                                                                send_notification_to_self(12, Msg, NotificationIdOfMine, Protocol, Socket);
+                                                                send_notification_to_self(Transport, 12, Msg, NotificationIdOfMine, Protocol, Socket);
                                                             false ->
                                                                 Msg = <<"deleted this room, you have to leave it">>,
                                                                 NRRoom = #notification_record{sender_id = Creator, receiver_id = Mid, notification_type = 12, notifiable_type = <<"User">>, notifiable_action = <<"create_room">>, notifiable_id = Mid, subject = Msg, body = Msg, unread = 1},
@@ -661,7 +650,7 @@ process_data(Data, Socket, State, Protocol) ->
                                     %% 群是否存在
                                     case mysql_util:is_an_exist_room(RoomId) of
                                         false ->
-                                            erlim_client:reply_error(Socket, <<"room not exist">>, 10400, Protocol);
+                                            erlim_client:reply_error(Transport, Socket, <<"room not exist">>, 10400, Protocol);
                                         true ->
                                             %% @TODO
                                             ok
@@ -678,12 +667,12 @@ process_data(Data, Socket, State, Protocol) ->
                                     %% 群是否存在
                                     case mysql_util:is_an_exist_room(RoomId) of
                                         false ->
-                                            erlim_client:reply_error(Socket, <<"room not exist">>, 10400, Protocol);
+                                            erlim_client:reply_error(Transport, Socket, <<"room not exist">>, 10400, Protocol);
                                         true ->
                                             %% 邀请人是否群成员
                                             case mysql_util:in_room(Puller, RoomId) of
                                                 false ->
-                                                    erlim_client:reply_error(Socket, <<"You are not the room member">>, 10403, Protocol);
+                                                    erlim_client:reply_error(Transport, Socket, <<"You are not the room member">>, 10403, Protocol);
                                                 true ->
                                                     RoomMembersCount = mysql_util:room_members_count(RoomId),
                                                     RoomRecordMysql = mysql_util:room(RoomId),
@@ -704,7 +693,7 @@ process_data(Data, Socket, State, Protocol) ->
                                                                                 Msg = <<"pull someone to room success">>,
                                                                                 NRRoom = #notification_record{sender_id = 0, receiver_id = Puller, notification_type = 15, notifiable_type = <<"User">>, notifiable_action = <<"pull_to_room">>, notifiable_id = Puller, subject = Msg, body = Msg, unread = 1},
                                                                                 {ok_packet, _, _, NotificationIdOfMine, _, _, _} = mysql_util:save_notification(NRRoom),
-                                                                                send_notification_to_self(15, Msg, NotificationIdOfMine, Protocol, Socket);
+                                                                                send_notification_to_self(Transport, 15, Msg, NotificationIdOfMine, Protocol, Socket);
                                                                             true ->
                                                                                 Msg = case Mid =:= UserId of
                                                                                           true ->
@@ -718,10 +707,10 @@ process_data(Data, Socket, State, Protocol) ->
                                                                         end
                                                                                   end, mysql_util:room_members(RoomId));
                                                                 true ->
-                                                                    erlim_client:reply_error(Socket, <<"User is already room member">>, 10403, Protocol)
+                                                                    erlim_client:reply_error(Transport, Socket, <<"User is already room member">>, 10403, Protocol)
                                                             end;
                                                         false ->
-                                                            erlim_client:reply_error(Socket, <<"Room members limit">>, 10403, Protocol)
+                                                            erlim_client:reply_error(Transport, Socket, <<"Room members limit">>, 10403, Protocol)
                                                     end
                                             end
                                     end,
@@ -733,7 +722,7 @@ process_data(Data, Socket, State, Protocol) ->
                                     %% 群是否存在
                                     case mysql_util:is_an_exist_room(RoomId) of
                                         false ->
-                                            erlim_client:reply_error(Socket, <<"room not exist">>, 10400, Protocol);
+                                            erlim_client:reply_error(Transport, Socket, <<"room not exist">>, 10400, Protocol);
                                         true ->
                                             Cid = SessionUserMnesia#session.uid,
                                             %% 发送消息通知
@@ -744,7 +733,7 @@ process_data(Data, Socket, State, Protocol) ->
                                                         Msg = <<"leave room success">>,
                                                         NRRoom = #notification_record{sender_id = 0, receiver_id = Cid, notification_type = 13, notifiable_type = <<"User">>, notifiable_action = <<"leave_room">>, notifiable_id = Cid, subject = Msg, body = Msg, unread = 1},
                                                         {ok_packet, _, _, NotificationIdOfMine, _, _, _} = mysql_util:save_notification(NRRoom),
-                                                        send_notification_to_self(13, Msg, NotificationIdOfMine, Protocol, Socket);
+                                                        send_notification_to_self(Transport, 13, Msg, NotificationIdOfMine, Protocol, Socket);
                                                     false ->
                                                         Msg = <<"deleted this room, you have to leave it">>,
                                                         NRRoom = #notification_record{sender_id = Cid, receiver_id = Mid, notification_type = 13, notifiable_type = <<"User">>, notifiable_action = <<"leave_room">>, notifiable_id = Mid, subject = Msg, body = Msg, unread = 1},
@@ -780,7 +769,7 @@ process_data(Data, Socket, State, Protocol) ->
                                     %% 群是否存在
                                     case mysql_util:is_an_exist_room(RoomId) of
                                         false ->
-                                            erlim_client:reply_error(Socket, <<"room not exist">>, 10400, Protocol);
+                                            erlim_client:reply_error(Transport, Socket, <<"room not exist">>, 10400, Protocol);
                                         true ->
                                             Cid = SessionUserMnesia#session.uid,
                                             %% 发送消息通知
@@ -791,7 +780,7 @@ process_data(Data, Socket, State, Protocol) ->
                                                         Msg = <<"change room name success">>,
                                                         NRRoom = #notification_record{sender_id = 0, receiver_id = Cid, notification_type = 14, notifiable_type = <<"User">>, notifiable_action = <<"change_room_info">>, notifiable_id = Cid, subject = Msg, body = Msg, unread = 1},
                                                         {ok_packet, _, _, NotificationIdOfMine, _, _, _} = mysql_util:save_notification(NRRoom),
-                                                        send_notification_to_self(14, Msg, NotificationIdOfMine, Protocol, Socket);
+                                                        send_notification_to_self(Transport, 14, Msg, NotificationIdOfMine, Protocol, Socket);
                                                     false ->
                                                         Msg = <<"changed the room name">>,
                                                         NRRoom = #notification_record{sender_id = Cid, receiver_id = Mid, notification_type = 14, notifiable_type = <<"User">>, notifiable_action = <<"change_room_info">>, notifiable_id = Mid, subject = Msg, body = Msg, unread = 1},
@@ -830,7 +819,7 @@ process_data(Data, Socket, State, Protocol) ->
                                                 mysql_util:mark_read(Nid, notification)
                                                           end, Ack);
                                         _ ->
-                                            erlim_client:reply_error(Socket, <<"404 Not Found this ack action">>, 10404, Protocol)
+                                            erlim_client:reply_error(Transport, Socket, <<"404 Not Found this ack action">>, 10404, Protocol)
                                     end,
                                     State;
                                 <<"logout">> ->
@@ -848,7 +837,7 @@ process_data(Data, Socket, State, Protocol) ->
                                                     %% 对方是否在线
                                                     case mnesia_util:query_session_by_uid(ToUid) of
                                                         false ->
-                                                            erlim_client:reply_error(Socket, <<"User is not online.">>, 10403, Protocol),
+                                                            erlim_client:reply_error(Transport, Socket, <<"User is not online.">>, 10403, Protocol),
                                                             State;
                                                         ToUsers ->
                                                             Uuid = util:uuid(),
@@ -860,14 +849,14 @@ process_data(Data, Socket, State, Protocol) ->
                                                                 {U#session.register_name, U#session.node} ! {webrtc_create, DataToSend}
                                                                           end, ToUsers),
                                                             %% 发送房间信息给请求者
-                                                            erlim_client:reply(Socket, DataToSend, Protocol),
+                                                            erlim_client:reply(Transport, Socket, DataToSend, Protocol),
                                                             State
                                                     end;
                                                 <<"webrtc_join">> ->
                                                     ToRoomUuid = maps:get(<<"to">>, JsonMap),
                                                     case webrtc_room:get_members(ToRoomUuid) of
                                                         false ->
-                                                            erlim_client:reply_error(Socket, <<"Invide room.">>, 10404, Protocol);
+                                                            erlim_client:reply_error(Transport, Socket, <<"Invide room.">>, 10404, Protocol);
                                                         Members ->
                                                             case length(Members) of
                                                                 1 ->
@@ -881,10 +870,10 @@ process_data(Data, Socket, State, Protocol) ->
                                                                         end
                                                                                   end, Members),
                                                                     %% 发送加入信息给请求者
-                                                                    erlim_client:reply(Socket, DataToSend, Protocol),
+                                                                    erlim_client:reply(Transport, Socket, DataToSend, Protocol),
                                                                     State;
                                                                 _ ->
-                                                                    erlim_client:reply_error(Socket, <<"Invide room.">>, 10404, Protocol),
+                                                                    erlim_client:reply_error(Transport, Socket, <<"Invide room.">>, 10404, Protocol),
                                                                     State
                                                             end
                                                     end;
@@ -892,7 +881,7 @@ process_data(Data, Socket, State, Protocol) ->
                                                     ToRoomUuid = maps:get(<<"to">>, JsonMap),
                                                     case webrtc_room:get_members(ToRoomUuid) of
                                                         false ->
-                                                            erlim_client:reply_error(Socket, <<"Invide room.">>, 10404, Protocol);
+                                                            erlim_client:reply_error(Transport, Socket, <<"Invide room.">>, 10404, Protocol);
                                                         Members ->
                                                             case length(Members) of
                                                                 0 -> webrtc_room:delete(ToRoomUuid);
@@ -901,7 +890,7 @@ process_data(Data, Socket, State, Protocol) ->
                                                                     webrtc_room:delete(ToRoomUuid),
                                                                     DataToSend = jiffy:encode({[{<<"cmd">>, <<"webrtc_leave">>}, {<<"from">>, SessionUserMnesia#session.uid}, {<<"to">>, ToRoomUuid}]}),
                                                                     %% 发送离开信息给请求者
-                                                                    erlim_client:reply(Socket, DataToSend, Protocol),
+                                                                    erlim_client:reply(Transport, Socket, DataToSend, Protocol),
                                                                     State;
                                                                 _ ->
                                                                     {atomic, ok} = webrtc_room:leave(ToRoomUuid, SessionUserMnesia#session.pid),
@@ -915,7 +904,7 @@ process_data(Data, Socket, State, Protocol) ->
                                                                         end
                                                                                   end, webrtc_room:get_members(ToRoomUuid)),
                                                                     %% 发送离开信息给请求者
-                                                                    erlim_client:reply(Socket, DataToSend, Protocol),
+                                                                    erlim_client:reply(Transport, Socket, DataToSend, Protocol),
                                                                     State
                                                             end
                                                     end;
@@ -926,7 +915,7 @@ process_data(Data, Socket, State, Protocol) ->
                                                     %% 对方是否在线
                                                     case mnesia_util:query_session_by_uid(ToUid) of
                                                         false ->
-                                                            erlim_client:reply_error(Socket, <<"User is not online.">>, 10403, Protocol),
+                                                            erlim_client:reply_error(Transport, Socket, <<"User is not online.">>, 10403, Protocol),
                                                             State;
                                                         ToUsers ->
                                                             %% 发送offer给用户,但是此处发给多个终端还是一个
@@ -943,7 +932,7 @@ process_data(Data, Socket, State, Protocol) ->
                                                     %% 对方是否在线
                                                     case mnesia_util:query_session_by_uid(ToUid) of
                                                         false ->
-                                                            erlim_client:reply_error(Socket, <<"User is not online.">>, 10403, Protocol),
+                                                            erlim_client:reply_error(Transport, Socket, <<"User is not online.">>, 10403, Protocol),
                                                             State;
                                                         ToUsers ->
                                                             %% 发送answer给用户,但是此处发给多个终端还是一个
@@ -961,7 +950,7 @@ process_data(Data, Socket, State, Protocol) ->
                                                     %% 对方是否在线
                                                     case mnesia_util:query_session_by_uid(ToUid) of
                                                         false ->
-                                                            erlim_client:reply_error(Socket, <<"User is not online.">>, 10403, Protocol),
+                                                            erlim_client:reply_error(Transport, Socket, <<"User is not online.">>, 10403, Protocol),
                                                             State;
                                                         ToUsers ->
                                                             %% 发送ice_candidate给用户,但是此处发给多个终端还是一个
@@ -973,12 +962,12 @@ process_data(Data, Socket, State, Protocol) ->
                                                     end;
                                                 _ ->
                                                     %% 用户登陆后发送了未知命令
-                                                    erlim_client:reply_error(Socket, <<"Unknown cmd">>, 10400, Protocol),
+                                                    erlim_client:reply_error(Transport, Socket, <<"Unknown cmd">>, 10400, Protocol),
                                                     State
                                             end;
                                         _ ->
                                             %% 用户登陆后发送了未知命令
-                                            erlim_client:reply_error(Socket, <<"Unknown cmd">>, 10400, Protocol),
+                                            erlim_client:reply_error(Transport, Socket, <<"Unknown cmd">>, 10400, Protocol),
                                             State
                                     end
                             end
@@ -1006,6 +995,6 @@ send_notification(Sender, ToUid, TypeInteger, Msg, Ack) ->
     end.
 
 %% @doc send notification to self
-send_notification_to_self(TypeInteger, Msg, Ack, Protocol, Socket) ->
+send_notification_to_self(Transport, TypeInteger, Msg, Ack, Protocol, Socket) ->
     DataToSender = jiffy:encode({[{<<"cmd">>, <<"notification">>}, {<<"notification_type">>, TypeInteger}, {<<"from">>, 0}, {<<"msg">>, Msg}, {<<"ack">>, Ack}]}),
-    erlim_client:reply(Socket, DataToSender, Protocol).
+    erlim_client:reply(Transport, Socket, DataToSender, Protocol).

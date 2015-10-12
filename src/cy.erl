@@ -4,7 +4,7 @@
 
 
 login() ->
-    {ok, Sock} = gen_tcp:connect("localhost", 8080, [binary, {packet, 0}, {buffer, 4096}]),
+    {ok, Sock} = ssl:connect("localhost", 10000, [binary, {packet, 0}, {buffer, 4096}]),
     Msg = <<"{\"cmd\": \"login\", \"name\": \"13560474456\", \"pass\": \"12345678\", \"ack\": \"72cdf1ae-62a3-4ebf-821c-a809d1931293\", \"device\": \"android-xiaomi\"}">>,
     send(Sock, Msg),
     Sock.
@@ -53,7 +53,7 @@ logout(Sock) ->
 
 recv(Socket) ->
     receive
-        {tcp, Socket, Data} ->
+        {ssl, {sslsocket, {gen_tcp, _Sock, tls_connection, undefined}, _} = Socket, Data} ->
             DataList = string:tokens(binary_to_list(Data), "\r\n"),
             _IsJSON = jsx:is_json(Data),
             PayloadTmp = lists:nth(3, DataList),
@@ -106,9 +106,10 @@ recv(Socket) ->
                     ok
             end,
             recv(Socket);
-        {tcp_close, Socket} ->
-            io:format("Socket closed.~n"),
-            ok
+        {ssl_closed, Socket} ->
+            io:format("Socket closed.~n");
+        _OtherError ->
+            io:format("OtherError is ~p~n", [_OtherError])
     end.
 
 loop_recv(Socket) ->
@@ -118,4 +119,4 @@ loop_recv(Socket) ->
 send(Socket, Msg) ->
     PayloadLen = byte_size(Msg),
     Payload = iolist_to_binary([<<"ONECHAT/1.0\r\nPAYLOAD_LEN: ">>, util:integer2binary(PayloadLen), <<"\r\n\r\n">>, Msg]),
-    gen_tcp:send(Socket, Payload).
+    ssl:send(Socket, Payload).
