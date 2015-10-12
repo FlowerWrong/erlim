@@ -30,6 +30,7 @@
     heartbeat_timeout = ?HIBERNATE_TIMEOUT :: integer(),
     client_pid :: pid(),
     ip :: binary(),
+    port :: integer(),
     uid :: integer(),
     device :: binary(),
     node :: node(),
@@ -75,7 +76,8 @@ start_link(SockArgs) ->
 init(SockArgs = {Transport, _Sock, _SockFun}) ->
     {ok, NewSock} = esockd_connection:accept(SockArgs),
     Transport:async_recv(NewSock, 0, infinity),
-    NewState = #state{transport = Transport, socket = NewSock},
+    {ok, {IP, Port}} = Transport:peername(NewSock),
+    NewState = #state{transport = Transport, socket = NewSock, ip = IP, port = Port},
     gen_server:enter_loop(?MODULE, [], NewState).
 
 %%--------------------------------------------------------------------
@@ -233,7 +235,6 @@ handle_info({inet_async, Socket, _Ref, {ok, Data}}, #state{transport = Transport
     Transport:async_recv(Socket, 0, infinity),
     {noreply, NewState, ?HIBERNATE_TIMEOUT};
 handle_info({inet_async, _Sock, _Ref, {error, Reason}}, State) ->
-    lager:info("==========closed========="),
     {stop, {shutdown, {inet_async_error, Reason}}, State};
 handle_info(_Info, State) ->
     lager:info("_Info is ~p~n", [_Info]),
