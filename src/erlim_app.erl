@@ -57,9 +57,12 @@ start(_StartType, _StartArgs) ->
         {encoding, binary_to_atom(Encoding, utf8)}
     ]),
 
+    %% http://www.ttlsa.com/nginx/nginx-configuration-ssl/
+    %% http://erlycoder.com/87/ssl-how-to-self-signed-ssl-certifiate-creation-with-open-ssl
     SslOpts = [
-        {certfile, "/home/yy/dev/erlang/erlim/crt/demo.crt"},
-        {keyfile, "/home/yy/dev/erlang/erlim/crt/demo.key"}
+        {cacertfile, "/home/yy/dev/erlang/erlim/crt/demoCA/cacert.pem"},
+        {certfile, "/home/yy/dev/erlang/erlim/crt/nginx.crt"},
+        {keyfile, "/home/yy/dev/erlang/erlim/crt/nginx.key"}
     ],
     Opts = [{acceptors, 4},
         {max_clients, 1000},

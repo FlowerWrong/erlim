@@ -191,7 +191,7 @@ reply(Transport, Socket, Msg, tcp) ->
     Payload = iolist_to_binary([<<"ONECHAT/1.0\r\nPAYLOAD_LEN: ">>, util:integer2binary(PayloadLen), <<"\r\n\r\n">>, Msg]),
     Transport:send(Socket, Payload);
 reply(Transport, Socket, Msg, websocket) ->
-    ws_util:send_ws_data(Socket, Msg).
+    ws_util:send_ws_data(Transport, Socket, Msg).
 
 %% @doc reply error to client
 reply_error(Transport, Socket, Error, Code, tcp) ->

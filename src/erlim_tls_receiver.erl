@@ -164,7 +164,7 @@ handle_info({inet_async, Socket, _Ref, {ok, Data}}, #state{transport = Transport
                                                        %% 计算加密key
                                                        AcceptKey = ws_util:key(Key),
                                                        WebSocketDataToBeSend = iolist_to_binary([<<"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ">>, AcceptKey, <<"\r\n\r\n">>]),
-                                                       gen_tcp:send(Socket, WebSocketDataToBeSend),
+                                                       Transport:send(Socket, WebSocketDataToBeSend),
                                                        State#state{protocol = websocket};
                                                    false ->
                                                        %% http 直接关闭客户端

@@ -12,7 +12,7 @@
 -define(WEBSOCKET_GUID, "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").
 
 %% API
--export([key/1, is_websocket/1, get_payload_len/1, get_packet_data/1, send_ws_data/2]).
+-export([key/1, is_websocket/1, get_payload_len/1, get_packet_data/1, send_ws_data/3]).
 
 %% @doc get base64 key
 key(Key) ->
@@ -64,10 +64,10 @@ get_packet_data([], _, _, Result) ->
     lists:reverse(Result).
 
 %% @doc send websocket payload to client
-send_ws_data(Socket, Payload) ->
+send_ws_data(Transport, Socket, Payload) ->
     Len = iolist_size(Payload),
     BinLen = payload_length_to_binary(Len),
-    gen_tcp:send(Socket, [<<1:1, 0:3, 1:4, 0:1, BinLen/bits>>, Payload]).
+    Transport:send(Socket, [<<1:1, 0:3, 1:4, 0:1, BinLen/bits>>, Payload]).
 
 %% @doc payload length to binary
 payload_length_to_binary(N) ->
