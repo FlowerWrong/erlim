@@ -11,6 +11,8 @@
 #### Install
 
 ```bash
+rebar xref
+
 make
 ```
 
