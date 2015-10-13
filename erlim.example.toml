@@ -5,3 +5,15 @@ name = "root"
 pwd = "root"
 db = "movie_together_development"
 encoding = "utf8"
+
+[socket]
+port = 8080
+acceptors = 4
+max_clients = 10000
+time_out = 15000
+use_ssl = 0
+
+[ssl]
+cacertfile = ""
+certfile = ""
+keyfile = ""

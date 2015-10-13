@@ -122,7 +122,7 @@ handle_cast(_Msg, State) ->
 %% @end
 %%--------------------------------------------------------------------
 handle_info({inet_async, Socket, _Ref, {ok, Data}}, #state{transport = Transport, socket = Socket, data_complete = DCFlag, client_data = ClientData, payload_len = PayloadLen, already_receive_payload_len = AlreadyReceivePayloadLen, protocol = P} = State) ->
-    io:format("Data is ~p~n", [Data]),
+    io:format("handle_info Data is ~p~n", [Data]),
     NewState = case DCFlag of
                    0 ->
                        case string:str(binary_to_list(Data), "ONECHAT/1.0\r\n") of

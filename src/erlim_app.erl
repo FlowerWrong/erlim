@@ -36,18 +36,47 @@ start(_StartType, _StartArgs) ->
     ssl:start(),
     esockd:start(),
     lager:start(),
-
-    {ok, [{
-        <<"database">>,
-        [
-            {<<"encoding">>, Encoding},
-            {<<"db">>, Dbname},
-            {<<"pwd">>, Pwd},
-            {<<"name">>, UserName},
-            {<<"size">>, Size},
-            {<<"host">>, Host}
-        ]
-    }]} = toml_util:parse(),
+    {ok, [
+        {<<"database">>,
+            [{<<"encoding">>, <<"utf8">>}, {<<"db">>, <<"movie_together_development">>}, {<<"pwd">>, <<"root">>}, {<<"name">>, <<"root">>}, {<<"size">>, 1}, {<<"host">>, <<"192.168.10.140">>}]
+        },
+        {<<"socket">>,
+            [{<<"time_out">>, 15000}, {<<"max_clients">>, 10000}, {<<"acceptors">>, 4}, {<<"port">>, 8080}]
+        },
+        {<<"ssl">>,
+            [{<<"keyfile">>, <<"/home/yy/dev/erlang/erlim/crt/nginx.key">>}, {<<"certfile">>, <<"/home/yy/dev/erlang/erlim/crt/nginx.crt">>}, {<<"cacertfile">>, <<"/home/yy/dev/erlang/erlim/crt/demoCA/cacert....">>}]
+        }
+    ]},
+    %% erlang app config file
+    %% http://blog.yufeng.info/archives/2852
+    {ok, [
+        {<<"database">>,
+            [
+                {<<"encoding">>, Encoding},
+                {<<"db">>, Dbname},
+                {<<"pwd">>, Pwd},
+                {<<"name">>, UserName},
+                {<<"size">>, Size},
+                {<<"host">>, Host}
+            ]
+        },
+        {<<"socket">>,
+            [
+                {<<"use_ssl">>, EnableSSL},
+                {<<"time_out">>, _TcpSentTimeOut},
+                {<<"max_clients">>, MaxClients},
+                {<<"acceptors">>, Acceptors},
+                {<<"port">>, Port}
+            ]
+        },
+        {<<"ssl">>,
+            [
+                {<<"keyfile">>, KeyFile},
+                {<<"certfile">>, CertFile},
+                {<<"cacertfile">>, CaCertFile}
+            ]
+        }
+    ]} = toml_util:parse(),
     emysql:add_pool(erlim_pool, [
         {size, Size},
         {user, binary_to_list(UserName)},
@@ -57,20 +86,28 @@ start(_StartType, _StartArgs) ->
         {encoding, binary_to_atom(Encoding, utf8)}
     ]),
 
-    %% http://www.ttlsa.com/nginx/nginx-configuration-ssl/
-    %% http://erlycoder.com/87/ssl-how-to-self-signed-ssl-certifiate-creation-with-open-ssl
-    SslOpts = [
-        {cacertfile, "/home/yy/dev/erlang/erlim/crt/demoCA/cacert.pem"},
-        {certfile, "/home/yy/dev/erlang/erlim/crt/nginx.crt"},
-        {keyfile, "/home/yy/dev/erlang/erlim/crt/nginx.key"}
-    ],
-    Opts = [{acceptors, 4},
-        {max_clients, 1000},
-        {ssl, SslOpts},
-        {sockopts, ?TCP_OPTIONS}],
+    Opts = case EnableSSL of
+               0 ->
+                   [{acceptors, Acceptors},
+                       {max_clients, MaxClients},
+                       {sockopts, ?TCP_OPTIONS}];
+               1 ->
+                   %% http://www.ttlsa.com/nginx/nginx-configuration-ssl/
+                   %% http://erlycoder.com/87/ssl-how-to-self-signed-ssl-certifiate-creation-with-open-ssl
+                   SslOpts = [
+                       {cacertfile, binary_to_list(CaCertFile)},
+                       {certfile, binary_to_list(CertFile)},
+                       {keyfile, binary_to_list(KeyFile)}
+                   ],
+                   [{acceptors, Acceptors},
+                       {max_clients, MaxClients},
+                       {ssl, SslOpts},
+                       {sockopts, ?TCP_OPTIONS}];
+               _ -> exit(config_file_error)
+           end,
 
     MFArgs = {erlim_tls_receiver, start_link, []},
-    esockd:open(onechat, 10000, Opts, MFArgs),
+    esockd:open(onechat, Port, Opts, MFArgs),
 
     erlim_sup:start_link().
 
