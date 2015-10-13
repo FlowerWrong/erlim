@@ -6,7 +6,7 @@
 %%% @end
 %%% Created : 27. 九月 2015 下午12:17
 %%%-------------------------------------------------------------------
--module(erlim_tls_receiver).
+-module(erlim_receiver).
 
 -behaviour(gen_server).
 

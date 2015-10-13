@@ -36,17 +36,7 @@ start(_StartType, _StartArgs) ->
     ssl:start(),
     esockd:start(),
     lager:start(),
-    {ok, [
-        {<<"database">>,
-            [{<<"encoding">>, <<"utf8">>}, {<<"db">>, <<"movie_together_development">>}, {<<"pwd">>, <<"root">>}, {<<"name">>, <<"root">>}, {<<"size">>, 1}, {<<"host">>, <<"192.168.10.140">>}]
-        },
-        {<<"socket">>,
-            [{<<"time_out">>, 15000}, {<<"max_clients">>, 10000}, {<<"acceptors">>, 4}, {<<"port">>, 8080}]
-        },
-        {<<"ssl">>,
-            [{<<"keyfile">>, <<"/home/yy/dev/erlang/erlim/crt/nginx.key">>}, {<<"certfile">>, <<"/home/yy/dev/erlang/erlim/crt/nginx.crt">>}, {<<"cacertfile">>, <<"/home/yy/dev/erlang/erlim/crt/demoCA/cacert....">>}]
-        }
-    ]},
+    
     %% erlang app config file
     %% http://blog.yufeng.info/archives/2852
     {ok, [
@@ -106,7 +96,7 @@ start(_StartType, _StartArgs) ->
                _ -> exit(config_file_error)
            end,
 
-    MFArgs = {erlim_tls_receiver, start_link, []},
+    MFArgs = {erlim_receiver, start_link, []},
     esockd:open(onechat, Port, Opts, MFArgs),
 
     erlim_sup:start_link().
