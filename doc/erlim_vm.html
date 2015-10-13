@@ -1,0 +1,168 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>Module erlim_vm</title>
+<link rel="stylesheet" type="text/css" href="stylesheet.css" title="EDoc">
+</head>
+<body bgcolor="white">
+<div class="navbar"><a name="#navbar_top"></a><table width="100%" border="0" cellspacing="0" cellpadding="2" summary="navigation bar"><tr><td><a href="overview-summary.html" target="overviewFrame">Overview</a></td><td><a href="http://www.erlang.org/"><img src="erlang.png" align="right" border="0" alt="erlang logo"></a></td></tr></table></div>
+<hr>
+
+<h1>Module erlim_vm</h1>
+<ul class="index"><li><a href="#description">Description</a></li><li><a href="#index">Function Index</a></li><li><a href="#functions">Function Details</a></li></ul>
+       Erlang vm info.
+<p>Copyright © (C) 2015, &lt;COMPANY&gt;</p>
+
+<p><b>Authors:</b> yy.</p>
+
+<h2><a name="description">Description</a></h2>
+       Erlang vm info. Thanks <a href="https://github.com/emqtt/emqttd/blob/master/src/emqttd_vm.erl"></a>
+<h2><a name="index">Function Index</a></h2>
+<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#get_ets_info-0">get_ets_info/0</a></td><td></td></tr>
+<tr><td valign="top"><a href="#get_ets_info-1">get_ets_info/1</a></td><td></td></tr>
+<tr><td valign="top"><a href="#get_ets_list-0">get_ets_list/0</a></td><td></td></tr>
+<tr><td valign="top"><a href="#get_ets_object-0">get_ets_object/0</a></td><td></td></tr>
+<tr><td valign="top"><a href="#get_ets_object-1">get_ets_object/1</a></td><td></td></tr>
+<tr><td valign="top"><a href="#get_memory-0">get_memory/0</a></td><td></td></tr>
+<tr><td valign="top"><a href="#get_port_info-0">get_port_info/0</a></td><td></td></tr>
+<tr><td valign="top"><a href="#get_port_info-1">get_port_info/1</a></td><td></td></tr>
+<tr><td valign="top"><a href="#get_port_types-0">get_port_types/0</a></td><td></td></tr>
+<tr><td valign="top"><a href="#get_process_gc-0">get_process_gc/0</a></td><td></td></tr>
+<tr><td valign="top"><a href="#get_process_gc-1">get_process_gc/1</a></td><td></td></tr>
+<tr><td valign="top"><a href="#get_process_group_leader_info-1">get_process_group_leader_info/1</a></td><td></td></tr>
+<tr><td valign="top"><a href="#get_process_info-0">get_process_info/0</a></td><td></td></tr>
+<tr><td valign="top"><a href="#get_process_info-1">get_process_info/1</a></td><td></td></tr>
+<tr><td valign="top"><a href="#get_process_limit-0">get_process_limit/0</a></td><td></td></tr>
+<tr><td valign="top"><a href="#get_process_list-0">get_process_list/0</a></td><td></td></tr>
+<tr><td valign="top"><a href="#get_system_info-0">get_system_info/0</a></td><td></td></tr>
+<tr><td valign="top"><a href="#get_system_info-1">get_system_info/1</a></td><td></td></tr>
+<tr><td valign="top"><a href="#loads-0">loads/0</a></td><td></td></tr>
+<tr><td valign="top"><a href="#mem_info-0">mem_info/0</a></td><td></td></tr>
+<tr><td valign="top"><a href="#microsecs-0">microsecs/0</a></td><td></td></tr>
+<tr><td valign="top"><a href="#scheduler_usage-1">scheduler_usage/1</a></td><td></td></tr>
+<tr><td valign="top"><a href="#schedulers-0">schedulers/0</a></td><td></td></tr>
+</table>
+
+<h2><a name="functions">Function Details</a></h2>
+
+<h3 class="function"><a name="get_ets_info-0">get_ets_info/0</a></h3>
+<div class="spec">
+<p><tt>get_ets_info() -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="get_ets_info-1">get_ets_info/1</a></h3>
+<div class="spec">
+<p><tt>get_ets_info(Tab) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="get_ets_list-0">get_ets_list/0</a></h3>
+<div class="spec">
+<p><tt>get_ets_list() -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="get_ets_object-0">get_ets_object/0</a></h3>
+<div class="spec">
+<p><tt>get_ets_object() -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="get_ets_object-1">get_ets_object/1</a></h3>
+<div class="spec">
+<p><tt>get_ets_object(Tab) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="get_memory-0">get_memory/0</a></h3>
+<div class="spec">
+<p><tt>get_memory() -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="get_port_info-0">get_port_info/0</a></h3>
+<div class="spec">
+<p><tt>get_port_info() -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="get_port_info-1">get_port_info/1</a></h3>
+<div class="spec">
+<p><tt>get_port_info(PortTerm) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="get_port_types-0">get_port_types/0</a></h3>
+<div class="spec">
+<p><tt>get_port_types() -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="get_process_gc-0">get_process_gc/0</a></h3>
+<div class="spec">
+<p><tt>get_process_gc() -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="get_process_gc-1">get_process_gc/1</a></h3>
+<div class="spec">
+<p><tt>get_process_gc(Pid) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="get_process_group_leader_info-1">get_process_group_leader_info/1</a></h3>
+<div class="spec">
+<p><tt>get_process_group_leader_info(LeaderPid) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="get_process_info-0">get_process_info/0</a></h3>
+<div class="spec">
+<p><tt>get_process_info() -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="get_process_info-1">get_process_info/1</a></h3>
+<div class="spec">
+<p><tt>get_process_info(Pid) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="get_process_limit-0">get_process_limit/0</a></h3>
+<div class="spec">
+<p><tt>get_process_limit() -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="get_process_list-0">get_process_list/0</a></h3>
+<div class="spec">
+<p><tt>get_process_list() -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="get_system_info-0">get_system_info/0</a></h3>
+<div class="spec">
+<p><tt>get_system_info() -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="get_system_info-1">get_system_info/1</a></h3>
+<div class="spec">
+<p><tt>get_system_info(Key) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="loads-0">loads/0</a></h3>
+<div class="spec">
+<p><tt>loads() -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="mem_info-0">mem_info/0</a></h3>
+<div class="spec">
+<p><tt>mem_info() -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="microsecs-0">microsecs/0</a></h3>
+<div class="spec">
+<p><tt>microsecs() -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="scheduler_usage-1">scheduler_usage/1</a></h3>
+<div class="spec">
+<p><tt>scheduler_usage(Interval) -&gt; any()</tt></p>
+</div>
+
+<h3 class="function"><a name="schedulers-0">schedulers/0</a></h3>
+<div class="spec">
+<p><tt>schedulers() -&gt; any()</tt></p>
+</div>
+<hr>
+
+<div class="navbar"><a name="#navbar_bottom"></a><table width="100%" border="0" cellspacing="0" cellpadding="2" summary="navigation bar"><tr><td><a href="overview-summary.html" target="overviewFrame">Overview</a></td><td><a href="http://www.erlang.org/"><img src="erlang.png" align="right" border="0" alt="erlang logo"></a></td></tr></table></div>
+<p><i>Generated by EDoc, Oct 13 2015, 15:20:00.</i></p>
+</body>
+</html>

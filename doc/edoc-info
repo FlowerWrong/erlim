@@ -1,4 +1,5 @@
 %% encoding: UTF-8
 {application,erlim}.
-{modules,[ck,cy,erlim_benchmark,erlim_mnesia,erlim_sm,join_cluster,
-          leave_cluster,mnesia_util,toml_util,util,webrtc_room,ws_util]}.
+{modules,[ck,cy,erlim_benchmark,erlim_ctl,erlim_mnesia,erlim_sm,erlim_vm,
+          join_cluster,leave_cluster,mnesia_util,toml_util,util,webrtc_room,
+          ws_client,ws_util]}.
