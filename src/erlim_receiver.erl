@@ -49,8 +49,7 @@
 
 %%--------------------------------------------------------------------
 %% @doc
-%% Starts the server
-%%
+%% spawn a new pid to handle this client
 %% @spec start_link() -> {ok, Pid} | ignore | {error, Error}
 %% @end
 %%--------------------------------------------------------------------
@@ -251,10 +250,14 @@ handle_info(_Info, State) ->
 %% @spec terminate(Reason, State) -> void()
 %% @end
 %%--------------------------------------------------------------------
-terminate(_Reason, #state{client_pid = ClientPid, device = Device}) ->
+terminate(Reason, #state{transport = Transport, socket = Socket, client_pid = ClientPid, device = Device}) ->
     %% 这里有三种情况
     %% 1. 用户正常退出, 或网络掉线退出
     lager:info("ClientPid ~p will be terminated.~n", [ClientPid]),
+    if
+        Reason == {shutdown, conn_closed} -> ok;
+        true -> Transport:fast_close(Socket)
+    end,
     ok = case ClientPid of
              undefined -> ok;
              _ ->

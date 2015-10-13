@@ -6,10 +6,7 @@
 %% Application callbacks
 -export([start/2, stop/1]).
 
-
-%% We do not block on send anymore.
 -define(TCP_SEND_TIMEOUT, 15000).
-
 -define(TCP_OPTIONS, [binary,
     {ip, {0, 0, 0, 0}},
     {packet, 0},
@@ -29,15 +26,15 @@
 %% ===================================================================
 
 start(_StartType, _StartArgs) ->
-    erlim_mnesia:init_mnesia(),
-
     [ok = application:start(App) ||
         App <- [syntax_tools, asn1, crypto, public_key, bcrypt, emysql]],
-    ssl:start(),
-    esockd:start(),
-    lager:start(),
-    
-    %% erlang app config file
+
+    [ok = App:start() ||
+        App <- [ssl, esockd, lager]],
+
+    erlim_mnesia:init_mnesia(),
+
+    %% erlang app config file in 3 ways
     %% http://blog.yufeng.info/archives/2852
     {ok, [
         {<<"database">>,
@@ -95,9 +92,8 @@ start(_StartType, _StartArgs) ->
                        {sockopts, ?TCP_OPTIONS}];
                _ -> exit(config_file_error)
            end,
-
     MFArgs = {erlim_receiver, start_link, []},
-    esockd:open(onechat, Port, Opts, MFArgs),
+    {ok, _} = esockd:open(onechat, Port, Opts, MFArgs),
 
     erlim_sup:start_link().
 
