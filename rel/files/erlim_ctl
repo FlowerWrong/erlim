@@ -257,17 +257,22 @@ case "$1" in
         $NODETOOL rpc erlim_ctl "$@"
         ;;
 
+    sessions)
+        # Make sure there is not already a node running
+        RES=`ping_node`
+        if [ "$RES" = "pong" ]; then
+            echo "Node is already running!"
+            exit 1
+        fi
+        $NODETOOL rpc erlim_ctl "$@"
+        ;;
+
     *)
         echo "  Usage: $SCRIPT"
 		echo "  status                                 # erlim status"
         echo "  vm [ all | memory | process ]          # query all, memory and process info of erlang vm"
 		echo "  cluster                                # cluster nodes"
 		echo "  mnesia                                 # mnesia info"
-        echo "  ----------------------------------------------------------------"
-		echo "  add_user <Username> <Password>         # add user"
-		echo "  del_user <Username>                    # delete user"
-        echo "  ----------------------------------------------------------------"
-		echo "  listeners                              # listeners"
         echo "  ----------------------------------------------------------------"
         exit 1
         ;;

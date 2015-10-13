@@ -10,7 +10,7 @@
 -author("yy").
 
 %% API
--export([status/1, cluster/1, join_cluster/1, leave_cluster/1, add_user/1, del_user/1, clients/1, sessions/1, vm/1, mnesia/1]).
+-export([status/1, cluster/1, join_cluster/1, leave_cluster/1, sessions/1, vm/1, mnesia/1]).
 
 %% @doc erlim status
 status([]) ->
@@ -32,23 +32,9 @@ join_cluster([Remote]) ->
 leave_cluster([]) ->
     ok = leave_cluster:start().
 
-%% @TODO
-add_user([_Name, _Pass]) ->
-    io:format("Name is ~p, pass is ~p~n", [_Name, _Pass]),
-    ok.
-
-%% @TODO
-del_user([_Name]) ->
-    io:format("Name is ~p~n", [_Name]),
-    ok.
-
-%% @TODO
-clients([]) ->
-    ok.
-
-%% @TODO
+%% @doc online members count
 sessions([]) ->
-    ok.
+    io:format("Online clients count is ~p~n", [mnesia_util:online_members_count()]).
 
 %% @doc erlim vm info, include memory, and process...
 vm([]) ->

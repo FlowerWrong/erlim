@@ -15,7 +15,8 @@
     query_session_by_pid_and_device/2,
     query_session_by_uid_and_device/2,
     is_online/1,
-    all/0
+    all/0,
+    online_members_count/0
 ]).
 
 -include("table.hrl").
@@ -79,6 +80,10 @@ all() ->
         qlc:e(Query)
           end,
     case mnesia:transaction(Fun) of
-        {atomic, []} -> false;
+        {atomic, []} -> [];
         {atomic, Users} -> Users
     end.
+
+%% @doc online members count
+online_members_count() ->
+    length(all()).
