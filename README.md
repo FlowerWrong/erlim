@@ -107,7 +107,7 @@ cp erlim.example.toml /etc/erlim/erlim.toml
 - [x] implement cluster mode with a scheduler in erlang or nodejs or ruby on rails
 - [x] block user, add friends, room onechat api
 - [ ] http api module(friends list, blocks list, room info...)
-- [ ] add tls support
+- [x] add tls support
 - [x] add edoc
 - [ ] add web admin support
 - [ ] add max connection number test

@@ -12,11 +12,11 @@
 
 %% API functions
 -export([
-    start_link/2,
+    start_link/3,
     stop/1,
-    reply/3,
-    reply_error/4,
-    reply_ack/4
+    reply/4,
+    reply_error/5,
+    reply_ack/5
 ]).
 
 %% gen_server callbacks
@@ -30,6 +30,7 @@
 ]).
 
 -record(state, {
+    transport,
     socket :: port(),
     protocol :: atom()
 }).
@@ -45,8 +46,8 @@
 %% @spec start_link() -> {ok, Pid} | ignore | {error, Error}
 %% @end
 %%--------------------------------------------------------------------
-start_link(Socket, Protocol) ->
-    gen_server:start_link(?MODULE, [Socket, Protocol], []).
+start_link(Transport, Socket, Protocol) ->
+    gen_server:start_link(?MODULE, [Transport, Socket, Protocol], []).
 
 %%%===================================================================
 %%% gen_server callbacks
@@ -63,8 +64,8 @@ start_link(Socket, Protocol) ->
 %%                     {stop, Reason}
 %% @end
 %%--------------------------------------------------------------------
-init([Socket, Protocol]) ->
-    State = #state{socket = Socket, protocol = Protocol},
+init([Transport, Socket, Protocol]) ->
+    State = #state{transport = Transport, socket = Socket, protocol = Protocol},
     {ok, State}.
 
 %%--------------------------------------------------------------------
@@ -110,41 +111,41 @@ handle_cast(_Msg, State) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_info({single_chat, Msg}, #state{socket = Socket, protocol = Protocol} = State) ->
+handle_info({single_chat, Msg}, #state{transport = Transport, socket = Socket, protocol = Protocol} = State) ->
     lager:info("erlim_client single_chat msg is ~p~n", [Msg]),
-    reply(Socket, Msg, Protocol),
+    reply(Transport, Socket, Msg, Protocol),
     {noreply, State};
-handle_info({group_chat, Msg}, #state{socket = Socket, protocol = Protocol} = State) ->
+handle_info({group_chat, Msg}, #state{transport = Transport, socket = Socket, protocol = Protocol} = State) ->
     lager:info("erlim_client group_chat msg is ~p~n", [Msg]),
-    reply(Socket, Msg, Protocol),
+    reply(Transport, Socket, Msg, Protocol),
     {noreply, State};
-handle_info({notification, Msg}, #state{socket = Socket, protocol = Protocol} = State) ->
+handle_info({notification, Msg}, #state{transport = Transport, socket = Socket, protocol = Protocol} = State) ->
     lager:info("erlim_client notification msg is ~p~n", [Msg]),
-    reply(Socket, Msg, Protocol),
+    reply(Transport, Socket, Msg, Protocol),
     {noreply, State};
-handle_info({webrtc_create, Msg}, #state{socket = Socket, protocol = Protocol} = State) ->
+handle_info({webrtc_create, Msg}, #state{transport = Transport, socket = Socket, protocol = Protocol} = State) ->
     lager:info("erlim_client webrtc_create msg is ~p~n", [Msg]),
-    reply(Socket, Msg, Protocol),
+    reply(Transport, Socket, Msg, Protocol),
     {noreply, State};
-handle_info({webrtc_join, Msg}, #state{socket = Socket, protocol = Protocol} = State) ->
+handle_info({webrtc_join, Msg}, #state{transport = Transport, socket = Socket, protocol = Protocol} = State) ->
     lager:info("erlim_client webrtc_join msg is ~p~n", [Msg]),
-    reply(Socket, Msg, Protocol),
+    reply(Transport, Socket, Msg, Protocol),
     {noreply, State};
-handle_info({webrtc_leave, Msg}, #state{socket = Socket, protocol = Protocol} = State) ->
+handle_info({webrtc_leave, Msg}, #state{transport = Transport, socket = Socket, protocol = Protocol} = State) ->
     lager:info("erlim_client webrtc_leave msg is ~p~n", [Msg]),
-    reply(Socket, Msg, Protocol),
+    reply(Transport, Socket, Msg, Protocol),
     {noreply, State};
-handle_info({webrtc_send_offer, Msg}, #state{socket = Socket, protocol = Protocol} = State) ->
+handle_info({webrtc_send_offer, Msg}, #state{transport = Transport, socket = Socket, protocol = Protocol} = State) ->
     lager:info("erlim_client webrtc_send_offer msg is ~p~n", [Msg]),
-    reply(Socket, Msg, Protocol),
+    reply(Transport, Socket, Msg, Protocol),
     {noreply, State};
-handle_info({webrtc_send_answer, Msg}, #state{socket = Socket, protocol = Protocol} = State) ->
+handle_info({webrtc_send_answer, Msg}, #state{transport = Transport, socket = Socket, protocol = Protocol} = State) ->
     lager:info("erlim_client webrtc_send_answer msg is ~p~n", [Msg]),
-    reply(Socket, Msg, Protocol),
+    reply(Transport, Socket, Msg, Protocol),
     {noreply, State};
-handle_info({webrtc_send_ice_candidate, Msg}, #state{socket = Socket, protocol = Protocol} = State) ->
+handle_info({webrtc_send_ice_candidate, Msg}, #state{transport = Transport, socket = Socket, protocol = Protocol} = State) ->
     lager:info("erlim_client webrtc_send_ice_candidate msg is ~p~n", [Msg]),
-    reply(Socket, Msg, Protocol),
+    reply(Transport, Socket, Msg, Protocol),
     {noreply, State};
 handle_info(_Info, State) ->
     {noreply, State}.
@@ -185,25 +186,25 @@ stop(ClientPid) ->
     ok.
 
 %% @doc reply to client
-reply(Socket, Msg, tcp) ->
+reply(Transport, Socket, Msg, tcp) ->
     PayloadLen = byte_size(Msg),
     Payload = iolist_to_binary([<<"ONECHAT/1.0\r\nPAYLOAD_LEN: ">>, util:integer2binary(PayloadLen), <<"\r\n\r\n">>, Msg]),
-    gen_tcp:send(Socket, Payload);
-reply(Socket, Msg, websocket) ->
-    ws_util:send_ws_data(Socket, Msg).
+    Transport:send(Socket, Payload);
+reply(Transport, Socket, Msg, websocket) ->
+    ws_util:send_ws_data(Transport, Socket, Msg).
 
 %% @doc reply error to client
-reply_error(Socket, Error, Code, tcp) ->
+reply_error(Transport, Socket, Error, Code, tcp) ->
     DataToSend = jiffy:encode({[{<<"cmd">>, <<"error">>}, {<<"msg">>, Error}, {<<"code">>, Code}]}),
-    reply(Socket, DataToSend, tcp);
-reply_error(Socket, Error, Code, websocket) ->
+    reply(Transport, Socket, DataToSend, tcp);
+reply_error(Transport, Socket, Error, Code, websocket) ->
     DataToSend = jiffy:encode({[{<<"cmd">>, <<"error">>}, {<<"msg">>, Error}, {<<"code">>, Code}]}),
-    reply(Socket, DataToSend, websocket).
+    reply(Transport, Socket, DataToSend, websocket).
 
 %% @doc reply ack to client
-reply_ack(Socket, Action, Ack, tcp) ->
+reply_ack(Transport, Socket, Action, Ack, tcp) ->
     DataToSend = jiffy:encode({[{<<"cmd">>, <<"ack">>}, {<<"action">>, Action}, {<<"ack">>, Ack}]}),
-    reply(Socket, DataToSend, tcp);
-reply_ack(Socket, Action, Ack, websocket) ->
+    reply(Transport, Socket, DataToSend, tcp);
+reply_ack(Transport, Socket, Action, Ack, websocket) ->
     DataToSend = jiffy:encode({[{<<"cmd">>, <<"ack">>}, {<<"action">>, Action}, {<<"ack">>, Ack}]}),
-    reply(Socket, DataToSend, websocket).
+    reply(Transport, Socket, DataToSend, websocket).
