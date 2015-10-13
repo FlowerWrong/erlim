@@ -27,7 +27,7 @@
 
 start(_StartType, _StartArgs) ->
     [ok = application:start(App) ||
-        App <- [syntax_tools, asn1, crypto, public_key, bcrypt, emysql]],
+        App <- [syntax_tools, os_mon, asn1, crypto, public_key, bcrypt, emysql]],
 
     [ok = App:start() ||
         App <- [ssl, esockd, lager]],
