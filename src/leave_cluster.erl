@@ -25,7 +25,8 @@ start() ->
                 {aborted, Reason} -> io:format("Error: can not unregister node ~p from cluster: ~p~n", [Removed, Reason]);
                 {atomic, ok} ->
                     mnesia:delete_schema([Removed]),
-                    io:format("node ~p removed from cluster~n", [Removed])
+                    io:format("node ~p removed from cluster~n", [Removed]),
+                    ok
                 end
     end.
 

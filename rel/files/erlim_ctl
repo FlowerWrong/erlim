@@ -214,28 +214,60 @@ case "$1" in
             echo "Node is already running!"
             exit 1
         fi
-        $NODETOOL rpc erlim_ctl vm all
+        $NODETOOL rpc erlim_ctl "$@"
         ;;
 
-    mem)
+    cluster)
         # Make sure there is not already a node running
         RES=`ping_node`
         if [ "$RES" = "pong" ]; then
             echo "Node is already running!"
             exit 1
         fi
-        $NODETOOL rpc erlim_ctl mem
+        $NODETOOL rpc erlim_ctl "$@"
         ;;
+
+    join_cluster)
+        # Make sure there is not already a node running
+        RES=`ping_node`
+        if [ "$RES" = "pong" ]; then
+            echo "Node is already running!"
+            exit 1
+        fi
+        $NODETOOL rpc erlim_ctl "$@"
+        ;;
+
+    leave_cluster)
+        # Make sure there is not already a node running
+        RES=`ping_node`
+        if [ "$RES" = "pong" ]; then
+            echo "Node is already running!"
+            exit 1
+        fi
+        $NODETOOL rpc erlim_ctl "$@"
+        ;;
+
+    mnesia)
+        # Make sure there is not already a node running
+        RES=`ping_node`
+        if [ "$RES" = "pong" ]; then
+            echo "Node is already running!"
+            exit 1
+        fi
+        $NODETOOL rpc erlim_ctl "$@"
+        ;;
+
     *)
-                    echo "Usage: $SCRIPT"
+        echo "  Usage: $SCRIPT"
 		echo "  status                                 # erlim status"
-        echo "  vm [ load | memory | process | io ]    # query load, memory, process and io of erlang vm"
-		echo "  cluster                                # query or cluster nodes"
+        echo "  vm [ all | memory | process ]          # query all, memory and process info of erlang vm"
+		echo "  cluster                                # cluster nodes"
+		echo "  mnesia                                 # mnesia info"
         echo "  ----------------------------------------------------------------"
 		echo "  add_user <Username> <Password>         # add user"
 		echo "  del_user <Username>                    # delete user"
         echo "  ----------------------------------------------------------------"
-		echo "  listeners                              # query broker listeners"
+		echo "  listeners                              # listeners"
         echo "  ----------------------------------------------------------------"
         exit 1
         ;;
