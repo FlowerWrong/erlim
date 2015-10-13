@@ -1,8 +1,8 @@
 %%%-------------------------------------------------------------------
-%%% @author yy
+%%% @author huangdan
 %%% @copyright (C) 2015, <COMPANY>
 %%% @doc
-%%%     Erlang vm info. Thanks <a href="https://github.com/emqtt/emqttd/blob/master/src/emqttd_vm.erl"></a>
+%%%     Erlang vm info. Thanks <a href="https://github.com/emqtt/emqttd/blob/master/src/emqttd_vm.erl">emqttd</a>
 %%% @end
 %%% Created : 13. 十月 2015 下午1:48
 %%%-------------------------------------------------------------------
