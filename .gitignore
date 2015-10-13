@@ -26,3 +26,7 @@ Mnesia.*
 *.so
 
 /crt/
+
+*.out
+.project
+.cproject
