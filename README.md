@@ -12,9 +12,6 @@
 
 ```bash
 make
-
-# in erl console
-application:start(erlim).
 ```
 
 #### Usage
@@ -27,6 +24,11 @@ cp erlim.example.toml /etc/erlim/erlim.toml
 ./rel/erlim/bin/erlim console
 ./rel/erlim/bin/erlim attach
 ./rel/erlim/bin/erlim stop
+
+./rel/erlim/bin/erlim_ctl status
+./rel/erlim/bin/erlim_ctl vm all | memory | process
+./rel/erlim/bin/erlim_ctl cluster
+./rel/erlim/bin/erlim_ctl sessions
 ```
 
 #### Design
@@ -92,26 +94,23 @@ cp erlim.example.toml /etc/erlim/erlim.toml
 - [x] group chat
 - [x] use toml to write config file
 - [x] use mnesia for session store
-- [x] toml library of erlang
-- [x] handle bug and error
 - [x] chat must be friends
-- [x] group chat must in this room
-- [x] remove token 不是无状态的
-- [x] add ACK(消息回执 模仿三次握手)
-- [x] multi device
+- [x] remove token
+- [x] add ACK
+- [x] multi device support
 - [x] timeout
-- [x] implement mnesia cluster
+- [x] add mnesia cluster support
 - [x] add websocket support
 - [x] [implement a module like pg2 with mnesia](https://github.com/erlang/otp/blob/maint/lib/kernel/src/pg2.erl)
 - [x] add video chat support(ICE  STUN: RFC3489  TURN: RFC5766  SIP  WebRTC SDP)
 - [x] implement cluster mode with a scheduler in erlang or nodejs or ruby on rails
 - [x] block user, add friends, room onechat api
-- [ ] http api module(friends list, blocks list, room info...)
 - [x] add tls support
 - [x] add edoc
+- [ ] http api module(friends list, blocks list, room info...)
 - [ ] add web admin support
 - [ ] add max connection number test
-- [ ] multi video chat without p2p, rtmp and hls
-- [ ] keep session(避免移动端重连风暴)
+- [ ] multi video chat without p2p, with rtmp and hls
+- [ ] keep session
 - [ ] implement pubsub with erlang(gen_event)
-- [ ] yrl and xrl(语法分析/词法分析) write json parse in erlang(yecc and leex)
+- [ ] yrl and xrl write json parse in erlang(yecc and leex)
