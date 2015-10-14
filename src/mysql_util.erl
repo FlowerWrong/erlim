@@ -10,6 +10,8 @@
 
 -export([
     add_firend/3,
+    friendships/1,
+    blockships/1,
     del_friend/2,
     query_user_by_mobile/1,
     query_user_by_id/1,
@@ -55,6 +57,24 @@ add_firend(Uid, FriendId, NickName) when is_integer(Uid), is_integer(FriendId) -
             Now = calendar:local_time(),
             emysql:execute(erlim_pool, add_firend_stmt, [Uid, FriendId, NickName, 1, Now, Now]);
         _ -> false
+    end.
+
+%% @doc 联系人列表
+friendships(Uid) when is_integer(Uid) ->
+    emysql:prepare(friendships_stmt, <<"SELECT * FROM friendships WHERE user_id = ? AND confirmed = 1">>),
+    Result = emysql:execute(erlim_pool, friendships_stmt, [Uid]),
+    case emysql_util:as_record(Result, friendship_record, record_info(fields, friendship_record)) of
+        [] -> [];
+        Friendships -> Friendships
+    end.
+
+%% @doc 黑名单列表
+blockships(Uid) when is_integer(Uid) ->
+    emysql:prepare(blockships_stmt, <<"SELECT * FROM blockships WHERE user_id = ?">>),
+    Result = emysql:execute(erlim_pool, blockships_stmt, [Uid]),
+    case emysql_util:as_record(Result, blockship_record, record_info(fields, blockship_record)) of
+        [] -> [];
+        Blockships -> Blockships
     end.
 
 %% @doc 删除好友
