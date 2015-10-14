@@ -81,19 +81,35 @@ handle_request('GET', "/api/v1/rooms", Req, CurrentUser) ->
     end;
 
 %% @doc 修改群昵称
-%% params: room_id:integer, nickname:staring
+%% params: room_id:integer, nickname:string
 %% test: curl -i -X PUT "http://127.0.0.1:8088/api/v1/users/room/nickname?token=token" -d "room_id=1&nickname=yangyang"
 handle_request('PUT', "/api/v1/users/room/nickname", Req, CurrentUser) ->
     CurrentUserId = CurrentUser#user_record.id,
-    PostParams = mochiweb_request:parse_post(Req),
-    {"room_id", RoomIdList} = lists:keyfind("room_id", 1, PostParams),
+    PutParams = mochiweb_request:parse_post(Req),
+    RoomIdList = proplists:get_value("room_id", PutParams),
     RoomId = list_to_integer(RoomIdList),
-    {"nickname", Nickname} = lists:keyfind("nickname", 1, PostParams),
+    Nickname = proplists:get_value("nickname", PutParams),
     mysql_util:change_room_nickname(CurrentUserId, RoomId, Nickname),
     Json = jiffy:encode({[{<<"status">>, <<"ok">>}, {<<"msg">>, <<"update room nickname success">>}, {<<"data">>, list_to_binary(Nickname)}]}),
     Req:ok({"application/json", Json});
 
-%% @TODO 修改联系人昵称
+%% @doc 修改联系人昵称
+%% params: friend_id:integer, nickname:string
+%% test: curl -i -X PUT "http://127.0.0.1:8088/api/v1/users/friend/nickname?token=token" -d "friend_id=2&nickname=kang"
+handle_request('PUT', "/api/v1/users/friend/nickname", Req, CurrentUser) ->
+    CurrentUserId = CurrentUser#user_record.id,
+    PutParams = mochiweb_request:parse_post(Req),
+    FriendIdList = proplists:get_value("friend_id", PutParams),
+    FriendId = list_to_integer(FriendIdList),
+    case mysql_util:are_friends(CurrentUserId, FriendId) of
+        false -> Req:respond({403, [], []});
+        true ->
+            Nickname = proplists:get_value("nickname", PutParams),
+            mysql_util:change_frined_nickname(CurrentUserId, FriendId, Nickname),
+            Json = jiffy:encode({[{<<"status">>, <<"ok">>}, {<<"msg">>, <<"update friend nickname success">>}, {<<"data">>, list_to_binary(Nickname)}]}),
+            Req:ok({"application/json", Json})
+    end;
+
 %% @TODO 修改消息免打扰
 %% @TODO 修改群聊天背景
 %% @TODO 举报群

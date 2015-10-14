@@ -112,8 +112,6 @@ start(_StartType, _StartArgs) ->
 
     open_listener({http, HttpPort, ?HTTP_OPTIONS}),
 
-    observer:start(),
-
     erlim_sup:start_link().
 
 stop(_State) ->

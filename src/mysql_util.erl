@@ -16,6 +16,7 @@
     query_user_by_mobile/1,
     query_user_by_id/1,
     change_room_nickname/3,
+    change_frined_nickname/3,
     save_msg/1,
     save_room_msg/1,
     save_user_room_msg/2,
@@ -119,10 +120,15 @@ query_user_by_id(Uid) when is_integer(Uid) ->
         [User | _T] -> User
     end.
 
-%% @doc 修改群名
+%% @doc 修改群昵称
 change_room_nickname(Uid, RoomId, Nickname) when is_integer(Uid), is_integer(RoomId) ->
     emysql:prepare(change_room_nickname_stmt, <<"UPDATE room_users SET nick_name = ? WHERE user_id = ? AND room_id = ?">>),
     emysql:execute(erlim_pool, change_room_nickname_stmt, [Nickname, Uid, RoomId]).
+
+%% @doc 修改群昵称
+change_frined_nickname(Uid, FriendId, Nickname) when is_integer(Uid), is_integer(FriendId) ->
+    emysql:prepare(change_room_nickname_stmt, <<"UPDATE friendships SET nickname = ? WHERE user_id = ? AND friend_id = ?">>),
+    emysql:execute(erlim_pool, change_room_nickname_stmt, [Nickname, Uid, FriendId]).
 
 %%% @doc msg
 %% @doc 保存私聊消息
