@@ -20,6 +20,10 @@
     {send_timeout_close, true},
     {keepalive, true}]
 ).
+-define(HTTP_OPTIONS, [
+    {loop, {erlim_http, dispatch}},
+    {name, erlim_http}
+]).
 
 %% ===================================================================
 %% Application callbacks
@@ -62,6 +66,11 @@ start(_StartType, _StartArgs) ->
                 {<<"certfile">>, CertFile},
                 {<<"cacertfile">>, CaCertFile}
             ]
+        },
+        {<<"http">>,
+            [
+                {<<"port">>, HttpPort}
+            ]
         }
     ]} = toml_util:parse(),
     emysql:add_pool(erlim_pool, [
@@ -92,10 +101,22 @@ start(_StartType, _StartArgs) ->
                        {sockopts, ?TCP_OPTIONS}];
                _ -> exit(config_file_error)
            end,
-    MFArgs = {erlim_receiver, start_link, []},
-    {ok, _} = esockd:open(onechat, Port, Opts, MFArgs),
+    open_listener({onechat, Port, Opts}),
+
+    open_listener({http, HttpPort, ?HTTP_OPTIONS}),
 
     erlim_sup:start_link().
 
 stop(_State) ->
     ok.
+
+
+%% @doc open onechat port
+open_listener({onechat, Port, Options}) ->
+    MFArgs = {erlim_receiver, start_link, []},
+    {ok, _} = esockd:open(onechat, Port, Options, MFArgs);
+%% @doc open http port
+open_listener({http, Port, Options}) ->
+    NewOpts = lists:merge(Options, [{port, Port}]),
+    lager:info("Http opts are ~p~n", [NewOpts]),
+    mochiweb_http:start(NewOpts).

@@ -17,3 +17,6 @@ use_ssl = 0
 cacertfile = ""
 certfile = ""
 keyfile = ""
+
+[http]
+port = 80
