@@ -1,62 +1,52 @@
-/*
- ============================================================================
- Name        : onechatc.c
- Author      : yy
- Version     :
- Copyright   : GPLV3
- Description : onechat c client
- ============================================================================
- */
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <stdio.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <unistd.h>
+#include <string.h>
+#include <stdlib.h>
+#include <fcntl.h>
+#include <sys/shm.h>
 
-int main(void) {
+/*
+ * http://www.gnu.org/software/libc/manual/html_node/Sockets.html
+*/
 
-	int client_sockfd;
-	int len;
-	struct sockaddr_in remote_addr; //服务器端网络地址结构体
-	char buf[BUFSIZ];  //数据传送的缓冲区
-	memset(&remote_addr, 0, sizeof(remote_addr)); //数据初始化--清零
-	remote_addr.sin_family = AF_INET; //设置为IP通信
-	remote_addr.sin_addr.s_addr = inet_addr("127.0.0.1"); //服务器IP地址
-	remote_addr.sin_port = htons(8080); //服务器端口号
+#define MYPORT  8080
+#define BUFFER_SIZE 1024
 
-	puts("socket desc/n");
+int main() {
+	///定义sockfd
+	int sock_cli = socket(AF_INET, SOCK_STREAM, 0);
 
-	//创建客户端套接字--IPv4协议，面向连接通信，TCP协议
-	if ((client_sockfd = socket(PF_INET, SOCK_STREAM, 0)) < 0) {
-		perror("socket");
-		return 1;
-	}
+	///定义sockaddr_in
+	struct sockaddr_in servaddr;
+	memset(&servaddr, 0, sizeof(servaddr));
+	servaddr.sin_family = AF_INET;
+	servaddr.sin_port = htons(MYPORT);  ///服务器端口
+	servaddr.sin_addr.s_addr = inet_addr("127.0.0.1");  ///服务器ip
 
-	//将套接字绑定到服务器的网络地址上
-	if (connect(client_sockfd, (struct sockaddr *) &remote_addr,
-			sizeof(struct sockaddr)) < 0) {
+	///连接服务器，成功返回0，错误返回-1
+	if (connect(sock_cli, (struct sockaddr *) &servaddr, sizeof(servaddr))
+			< 0) {
 		perror("connect");
-		return 1;
+		exit(1);
 	}
-	puts("connected to server/n");
 
-	len = recv(client_sockfd, buf, BUFSIZ, 0); //接收服务器端信息
-	buf[len] = '/0';
-
-	//循环的发送接收信息并打印接收信息--recv返回接收到的字节数，send返回发送的字节数
-	while (1) {
-		puts("Enter string to send:");
-		scanf("%s", buf);
-		if (!strcmp(buf, "quit"))
+	char sendbuf[BUFFER_SIZE];
+	char recvbuf[BUFFER_SIZE];
+	while (fgets(sendbuf, sizeof(sendbuf), stdin) != NULL) {
+		send(sock_cli, sendbuf, strlen(sendbuf), 0); ///发送
+		if (strcmp(sendbuf, "exit\n") == 0)
 			break;
-		len = send(client_sockfd, buf, strlen(buf), 0);
-		len = recv(client_sockfd, buf, BUFSIZ, 0);
-		buf[len] = '/0';
-	}
-	close(client_sockfd); //关闭套接字
+		recv(sock_cli, recvbuf, sizeof(recvbuf), 0); ///接收
+		fputs(recvbuf, stdout);
 
-	return EXIT_SUCCESS;
+		memset(sendbuf, 0, sizeof(sendbuf));
+		memset(recvbuf, 0, sizeof(recvbuf));
+	}
+
+	close(sock_cli);
+	return 0;
 }
