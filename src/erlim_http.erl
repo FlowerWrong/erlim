@@ -110,10 +110,37 @@ handle_request('PUT', "/api/v1/users/friend/nickname", Req, CurrentUser) ->
             Req:ok({"application/json", Json})
     end;
 
-%% @TODO 修改消息免打扰
+%% @TODO 修改群消息免打扰
 %% @TODO 修改群聊天背景
 %% @TODO 举报群
-%% @TODO 查找群聊天记录
+
+%% @doc 查找群聊天记录
+%% query params: room_id:integer, last_msg_id:integer, limit:integer
+handle_request('GET', "/api/v1/rooms/chatlog", Req, CurrentUser) ->
+    CurrentUserId = CurrentUser#user_record.id,
+    QueryParams = Req:parse_qs(),
+
+    RoomIdList = proplists:get_value("room_id", QueryParams),
+    RoomId = list_to_integer(RoomIdList),
+
+    LastIdList = proplists:get_value("last_msg_id", QueryParams),
+    LastId = list_to_integer(LastIdList),
+
+    LimitList = proplists:get_value("limit", QueryParams),
+    Limit = list_to_integer(LimitList),
+
+    case mysql_util:in_room(CurrentUserId, RoomId) of
+        false -> Req:respond({403, [], []});
+        true ->
+            Roommsgs = mysql_util:query_room_msgs(RoomId, LastId, Limit),
+            RoommsgsForJson = lists:map(fun(M) ->
+                {datetime, CreatedAtD} = M#roommsg_record.created_at,
+                CreatedAt = util:datetime2timestamp(CreatedAtD),
+                {[{id, M#roommsg_record.id}, {f, M#roommsg_record.f}, {t, M#roommsg_record.t}, {msg, M#roommsg_record.msg}, {created_at, CreatedAt}]}
+                                        end, Roommsgs),
+            Json = jiffy:encode({[{<<"status">>, <<"ok">>}, {<<"msg">>, <<"room chatlog">>}, {<<"data">>, RoommsgsForJson}]}),
+            Req:ok({"application/json", Json})
+    end;
 
 
 %% @TODO 获取联系人基本信息
@@ -136,7 +163,6 @@ handle_request('GET', "/api/v1/admin/users/online", Req, _CurrentUser) ->
 handle_request(Method, Path, Req, _CurrentUser) ->
     lager:error("Unexpected HTTP Request: ~s ~s", [Method, Path]),
     Req:not_found().
-
 
 
 %% @doc uploader

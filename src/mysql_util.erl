@@ -23,6 +23,7 @@
     user_msgs/2,
     user_roommsgs/2,
     room_msgs/1,
+    query_room_msgs/3,
     mark_read/2,
     mark_read/3,
     query_msg_by_id/1,
@@ -173,6 +174,12 @@ user_roommsgs(Uid, Unread) when is_integer(Uid), is_integer(Unread) ->
 room_msgs(RoomId) when is_integer(RoomId) ->
     emysql:prepare(roommsg_stmt, <<"SELECT * FROM roommsgs WHERE t = ?">>),
     Result = emysql:execute(erlim_pool, roommsg_stmt, [RoomId]),
+    emysql_util:as_record(Result, roommsg_record, record_info(fields, roommsg_record)).
+
+%% @doc 查询群消息
+query_room_msgs(RoomId, LastId, Limit) when is_integer(RoomId), is_integer(LastId), is_integer(Limit) ->
+    emysql:prepare(query_room_msgs_stmt, <<"SELECT * FROM roommsgs WHERE t = ? AND id < ? LIMIT ?">>),
+    Result = emysql:execute(erlim_pool, query_room_msgs_stmt, [RoomId, LastId, Limit]),
     emysql_util:as_record(Result, roommsg_record, record_info(fields, roommsg_record)).
 
 %% @doc 标记私聊/群聊/通知消息为已读
