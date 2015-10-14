@@ -86,11 +86,8 @@ start(_StartType, _StartArgs) ->
     redis_client = create_redis_ets_table(),
     {ok, RedisClient} = eredis:start_link(),
     ets:insert(redis_client, {rc, RedisClient}),
-    [{rc, RedisClientPid}] = ets:lookup(redis_client, rc),
-    lager:info("Redis client is ~p~n", [RedisClientPid]),
-
     %% 插入redis测试数据
-    {ok, <<"OK">>} = eredis:q(RedisClientPid, ["SET", "token", 1]),
+    {ok, <<"OK">>} = eredis:q(RedisClient, ["SET", "token", 1]),
 
     Opts = case EnableSSL of
                0 ->

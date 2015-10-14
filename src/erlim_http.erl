@@ -104,7 +104,10 @@ handle_request('PUT', "/api/v1/users/room/nickname", Req, CurrentUser) ->
 %% @TODO 添加联系人黑名单, 无需对方同意, 无通知给对方
 %% @TODO 移除联系人黑名单, 无需对方同意, 无通知给对方
 
-%% @TODO 图片上传
+%% @doc 图片上传
+%% curl test: curl -i -X POST -F "photo=@/home/yy/1210926937.jpg" "http://127.0.0.1:8088/api/v1/uploader?token=token"
+handle_request('POST', "/api/v1/uploader", Req, _CurrentUser) ->
+    uploader(Req, uploder_dir(), valid_exts());
 
 %% @doc online users count
 handle_request('GET', "/api/v1/admin/users/online", Req, _CurrentUser) ->
@@ -117,3 +120,68 @@ handle_request('GET', "/api/v1/admin/users/online", Req, _CurrentUser) ->
 handle_request(Method, Path, Req, _CurrentUser) ->
     lager:error("Unexpected HTTP Request: ~s ~s", [Method, Path]),
     Req:not_found().
+
+
+
+%% @doc uploader
+uploader(Req, PhotoDir, ValidExtensions) ->
+    FileHandler = fun(Filename, ContentType) -> handle_file(Filename, ContentType) end,
+    Files = mochiweb_multipart:parse_form(Req, FileHandler),
+    {OriginalFilename, _, TempFilename} = proplists:get_value("photo", Files),
+    case lists:member(file_ext(OriginalFilename), ValidExtensions) of
+        true ->
+            Destination = PhotoDir ++ OriginalFilename,
+            case file:rename(TempFilename, Destination) of
+                ok ->
+                    Url = iolist_to_binary([<<"/priv/">>, TempFilename]),
+                    Json = jiffy:encode({[{<<"status">>, <<"ok">>}, {<<"msg">>, <<"update photo success">>}, {<<"data">>, Url}]}),
+                    Req:ok({"application/json", Json});
+                {error, _Reason} ->
+                    file:delete(TempFilename),
+                    Req:respond({400, [], []})
+            end;
+        false ->
+            file:delete(TempFilename),
+            Req:respond({400, [], []})
+    end.
+
+%% @doc handle file
+handle_file(Filename, ContentType) ->
+    Name = uuid_filename(Filename),
+    TempFilename = iolist_to_binary([list_to_binary(uploder_dir()), Name]),
+    {ok, File} = file:open(TempFilename, [raw, write]),
+    chunk_handler(Filename, ContentType, TempFilename, File).
+
+%% @doc chunk handler
+chunk_handler(Filename, ContentType, TempFilename, File) ->
+    fun(Next) ->
+        case Next of
+            eof ->
+                file:close(File),
+                {Filename, ContentType, TempFilename};
+            Data ->
+                file:write(File, Data),
+                chunk_handler(Filename, ContentType, TempFilename, File)
+        end
+    end.
+
+%% @doc file extension
+file_ext(Filename) ->
+    filename:extension(Filename).
+
+%% @doc generate a uuid filename
+uuid_filename(Filename) ->
+    Uuid = binary_to_list(util:uuid()),
+    Ext = file_ext(Filename),
+    iolist_to_binary([list_to_binary(Uuid), Ext]).
+
+%% @doc get the files uploader dir
+uploder_dir() ->
+    case code:priv_dir(erlim) of
+        {error, bad_name} -> "priv/files/";
+        PrivDir -> PrivDir ++ "/files/"
+    end.
+
+%% @doc valid extensions
+valid_exts() ->
+    [".png", ".jpg", ".jpeg"].

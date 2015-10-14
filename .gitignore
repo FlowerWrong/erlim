@@ -30,3 +30,6 @@ Mnesia.*
 *.out
 .project
 .cproject
+
+/priv/files/*
+!/priv/files/.keep
