@@ -82,6 +82,16 @@ start(_StartType, _StartArgs) ->
         {encoding, binary_to_atom(Encoding, utf8)}
     ]),
 
+    %% 启动redis
+    redis_client = create_redis_ets_table(),
+    {ok, RedisClient} = eredis:start_link(),
+    ets:insert(redis_client, {rc, RedisClient}),
+    [{rc, RedisClientPid}] = ets:lookup(redis_client, rc),
+    lager:info("Redis client is ~p~n", [RedisClientPid]),
+
+    %% 插入redis测试数据
+    {ok, <<"OK">>} = eredis:q(RedisClientPid, ["SET", "token", 1]),
+
     Opts = case EnableSSL of
                0 ->
                    [{acceptors, Acceptors},
@@ -105,6 +115,8 @@ start(_StartType, _StartArgs) ->
 
     open_listener({http, HttpPort, ?HTTP_OPTIONS}),
 
+    observer:start(),
+
     erlim_sup:start_link().
 
 stop(_State) ->
@@ -120,3 +132,6 @@ open_listener({http, Port, Options}) ->
     NewOpts = lists:merge(Options, [{port, Port}]),
     lager:info("Http opts are ~p~n", [NewOpts]),
     mochiweb_http:start(NewOpts).
+
+create_redis_ets_table() ->
+    ets:new(redis_client, [set, protected, named_table, {heir,none}]).

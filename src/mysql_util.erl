@@ -15,6 +15,7 @@
     del_friend/2,
     query_user_by_mobile/1,
     query_user_by_id/1,
+    change_room_nickname/3,
     save_msg/1,
     save_room_msg/1,
     save_user_room_msg/2,
@@ -113,8 +114,15 @@ query_user_by_id(Uid) when is_integer(Uid) ->
     emysql:prepare(query_user_by_id_stmt, <<"SELECT * FROM users WHERE id = ?">>),
     Result = emysql:execute(erlim_pool, query_user_by_id_stmt, [Uid]),
     Recs = emysql_util:as_record(Result, user_record, record_info(fields, user_record)),
-    [User | _T] = Recs,
-    User.
+    case Recs of
+        [] -> [];
+        [User | _T] -> User
+    end.
+
+%% @doc 修改群名
+change_room_nickname(Uid, RoomId, Nickname) when is_integer(Uid), is_integer(RoomId) ->
+    emysql:prepare(change_room_nickname_stmt, <<"UPDATE room_users SET nick_name = ? WHERE user_id = ? AND room_id = ?">>),
+    emysql:execute(erlim_pool, change_room_nickname_stmt, [Nickname, Uid, RoomId]).
 
 %%% @doc msg
 %% @doc 保存私聊消息
