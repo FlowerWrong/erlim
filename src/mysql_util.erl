@@ -212,8 +212,10 @@ room(RoomId) when is_integer(RoomId) ->
     emysql:prepare(room_stmt, <<"SELECT * FROM rooms WHERE id = ?">>),
     Result = emysql:execute(erlim_pool, room_stmt, [RoomId]),
     Res = emysql_util:as_record(Result, room_record, record_info(fields, room_record)),
-    [Room | _T] = Res,
-    Room.
+    case Res of
+        [] -> [];
+        [Room | _T] = Res -> Room
+    end.
 
 %% @doc 该群是否存在
 is_an_exist_room(Roomid) when is_integer(Roomid) ->
