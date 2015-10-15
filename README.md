@@ -92,15 +92,13 @@ cp erlim.example.toml /etc/erlim/erlim.toml
 #### Todo
 
 - [x] erlang async receive
-- [x] one-to-one chat
+- [x] one-to-one chat must be friends
 - [x] group chat
 - [x] use toml to write config file
 - [x] use mnesia for session store
-- [x] chat must be friends
 - [x] remove token
 - [x] add ACK
 - [x] multi device support
-- [x] timeout
 - [x] add mnesia cluster support
 - [x] add websocket support
 - [x] [implement a module like pg2 with mnesia](https://github.com/erlang/otp/blob/maint/lib/kernel/src/pg2.erl)
@@ -109,9 +107,10 @@ cp erlim.example.toml /etc/erlim/erlim.toml
 - [x] block user, add friends, room onechat api
 - [x] add tls support
 - [x] add edoc
-- [ ] http api module(friends list, blocks list, room info...)
-- [ ] add web admin support
+- [x] http api module(friends list, blocks list, room info...)
+- [ ] timeout
 - [ ] add max connection number test
+- [ ] add web admin support
 - [ ] multi video chat without p2p, with rtmp and hls
 - [ ] keep session
 - [ ] implement pubsub with erlang(gen_event)

@@ -217,7 +217,7 @@ handle_request('POST', "/api/v1/blocks", Req, CurrentUser) ->
         true ->
             mysql_util:add_blockship(CurrentUserId, FriendId),
             Json = jiffy:encode({[{<<"status">>, <<"ok">>}, {<<"msg">>, <<"add block success">>}, {<<"data">>, FriendId}]}),
-            Req:ok({"application/json", Json})
+            Req:respond({201, [{"content-type", "application/json"}], Json})
     end;
 
 %% @doc 移除联系人黑名单, 无需对方同意, 无通知给对方

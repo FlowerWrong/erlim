@@ -1,6 +1,6 @@
 ## http api for onechat
 
-### NOTE: 所有api都必须带上 `token:string` 这个query params, 以下不在赘述
+#### NOTE: 所有api都必须带上 `token:string` 这个query params, 以下不在赘述
 
 ##### 联系人列表
 
@@ -56,5 +56,18 @@
 
 * `DELETE` `/api/v1/blocks`
 * `extra post params` `block_id:integer`
+* return 204 if success
 
+#### http code
 
+http code | desc
+----------|------
+ 200 | ok
+ 204 | delete success
+ 400 | 参数有误
+ 401 | 没有登陆
+ 403 | 没有权限
+ 404 | not found
+ 500 | server error
+
+* [See more http code](http://guides.rubyonrails.org/layouts_and_rendering.html)
