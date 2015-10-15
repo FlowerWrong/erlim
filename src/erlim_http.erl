@@ -131,7 +131,26 @@ handle_request('PUT', "/api/v1/users/room/none_bother", Req, CurrentUser) ->
             Req:ok({"application/json", Json})
     end;
 
-%% @TODO 修改群聊天背景
+%% @doc 修改群聊天背景
+%% put params: room_id:integer, bg:string
+%% test: curl -i -X PUT "http://127.0.0.1:8088/api/v1/users/room/bg?token=token" -d "room_id=1&bg=fuck.png"
+handle_request('PUT', "/api/v1/users/room/bg", Req, CurrentUser) ->
+    CurrentUserId = CurrentUser#user_record.id,
+    PutParams = mochiweb_request:parse_post(Req),
+
+    RoomIdList = proplists:get_value("room_id", PutParams),
+    RoomId = list_to_integer(RoomIdList),
+
+    Bg = proplists:get_value("bg", PutParams),
+
+    case mysql_util:in_room(CurrentUserId, RoomId) of
+        false -> Req:respond({403, [], []});
+        true ->
+            mysql_util:change_room_bg(CurrentUserId, RoomId, Bg),
+            Json = jiffy:encode({[{<<"status">>, <<"ok">>}, {<<"msg">>, <<"update room none bother success">>}, {<<"data">>, list_to_binary(Bg)}]}),
+            Req:ok({"application/json", Json})
+    end;
+
 %% @TODO 举报群
 
 %% @doc 查找群聊天记录

@@ -18,6 +18,7 @@
     change_room_nickname/3,
     change_frined_nickname/3,
     change_room_none_bother/3,
+    change_room_bg/3,
     save_msg/1,
     save_room_msg/1,
     save_user_room_msg/2,
@@ -136,6 +137,11 @@ change_frined_nickname(Uid, FriendId, Nickname) when is_integer(Uid), is_integer
 change_room_none_bother(Uid, RoomId, NoneBother) when is_integer(Uid), is_integer(RoomId), is_integer(NoneBother) ->
     emysql:prepare(change_room_nickname_stmt, <<"UPDATE room_users SET none_bother = ? WHERE user_id = ? AND room_id = ?">>),
     emysql:execute(erlim_pool, change_room_nickname_stmt, [NoneBother, Uid, RoomId]).
+
+%% @doc 修改群聊背景
+change_room_bg(Uid, RoomId, Bg) when is_integer(Uid), is_integer(RoomId) ->
+    emysql:prepare(change_room_nickname_stmt, <<"UPDATE room_users SET bg = ? WHERE user_id = ? AND room_id = ?">>),
+    emysql:execute(erlim_pool, change_room_nickname_stmt, [Bg, Uid, RoomId]).
 
 %%% @doc msg
 %% @doc 保存私聊消息
