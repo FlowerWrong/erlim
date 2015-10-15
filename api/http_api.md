@@ -19,21 +19,25 @@
 
 * `PUT` `/api/v1/users/room/nickname`
 * `extra put params` `room_id:integer, nickname:string`
+* return 200 if success
 
 ##### 修改联系人昵称
 
 * `PUT` `/api/v1/users/friend/nickname`
 * `extra put params` `friend_id:integer, nickname:string`
+* return 200 if success
 
 ##### 修改群消息免打扰
 
 * `PUT` `/api/v1/users/room/none_bother`
 * `extra put params` `room_id:integer, none_bother:integer` none_bother: 0有消息通知 1无消息通知
+* return 200 if success
 
 ##### 修改群聊天背景
 
 * `PUT` `/api/v1/users/room/bg`
 * `extra put params` `room_id:integer, bg:string` bg: image url
+* return 200 if success
 
 ##### 举报群 TODO
 
@@ -51,6 +55,7 @@
 
 * `POST` `/api/v1/blocks`
 * `extra post params` `friend_id:integer`
+* return 201 if success
 
 ##### 移除联系人黑名单, 无需对方同意, 无通知给对方
 
@@ -63,6 +68,7 @@
 http code | desc
 ----------|------
  200 | ok
+ 201 | create success
  204 | delete success
  400 | 参数有误
  401 | 没有登陆
