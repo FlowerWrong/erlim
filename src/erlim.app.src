@@ -1,6 +1,6 @@
 {application, erlim,
     [
-        {description, "A im server written in erlang."},
+        {description, "An im server written in erlang."},
         {vsn, "1"},
         {registered, [erlim_sup]},
         {applications, [kernel, stdlib, sasl]},

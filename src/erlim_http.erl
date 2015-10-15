@@ -14,7 +14,8 @@
 %% API
 -export([dispatch/1]).
 
-%% @doc <a href="https://gist.github.com/dry/4188894">router</a>
+%% @doc router
+%% @TODO <a href="https://gist.github.com/dry/4188894">router</a>
 dispatch(Req) ->
     [{rc, RedisClientPid}] = ets:lookup(redis_client, rc),
     QueryParams = Req:parse_qs(),
