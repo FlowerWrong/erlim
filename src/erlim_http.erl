@@ -182,7 +182,27 @@ handle_request('GET', "/api/v1/rooms/chatlog", Req, CurrentUser) ->
     end;
 
 
-%% @TODO 获取联系人基本信息
+%% @doc 获取联系人基本信息 区分是不是好友
+%% query params: user_id:integer
+handle_request('GET', "/api/v1/users", Req, CurrentUser) ->
+    CurrentUserId = CurrentUser#user_record.id,
+    QueryParams = Req:parse_qs(),
+
+    UserIdList = proplists:get_value("user_id", QueryParams),
+    UserId = list_to_integer(UserIdList),
+
+    UserRecord = mysql_util:query_user_by_id(UserId),
+    case UserRecord of
+        [] -> Req:respond({404, [], []});
+        _ ->
+            UserJson = case mysql_util:are_friends(CurrentUserId, UserId) of
+                false -> {[{<<"id">>, UserRecord#user_record.id}, {<<"nick_name">>, UserRecord#user_record.nick_name}, {<<"avatar">>, UserRecord#user_record.avatar}]};
+                true -> {[{<<"id">>, UserRecord#user_record.id}, {<<"nick_name">>, UserRecord#user_record.nick_name}, {<<"avatar">>, UserRecord#user_record.avatar}]}
+            end,
+            Json = jiffy:encode({[{<<"status">>, <<"ok">>}, {<<"msg">>, <<"get user info success">>}, {<<"data">>, UserJson}]}),
+            Req:ok({"application/json", Json})
+    end;
+
 %% @TODO 添加联系人黑名单, 无需对方同意, 无通知给对方
 %% @TODO 移除联系人黑名单, 无需对方同意, 无通知给对方
 
