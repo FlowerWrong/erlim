@@ -85,6 +85,7 @@ blockships(Uid) when is_integer(Uid) ->
         Blockships -> Blockships
     end.
 
+%% @doc 添加黑名单
 add_blockship(Uid, FriendId) when is_integer(Uid), is_integer(FriendId) ->
     case are_friends(Uid, FriendId) of
         false -> false;

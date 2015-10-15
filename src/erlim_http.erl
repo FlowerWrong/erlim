@@ -2,8 +2,7 @@
 %%% @author yy
 %%% @copyright (C) 2015, <COMPANY>
 %%% @doc
-%%%   erlim http req, Thanks <a href="https://github.com/emqtt/emqttd/blob/master/src/emqttd_http.erl">erylee<a>
-%%%   and <a href="https://github.com/mochi/mochiweb/blob/master/examples/https/https_store.erl">mochi</a>
+%%%   erlim http req, Thanks <a href="https://github.com/emqtt/emqttd/blob/master/src/emqttd_http.erl">erylee</a> and mochiweb demo
 %%% @end
 %%% Created : 14. 十月 2015 上午10:09
 %%%-------------------------------------------------------------------
@@ -221,7 +220,7 @@ handle_request('POST', "/api/v1/blocks", Req, CurrentUser) ->
             Req:ok({"application/json", Json})
     end;
 
-%% @TODO 移除联系人黑名单, 无需对方同意, 无通知给对方
+%% @doc 移除联系人黑名单, 无需对方同意, 无通知给对方
 %% post params: block_id:integer
 %% test: curl -i -X DELETE "http://127.0.0.1:8088/api/v1/blocks?token=token" -d "block_id=2"
 handle_request('DELETE', "/api/v1/blocks", Req, CurrentUser) ->
