@@ -203,8 +203,40 @@ handle_request('GET', "/api/v1/users", Req, CurrentUser) ->
             Req:ok({"application/json", Json})
     end;
 
-%% @TODO 添加联系人黑名单, 无需对方同意, 无通知给对方
+%% @doc 添加联系人黑名单, 无需对方同意, 无通知给对方
+%% post params: friend_id:integer
+%% test: curl -i -X POST "http://127.0.0.1:8088/api/v1/blocks?token=token" -d "friend_id=2"
+handle_request('POST', "/api/v1/blocks", Req, CurrentUser) ->
+    CurrentUserId = CurrentUser#user_record.id,
+    Params = mochiweb_request:parse_post(Req),
+
+    FriendIdList = proplists:get_value("friend_id", Params),
+    FriendId = list_to_integer(FriendIdList),
+
+    case mysql_util:are_friends(CurrentUserId, FriendId) of
+        false -> Req:respond({403, [], []});
+        true ->
+            mysql_util:add_blockship(CurrentUserId, FriendId),
+            Json = jiffy:encode({[{<<"status">>, <<"ok">>}, {<<"msg">>, <<"add block success">>}, {<<"data">>, FriendId}]}),
+            Req:ok({"application/json", Json})
+    end;
+
 %% @TODO 移除联系人黑名单, 无需对方同意, 无通知给对方
+%% post params: block_id:integer
+%% test: curl -i -X DELETE "http://127.0.0.1:8088/api/v1/blocks?token=token" -d "block_id=2"
+handle_request('DELETE', "/api/v1/blocks", Req, CurrentUser) ->
+    CurrentUserId = CurrentUser#user_record.id,
+    Params = mochiweb_request:parse_post(Req),
+
+    BlockIdList = proplists:get_value("block_id", Params),
+    BlockId = list_to_integer(BlockIdList),
+
+    case mysql_util:are_blocks(CurrentUserId, BlockId) of
+        false -> Req:respond({403, [], []});
+        true ->
+            mysql_util:del_blockship(CurrentUserId, BlockId),
+            Req:respond({204, [], []})
+    end;
 
 %% @doc 图片上传
 %% curl test: curl -i -X POST -F "photo=@/home/yy/1210926937.jpg" "http://127.0.0.1:8088/api/v1/uploader?token=token"

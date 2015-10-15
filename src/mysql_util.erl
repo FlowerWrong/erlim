@@ -12,6 +12,8 @@
     add_firend/3,
     friendships/1,
     blockships/1,
+    add_blockship/2,
+    del_blockship/2,
     del_friend/2,
     query_user_by_mobile/1,
     query_user_by_id/1,
@@ -39,6 +41,7 @@
     change_room_leader/1,
     change_room_name/2,
     are_friends/2,
+    are_blocks/2,
     in_room/2,
     create_room/1,
     del_room_member/2,
@@ -82,10 +85,23 @@ blockships(Uid) when is_integer(Uid) ->
         Blockships -> Blockships
     end.
 
+add_blockship(Uid, FriendId) when is_integer(Uid), is_integer(FriendId) ->
+    case are_friends(Uid, FriendId) of
+        false -> false;
+        true ->
+            emysql:prepare(add_blockship_stmt, <<"INSERT INTO blockships SET user_id = ?, block_id = ?, created_at = ?, updated_at = ?">>),
+            Now = calendar:local_time(),
+            emysql:execute(erlim_pool, add_blockship_stmt, [Uid, FriendId, Now, Now])
+    end.
+
+%% @doc 删除黑名单
+del_blockship(Uid, Bid) when is_integer(Uid), is_integer(Bid) ->
+    emysql:prepare(del_blockship_stmt, <<"DELETE FROM blockships WHERE user_id = ? AND block_id = ?">>),
+    emysql:execute(erlim_pool, del_blockship_stmt, [Uid, Bid]).
+
 %% @doc 删除好友
 del_friend(Uid, Fid) when is_integer(Uid), is_integer(Fid) ->
     emysql:prepare(del_friend_stmt, <<"DELETE FROM friendships WHERE user_id = ? AND friend_id = ?">>),
-    emysql:execute(erlim_pool, del_friend_stmt, [Uid, Fid]),
     emysql:execute(erlim_pool, del_friend_stmt, [Fid, Uid]).
 
 %% @doc 是否朋友关系
@@ -103,6 +119,15 @@ are_friends(Uid, Fid) when is_integer(Uid), is_integer(Fid) ->
                 _ ->
                     true
             end
+    end.
+
+%% @doc 是否已经拉黑
+are_blocks(Uid, Bid) when is_integer(Uid), is_integer(Bid) ->
+    emysql:prepare(are_blocks_stmt, <<"SELECT * FROM blockships WHERE user_id = ? AND block_id = ?">>),
+    Result = emysql:execute(erlim_pool, are_blocks_stmt, [Uid, Bid]),
+    case emysql_util:as_record(Result, blockship_record, record_info(fields, blockship_record)) of
+        [] -> false;
+        _ -> true
     end.
 
 %% @doc 通过手机号查询用户
@@ -135,13 +160,13 @@ change_frined_nickname(Uid, FriendId, Nickname) when is_integer(Uid), is_integer
 
 %% @doc 修改群消息免打扰
 change_room_none_bother(Uid, RoomId, NoneBother) when is_integer(Uid), is_integer(RoomId), is_integer(NoneBother) ->
-    emysql:prepare(change_room_nickname_stmt, <<"UPDATE room_users SET none_bother = ? WHERE user_id = ? AND room_id = ?">>),
-    emysql:execute(erlim_pool, change_room_nickname_stmt, [NoneBother, Uid, RoomId]).
+    emysql:prepare(change_room_none_bother_stmt, <<"UPDATE room_users SET none_bother = ? WHERE user_id = ? AND room_id = ?">>),
+    emysql:execute(erlim_pool, change_room_none_bother_stmt, [NoneBother, Uid, RoomId]).
 
 %% @doc 修改群聊背景
 change_room_bg(Uid, RoomId, Bg) when is_integer(Uid), is_integer(RoomId) ->
-    emysql:prepare(change_room_nickname_stmt, <<"UPDATE room_users SET bg = ? WHERE user_id = ? AND room_id = ?">>),
-    emysql:execute(erlim_pool, change_room_nickname_stmt, [Bg, Uid, RoomId]).
+    emysql:prepare(change_room_bg_stmt, <<"UPDATE room_users SET bg = ? WHERE user_id = ? AND room_id = ?">>),
+    emysql:execute(erlim_pool, change_room_bg_stmt, [Bg, Uid, RoomId]).
 
 %%% @doc msg
 %% @doc 保存私聊消息
