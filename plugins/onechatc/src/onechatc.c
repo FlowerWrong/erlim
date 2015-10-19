@@ -3,11 +3,10 @@
 #include <stdio.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+// unix std
 #include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
-#include <fcntl.h>
-#include <sys/shm.h>
 
 /*
  * http://www.gnu.org/software/libc/manual/html_node/Sockets.html
@@ -18,7 +17,7 @@
 
 int main() {
 	// 定义sockfd
-	int sock_cli = socket(AF_INET, SOCK_STREAM, 0);
+	int sock_client = socket(AF_INET, SOCK_STREAM, 0);
 
 	// 定义sockaddr_in
 	struct sockaddr_in servaddr;
@@ -29,25 +28,33 @@ int main() {
 	servaddr.sin_addr.s_addr = inet_addr("127.0.0.1");  // 服务器ip
 
 	// 连接服务器，成功返回0，错误返回-1
-	if (connect(sock_cli, (struct sockaddr *) &servaddr, sizeof(servaddr))
-			< 0) {
-		perror("connect");
+	if (connect(sock_client, (struct sockaddr *) &servaddr, sizeof(servaddr)) < 0) {
+		perror("connect error");
 		exit(1);
 	}
 
 	char sendbuf[BUFFER_SIZE];
 	char recvbuf[BUFFER_SIZE];
 	while (fgets(sendbuf, sizeof(sendbuf), stdin) != NULL) {
-		send(sock_cli, sendbuf, strlen(sendbuf), 0); // 发送
+		if (send(sock_client, sendbuf, strlen(sendbuf), 0) < 0) {
+			perror("send error");
+			break;
+		}
+
 		if (strcmp(sendbuf, "exit\n") == 0)
 			break;
-		recv(sock_cli, recvbuf, sizeof(recvbuf), 0); // 接收
+
+		if (recv(sock_client, recvbuf, sizeof(recvbuf), 0) < 0) {
+			perror("recv error");
+			break;
+		}
+
 		fputs(recvbuf, stdout);
 
 		memset(sendbuf, 0, sizeof(sendbuf));
 		memset(recvbuf, 0, sizeof(recvbuf));
 	}
 
-	close(sock_cli);
+	close(sock_client);
 	return 0;
 }
