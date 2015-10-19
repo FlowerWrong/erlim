@@ -73,6 +73,7 @@ start(_StartType, _StartArgs) ->
             ]
         }
     ]} = toml_util:parse(),
+
     emysql:add_pool(erlim_pool, [
         {size, Size},
         {user, binary_to_list(UserName)},
