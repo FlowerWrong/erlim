@@ -39,42 +39,44 @@ int main() {
 		perror("connect error");
         exit(1);
 	}
+	char * p = "{ \"cmd\": \"login\", \"name\": \"13560474456\", \"pass\": \"12345678\", \"ack\": \"72cdf1ae-62a3-4ebf-821c-a809d1931293\", \"device\": \"android-xiaomi\" }";
+    printf("payload is %s\n", p);
+	int payloadlen = strlen(p);
+	printf("paylen is %d\n", payloadlen);
+    new_obj = json_tokener_parse(p);
 
-    new_obj = json_tokener_parse("{ \"cmd\": \"login\", \"name\": \"13560474456\", \"pass\": \"12345678\", \"ack\": \"72cdf1ae-62a3-4ebf-821c-a809d1931293\", \"device\": \"android-xiaomi\" }");
-
-    char params[BUFFER_SIZE];
-    params = json_object_to_json_string(new_obj);
-    printf("new_obj.to_string()=%s\n", params);
     json_object_put(new_obj);
 
-    char loginbuf[BUFFER_SIZE] = "";
-    strcat(loginbuf, params);
-    printf("new_obj.to_string()=%s\n", loginbuf);
+    char loginbuf[BUFFER_SIZE] = "ONECHAT/1.0\r\nPAYLOAD_LEN: ";
+	char payloadlenstr[10];
+	sprintf(payloadlenstr, "%d", payloadlen);
+    strcat(loginbuf, payloadlenstr);
+	strcat(loginbuf, "\r\n\r\n");
+	strcat(loginbuf, p);
 
     if (send(sock_client, loginbuf, strlen(loginbuf), 0) < 0) {
         perror("send error");
         exit(1);
     }
 
-	char sendbuf[BUFFER_SIZE];
 	char recvbuf[BUFFER_SIZE];
-	while (fgets(sendbuf, sizeof(sendbuf), stdin) != NULL) {
-		if (send(sock_client, sendbuf, strlen(sendbuf), 0) < 0) {
-			perror("send error");
-			break;
-		}
 
-		if (strcmp(sendbuf, "exit\n") == 0)
-			break;
-
-		if (recv(sock_client, recvbuf, sizeof(recvbuf), 0) < 0) {
+	while (1) {
+        ssize_t num_bytes_rcvd = recv(sock_client, recvbuf, sizeof(recvbuf), 0);
+        printf("recv data len is %zd\n", num_bytes_rcvd);
+        if ( num_bytes_rcvd < 0) {
 			perror("recv error");
 			break;
 		}
+        recvbuf[num_bytes_rcvd] = '\0';
+        for (int i = 0; i < num_bytes_rcvd; ++i) {
+            putchar(*(recvbuf + i));
+        }
 
-		fputs(recvbuf, stdout);
+        FILE *fp = fopen("help.txt", "wb");
+        fwrite(recvbuf, sizeof(recvbuf), 1, fp);
+        fclose(fp);
 
-		memset(sendbuf, 0, sizeof(sendbuf));
 		memset(recvbuf, 0, sizeof(recvbuf));
 	}
 
