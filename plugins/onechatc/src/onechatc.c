@@ -8,7 +8,12 @@
 #include <string.h>
 #include <stdlib.h>
 
+// json-c
+#include <stddef.h>
+#include "json.h"
+
 /*
+ * gcc onechat.c -I/usr/local/include/json-c -L/usr/local/lib -ljson-c
  * http://www.gnu.org/software/libc/manual/html_node/Sockets.html
 */
 
@@ -18,6 +23,8 @@
 int main() {
 	// 定义sockfd
 	int sock_client = socket(AF_INET, SOCK_STREAM, 0);
+
+    json_object *new_obj;
 
 	// 定义sockaddr_in
 	struct sockaddr_in servaddr;
@@ -30,8 +37,24 @@ int main() {
 	// 连接服务器，成功返回0，错误返回-1
 	if (connect(sock_client, (struct sockaddr *) &servaddr, sizeof(servaddr)) < 0) {
 		perror("connect error");
-		exit(1);
+        exit(1);
 	}
+
+    new_obj = json_tokener_parse("{ \"cmd\": \"login\", \"name\": \"13560474456\", \"pass\": \"12345678\", \"ack\": \"72cdf1ae-62a3-4ebf-821c-a809d1931293\", \"device\": \"android-xiaomi\" }");
+
+    char params[BUFFER_SIZE];
+    params = json_object_to_json_string(new_obj);
+    printf("new_obj.to_string()=%s\n", params);
+    json_object_put(new_obj);
+
+    char loginbuf[BUFFER_SIZE] = "";
+    strcat(loginbuf, params);
+    printf("new_obj.to_string()=%s\n", loginbuf);
+
+    if (send(sock_client, loginbuf, strlen(loginbuf), 0) < 0) {
+        perror("send error");
+        exit(1);
+    }
 
 	char sendbuf[BUFFER_SIZE];
 	char recvbuf[BUFFER_SIZE];
