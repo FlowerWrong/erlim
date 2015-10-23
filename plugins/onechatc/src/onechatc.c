@@ -64,7 +64,8 @@ int main() {
     while (1) {
         ssize_t num_bytes_rcvd = recv(sock_client, recvbuf, sizeof(recvbuf), 0);
         printf("recv data len is %zd\n", num_bytes_rcvd);
-        if (num_bytes_rcvd < 0) {
+        // Note: recv <= 0
+        if (num_bytes_rcvd <= 0) {
             perror("recv error");
             break;
         }
@@ -81,7 +82,7 @@ int main() {
 
         memset(recvbuf, 0, sizeof(recvbuf));
     }
-
+    printf("close socket. \n");
     close(sock_client);
     return 0;
 }
