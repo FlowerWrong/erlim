@@ -11,6 +11,7 @@
 // json-c
 #include <stddef.h>
 #include "json.h"
+#include "json_object.h"
 
 /*
  * gcc onechat.c -I/usr/local/include/json-c -L/usr/local/lib -ljson-c
@@ -44,7 +45,6 @@ int main() {
     int payloadlen = strlen(p);
     printf("paylen is %d\n", payloadlen);
     new_obj = json_tokener_parse(p);
-
     json_object_put(new_obj);
 
     char loginbuf[BUFFER_SIZE] = "ONECHAT/1.0\r\nPAYLOAD_LEN: ";
@@ -70,15 +70,25 @@ int main() {
             break;
         }
         recvbuf[num_bytes_rcvd] = '\0';
-        for (int i = 0; i < num_bytes_rcvd; ++i) {
-            // printf("%d, \n", (int)(*(recvbuf + i)));
-            putchar(*(recvbuf + i));
-            fflush(stdout);
+
+        printf("recv data is %s \n", recvbuf);
+
+        char *p;
+        int i = 0;
+        char *arr[4];
+        p = strtok(recvbuf, "\n");
+        while (p != NULL) {
+            arr[i++] = p;
+            printf("%s\n", p);
+            p = strtok(NULL, "\n");
         }
 
-//        FILE *fp = fopen("help.txt", "wb");
-//        fwrite(recvbuf, num_bytes_rcvd, 1, fp);
-//        fclose(fp);
+        json_object *reply_obj = json_tokener_parse(arr[3]);
+        json_object *ack;
+        if (json_object_object_get_ex(reply_obj, "ack", &ack))
+            printf("The value of ack is %s\n", json_object_get_string(ack));
+        json_object_put(reply_obj);
+        json_object_put(ack);
 
         memset(recvbuf, 0, sizeof(recvbuf));
     }
