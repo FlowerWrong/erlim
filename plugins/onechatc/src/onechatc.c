@@ -13,6 +13,8 @@
 #include "json.h"
 #include "json_object.h"
 
+#include <errno.h>
+
 /*
  * gcc onechat.c -I/usr/local/include/json-c -L/usr/local/lib -ljson-c
  * http://www.gnu.org/software/libc/manual/html_node/Sockets.html
@@ -61,11 +63,17 @@ int main() {
 
     char recvbuf[BUFFER_SIZE];
 
+    // TODO 异步io
     while (1) {
+        int err;
         ssize_t num_bytes_rcvd = recv(sock_client, recvbuf, sizeof(recvbuf), 0);
+        err = errno;
+        printf("errno is %d\n", err);
         printf("recv data len is %zd\n", num_bytes_rcvd);
         // Note: recv <= 0
-        if (num_bytes_rcvd <= 0) {
+        if (num_bytes_rcvd == 0) {
+            break;
+        } else if (num_bytes_rcvd < 0) {
             perror("recv error");
             break;
         }
